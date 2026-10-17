@@ -79,7 +79,6 @@ internal object Downloads {
         Constraints.Builder()
           .setRequiredNetworkType(if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED)
           .setRequiresCharging(chargingOnly)
-          .setRequiresStorageNotLow(true)
           .build()
       )
       .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
@@ -193,6 +192,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
       }
       if (!part.renameTo(target)) throw IOException("Couldn't save the file")
       Result.success(done(target))
+    } catch (e: java.io.FileNotFoundException) {
+      Result.failure(workDataOf("key" to key, "error" to "The file isn't there any more (404)"))
     } catch (e: IOException) {
       if (runAttemptCount < 4) Result.retry()
       else Result.failure(workDataOf("key" to key, "error" to (e.message ?: "Download failed")))

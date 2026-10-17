@@ -22,5 +22,5 @@ export function StatusBarScrim() {
 }
 
 const styles = StyleSheet.create({
-  scrim: { position: 'absolute', top: 0, left: 0, right: 0, opacity: 0.94 },
+  scrim: { position: 'absolute', top: 0, left: 0, right: 0 },
 });

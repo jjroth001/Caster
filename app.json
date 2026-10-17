@@ -2,14 +2,14 @@
   "expo": {
     "name": "Caster",
     "slug": "Caster",
-    "version": "0.5.0",
+    "version": "0.5.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "caster",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "org.caster.app",
-      "versionCode": 9,
+      "versionCode": 10,
       "adaptiveIcon": {
         "backgroundColor": "#5B5EF1",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

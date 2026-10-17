@@ -1,0 +1,24 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'org.caster'
+version = '1.0.0'
+
+def media3Version = '1.11.1'
+
+android {
+  namespace "org.caster.playercore"
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+}
+
+dependencies {
+  // AndroidX Media3 (Apache-2.0): ExoPlayer for playback, session for the media notification,
+  // lock screen, headset buttons and (later) Android Auto. No Google Play services.
+  implementation "androidx.media3:media3-exoplayer:$media3Version"
+  implementation "androidx.media3:media3-session:$media3Version"
+}

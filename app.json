@@ -20,7 +20,8 @@
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
         "com.google.android.c2dm.permission.RECEIVE",
-        "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"
+        "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -37,7 +38,15 @@
           "imageWidth": 76
         }
       ],
-      "./plugins/with-release-signing"
+      "./plugins/with-release-signing",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

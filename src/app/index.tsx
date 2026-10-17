@@ -35,12 +35,12 @@ export default function HomeScreen() {
         <ThemedView style={styles.heroSection}>
           <AnimatedIcon />
           <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
+            Caster
           </ThemedText>
         </ThemedView>
 
         <ThemedText type="code" style={styles.code}>
-          get started
+          early development
         </ThemedText>
 
         <ThemedView type="backgroundElement" style={styles.stepContainer}>
@@ -49,10 +49,7 @@ export default function HomeScreen() {
             hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
           />
           <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
+          <HintRow title="Try playback" hint={<ThemedText type="small">Player tab</ThemedText>} />
         </ThemedView>
 
         {Platform.OS === 'web' && <WebBadge />}

@@ -1,6 +1,7 @@
 import { type AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 
 import {
+  type EmbeddedChapter,
   type LoadItem,
   PlayerCore,
   type PlayerState,
@@ -12,7 +13,8 @@ export type { LoadItem, PlayerState, TrimSilence };
 export type PlayerEvent =
   | { type: 'state'; state: PlayerState }
   | { type: 'ended'; id: string }
-  | { type: 'error'; id: string | null; message: string };
+  | { type: 'error'; id: string | null; message: string }
+  | { type: 'chapters'; id: string; chapters: EmbeddedChapter[] };
 
 /** One player API, backed by the native Media3 service or, in Expo Go, by expo-audio. */
 export type PlayerEngine = {
@@ -71,6 +73,9 @@ function nativeEngine(core: NonNullable<typeof PlayerCore>): PlayerEngine {
         core.addListener('onProgress', (state) => listener({ type: 'state', state })),
         core.addListener('onEnded', ({ id }) => listener({ type: 'ended', id })),
         core.addListener('onError', ({ id, message }) => listener({ type: 'error', id, message })),
+        core.addListener('onChapters', ({ id, chapters }) =>
+          listener({ type: 'chapters', id, chapters }),
+        ),
       ];
       void core.getState().then((state) => listener({ type: 'state', state }));
       return () => subs.forEach((s) => s.remove());

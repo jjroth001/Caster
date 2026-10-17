@@ -6,6 +6,7 @@ import * as SystemUI from 'expo-system-ui';
 import { Suspense, useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { SkipToast } from '@/components/skip-toast';
 import { migrateDbIfNeeded } from '@/db/migrations';
 import { useSettings } from '@/db/use-settings';
 import { startAppSync } from '@/downloads/app-sync';
@@ -72,6 +73,8 @@ function Root() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="podcast/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="downloads" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="chapters" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="podcast-settings/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen
           name="player"
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
@@ -81,6 +84,7 @@ function Root() {
           options={{ presentation: 'modal', animation: 'fade_from_bottom' }}
         />
       </Stack>
+      <SkipToast />
     </NavThemeProvider>
   );
 }

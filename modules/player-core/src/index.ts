@@ -63,7 +63,10 @@ type PlayerCoreEvents = {
   onEnded(event: { id: string }): void;
   onError(event: { id: string | null; code: string; message: string }): void;
   onDownload(event: DownloadEvent): void;
+  onChapters(event: { id: string; chapters: EmbeddedChapter[] }): void;
 };
+
+export type EmbeddedChapter = { startMs: number; endMs: number; title: string | null };
 
 declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   load(item: LoadItem): Promise<void>;

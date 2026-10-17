@@ -105,6 +105,66 @@ export const MIGRATIONS: string[] = [
     value  TEXT NOT NULL
   );
   `,
+
+  // 2: chapters, bookmarks, playlists, transcripts and ad segments
+  `
+  CREATE TABLE chapter (
+    episode_id  INTEGER NOT NULL REFERENCES episode(id) ON DELETE CASCADE,
+    start_s     REAL NOT NULL,
+    end_s       REAL,
+    title       TEXT,
+    image_url   TEXT,
+    url         TEXT,
+    selected    INTEGER NOT NULL DEFAULT 1, -- 0: skipped during playback (Preselect Chapters)
+    source      TEXT NOT NULL,              -- 'json' (Podcasting 2.0) or 'id3' (in the file)
+    PRIMARY KEY (episode_id, start_s)
+  );
+
+  CREATE TABLE bookmark (
+    id                  INTEGER PRIMARY KEY,
+    episode_id          INTEGER NOT NULL REFERENCES episode(id) ON DELETE CASCADE,
+    position_s          REAL NOT NULL,
+    title               TEXT NOT NULL,
+    transcript_passage  TEXT,
+    created_at          INTEGER NOT NULL
+  );
+  CREATE INDEX bookmark_episode ON bookmark (episode_id, position_s);
+
+  CREATE TABLE playlist (
+    id          INTEGER PRIMARY KEY,
+    name        TEXT NOT NULL,
+    type        TEXT NOT NULL,     -- 'manual' or 'smart'
+    rules_json  TEXT,              -- smart playlists: see src/db/playlists.ts
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    created_at  INTEGER NOT NULL
+  );
+
+  CREATE TABLE playlist_item (
+    playlist_id  INTEGER NOT NULL REFERENCES playlist(id) ON DELETE CASCADE,
+    episode_id   INTEGER NOT NULL REFERENCES episode(id) ON DELETE CASCADE,
+    position     REAL NOT NULL,
+    PRIMARY KEY (playlist_id, episode_id)
+  );
+
+  CREATE TABLE transcript (
+    episode_id  INTEGER PRIMARY KEY REFERENCES episode(id) ON DELETE CASCADE,
+    source      TEXT NOT NULL,     -- 'publisher' or 'generated'
+    format      TEXT NOT NULL,
+    cues_json   TEXT NOT NULL,     -- [{start, end, text, speaker?}]
+    fetched_at  INTEGER NOT NULL
+  );
+
+  CREATE TABLE ad_segment (
+    id            INTEGER PRIMARY KEY,
+    episode_id    INTEGER NOT NULL REFERENCES episode(id) ON DELETE CASCADE,
+    start_s       REAL NOT NULL,
+    end_s         REAL NOT NULL,
+    layer         INTEGER NOT NULL, -- 2: chapter rule, 4: transcript
+    confidence    REAL NOT NULL,
+    user_verdict  TEXT              -- 'ad', 'not_ad' or NULL
+  );
+  CREATE INDEX ad_segment_episode ON ad_segment (episode_id, start_s);
+  `,
 ];
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {

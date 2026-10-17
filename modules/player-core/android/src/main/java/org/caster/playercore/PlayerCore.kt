@@ -16,6 +16,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.Tracks
+import androidx.media3.extractor.metadata.id3.ChapterFrame
+import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -36,6 +39,9 @@ interface PlayerCoreListener {
   fun onEnded(id: String)
 
   fun onError(id: String?, code: String, message: String)
+
+  /** Chapters embedded in the file (ID3 CHAP frames), once the player has read them. */
+  fun onChapters(id: String, chapters: List<Map<String, Any?>>)
 }
 
 /**
@@ -333,6 +339,33 @@ object PlayerCore {
 
       override fun onAudioSessionIdChanged(audioSessionId: Int) {
         attachEnhancer(audioSessionId)
+      }
+
+      override fun onTracksChanged(tracks: Tracks) {
+        val id = exo?.currentMediaItem?.mediaId ?: return
+        val chapters = mutableListOf<Map<String, Any?>>()
+        for (group in tracks.groups) {
+          for (i in 0 until group.length) {
+            val metadata = group.getTrackFormat(i).metadata ?: continue
+            for (j in 0 until metadata.length()) {
+              val entry = metadata.get(j)
+              if (entry !is ChapterFrame) continue
+              var title: String? = null
+              for (k in 0 until entry.subFrameCount) {
+                val sub = entry.getSubFrame(k)
+                if (sub is TextInformationFrame && sub.id == "TIT2") title = sub.values.firstOrNull()
+              }
+              chapters += mapOf(
+                "startMs" to entry.startTimeMs.toDouble(),
+                "endMs" to entry.endTimeMs.toDouble(),
+                "title" to title,
+              )
+            }
+          }
+        }
+        if (chapters.isNotEmpty()) {
+          listener?.onChapters(id, chapters.sortedBy { it["startMs"] as Double }.distinctBy { it["startMs"] })
+        }
       }
     }
 }

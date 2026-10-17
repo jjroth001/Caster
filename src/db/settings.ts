@@ -33,6 +33,10 @@ export type Settings = {
   /** Keep downloads under this many GB by removing played ones, oldest first (0: no limit). */
   storageCapGb: number;
   deletePlayedDownloads: boolean;
+  /** Skip ad breaks found by chapter titles and transcripts. */
+  adSkip: boolean;
+  /** Chapters whose title contains one of these are skipped as ads. */
+  adKeywords: string[];
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -56,6 +60,8 @@ export const DEFAULT_SETTINGS: Settings = {
   downloadChargingOnly: false,
   storageCapGb: 0,
   deletePlayedDownloads: false,
+  adSkip: true,
+  adKeywords: ['sponsor', 'advertisement', 'ad break', 'promo'],
 };
 
 /** All settings, with defaults filled in for anything never set. Values are stored as JSON. */

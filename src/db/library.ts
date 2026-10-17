@@ -394,6 +394,58 @@ export async function markAllPlayed(db: SQLiteDatabase, podcastId: number) {
   await db.runAsync('UPDATE podcast SET new_since = ? WHERE id = ?', Date.now() + 1, podcastId);
 }
 
+// --- Per-podcast settings ------------------------------------------------------------
+
+export type PodcastSettings = {
+  speed: number | null;
+  trim_silence: string | null;
+  volume_boost: number | null;
+  skip_start_s: number | null;
+  skip_end_s: number | null;
+  auto_download_n: number | null;
+  notify: number | null;
+  ad_skip_enabled: number | null;
+  episode_sort: string | null;
+};
+
+const EMPTY_PODCAST_SETTINGS: PodcastSettings = {
+  speed: null,
+  trim_silence: null,
+  volume_boost: null,
+  skip_start_s: null,
+  skip_end_s: null,
+  auto_download_n: null,
+  notify: null,
+  ad_skip_enabled: null,
+  episode_sort: null,
+};
+
+export async function getPodcastSettings(db: SQLiteDatabase, podcastId: number) {
+  const row = await db.getFirstAsync<PodcastSettings>(
+    'SELECT * FROM podcast_settings WHERE podcast_id = ?',
+    podcastId,
+  );
+  return { ...EMPTY_PODCAST_SETTINGS, ...row };
+}
+
+/** Sets one per-podcast override; null goes back to the global setting. */
+export async function setPodcastSetting<K extends keyof PodcastSettings>(
+  db: SQLiteDatabase,
+  podcastId: number,
+  key: K,
+  value: PodcastSettings[K],
+) {
+  await db.runAsync(
+    'INSERT INTO podcast_settings (podcast_id) VALUES (?) ON CONFLICT (podcast_id) DO NOTHING',
+    podcastId,
+  );
+  await db.runAsync(
+    `UPDATE podcast_settings SET ${key} = ? WHERE podcast_id = ?`,
+    value,
+    podcastId,
+  );
+}
+
 // --- Up Next ----------------------------------------------------------------------
 
 export async function queueEpisode(db: SQLiteDatabase, episodeId: number, where: 'next' | 'last') {

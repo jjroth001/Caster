@@ -74,12 +74,15 @@ class PlayerCoreModule : Module() {
 
       override fun onError(id: String?, code: String, message: String) =
         sendEvent("onError", mapOf("id" to id, "code" to code, "message" to message))
+
+      override fun onChapters(id: String, chapters: List<Map<String, Any?>>) =
+        sendEvent("onChapters", mapOf("id" to id, "chapters" to chapters))
     }
 
   override fun definition() = ModuleDefinition {
     Name("PlayerCore")
 
-    Events("onState", "onProgress", "onEnded", "onError", "onDownload")
+    Events("onState", "onProgress", "onEnded", "onError", "onDownload", "onChapters")
 
     OnCreate {
       handler.post {

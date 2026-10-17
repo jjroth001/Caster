@@ -8,7 +8,13 @@ export type Table =
   | 'episode_state'
   | 'queue_item'
   | 'folder'
-  | 'setting';
+  | 'setting'
+  | 'chapter'
+  | 'bookmark'
+  | 'playlist'
+  | 'playlist_item'
+  | 'transcript'
+  | 'ad_segment';
 
 const RERUN_DELAY_MS = 40;
 

@@ -13,9 +13,16 @@ import { Scrubber } from '@/components/scrubber';
 import { SkipButton } from '@/components/skip-button';
 import { Txt } from '@/components/text';
 import { DEFAULT_SETTINGS } from '@/db/settings';
-import { useSetSetting, useSettings } from '@/db/use-settings';
+import { useDbQuery } from '@/db/use-db-query';
+import { useSettings } from '@/db/use-settings';
 import { clock, speedLabel } from '@/lib/format';
-import { setStopAtEndOfEpisode, togglePlay, useStopAtEndOfEpisode } from '@/player/controller';
+import { chapterAt, listChapters } from '@/player/chapters';
+import {
+  setPlaybackOption,
+  setStopAtEndOfEpisode,
+  togglePlay,
+  useStopAtEndOfEpisode,
+} from '@/player/controller';
 import { engine, type TrimSilence } from '@/player/engine';
 import { useNowPlaying } from '@/player/use-now-playing';
 import { usePlayerState } from '@/player/use-player';
@@ -74,7 +81,6 @@ export default function PlayerScreen() {
   const player = usePlayerState();
   const settingsQuery = useSettings();
   const settings = settingsQuery.data ?? DEFAULT_SETTINGS;
-  const setSetting = useSetSetting();
   const stopAtEnd = useStopAtEndOfEpisode();
 
   // Nothing left to play (Up Next ran out): close.
@@ -82,6 +88,11 @@ export default function PlayerScreen() {
   useEffect(() => {
     if (finished && router.canGoBack()) router.back();
   }, [finished]);
+
+  const chapters =
+    useDbQuery(['chapter'], async (d) => (episode ? listChapters(d, episode.id) : []), [
+      episode?.id,
+    ]).data ?? [];
 
   if (!episode) return <Background />;
 
@@ -93,6 +104,7 @@ export default function PlayerScreen() {
   const basic = engine.kind === 'basic';
   const art = Math.min(width - Spacing.five * 2, height * 0.4);
   const sleepLeft = player.sleepRemainingMs;
+  const currentChapter = chapterAt(chapters, positionMs / 1000);
 
   const chooseSpeed = () => {
     Alert.alert(
@@ -101,10 +113,7 @@ export default function PlayerScreen() {
       [
         ...SPEEDS.filter((s) => !basic || s <= 2).map((s) => ({
           text: `${speedLabel(s)}${Math.abs(player.speed - s) < 0.01 ? '  ✓' : ''}`,
-          onPress: () => {
-            void engine.setSpeed(s);
-            void setSetting('speed', s);
-          },
+          onPress: () => void setPlaybackOption(db, episode.podcast_id, 'speed', s),
         })),
         { text: 'Cancel', style: 'cancel' as const },
       ],
@@ -114,15 +123,12 @@ export default function PlayerScreen() {
 
   const cycleTrim = () => {
     const order: TrimSilence[] = ['off', 'mild', 'aggressive'];
-    const next = order[(order.indexOf(settings.trimSilence) + 1) % order.length];
-    void engine.setTrimSilence(next);
-    void setSetting('trimSilence', next);
+    const next = order[(order.indexOf(player.trimSilence) + 1) % order.length];
+    void setPlaybackOption(db, episode.podcast_id, 'trimSilence', next);
   };
 
-  const toggleBoost = () => {
-    void engine.setVolumeBoost(!settings.volumeBoost);
-    void setSetting('volumeBoost', !settings.volumeBoost);
-  };
+  const toggleBoost = () =>
+    void setPlaybackOption(db, episode.podcast_id, 'volumeBoost', !player.volumeBoost);
 
   const chooseSleep = () => {
     const on = sleepLeft != null || stopAtEnd;
@@ -183,12 +189,25 @@ export default function PlayerScreen() {
         </View>
 
         <Artwork
-          uri={episode.artwork_url ?? episode.podcast_artwork}
+          uri={currentChapter?.chapter.image_url ?? episode.artwork_url ?? episode.podcast_artwork}
           title={episode.podcast_title}
           size={art}
           radius={22}
           style={styles.art}
         />
+
+        {currentChapter && (
+          <Pressable
+            onPress={() => router.push('/chapters')}
+            accessibilityRole="button"
+            accessibilityHint="Shows all chapters"
+            style={[styles.chapterChip, { backgroundColor: theme.element }]}>
+            <Txt variant="smallBold" numberOfLines={1}>
+              {`Chapter ${currentChapter.index + 1} of ${chapters.length}`}
+              {currentChapter.chapter.title ? ` · ${currentChapter.chapter.title}` : ''}
+            </Txt>
+          </Pressable>
+        )}
 
         <View style={styles.titles}>
           <Txt variant="heading" style={styles.center} numberOfLines={2}>
@@ -207,6 +226,10 @@ export default function PlayerScreen() {
           positionMs={positionMs}
           durationMs={durationMs}
           bufferedMs={current ? player.bufferedMs : 0}
+          marks={chapters.map((c) => c.start_s * 1000)}
+          bands={chapters
+            .filter((c) => !c.selected && c.end_s != null)
+            .map((c) => ({ startMs: c.start_s * 1000, endMs: c.end_s! * 1000 }))}
           onSeek={(ms) => void engine.seekTo(ms)}
         />
 
@@ -249,11 +272,11 @@ export default function PlayerScreen() {
               icon="waveform"
               label="Trim silence"
               value={
-                settings.trimSilence === 'off'
+                player.trimSilence === 'off'
                   ? 'Trim silence'
-                  : `Trim: ${TRIM_LABELS[settings.trimSilence]}`
+                  : `Trim: ${TRIM_LABELS[player.trimSilence]}`
               }
-              active={settings.trimSilence !== 'off'}
+              active={player.trimSilence !== 'off'}
               onPress={cycleTrim}
             />
           )}
@@ -261,8 +284,8 @@ export default function PlayerScreen() {
             <Control
               icon="speaker-high"
               label="Volume boost"
-              value={settings.volumeBoost ? 'Boost on' : 'Boost'}
-              active={settings.volumeBoost}
+              value={player.volumeBoost ? 'Boost on' : 'Boost'}
+              active={player.volumeBoost}
               onPress={toggleBoost}
             />
           )}
@@ -317,6 +340,13 @@ const styles = StyleSheet.create({
   },
   controlText: { fontSize: 14 },
   controlLabel: { textAlign: 'center' },
+  chapterChip: {
+    alignSelf: 'center',
+    maxWidth: '100%',
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 6,
+    borderRadius: Radius.pill,
+  },
   upNext: {
     flexDirection: 'row',
     alignSelf: 'center',

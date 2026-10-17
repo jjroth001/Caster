@@ -11,7 +11,15 @@ import { Button, IconButton } from '@/components/controls';
 import { EpisodeRow } from '@/components/episode-row';
 import { Icon } from '@/components/icons/icon';
 import { Txt } from '@/components/text';
-import { followPodcast, getPodcast, listEpisodes, markAllPlayed, unsubscribe } from '@/db/library';
+import {
+  followPodcast,
+  getPodcast,
+  getPodcastSettings,
+  listEpisodes,
+  markAllPlayed,
+  setPodcastSetting,
+  unsubscribe,
+} from '@/db/library';
 import { useDbQuery } from '@/db/use-db-query';
 import { htmlToText } from '@/feeds/text';
 import { refreshPodcast } from '@/feeds/sync';
@@ -24,7 +32,10 @@ export default function PodcastScreen() {
   const db = useSQLiteContext();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const [order, setOrder] = useState<'newest' | 'oldest'>('newest');
+  const own = useDbQuery(['podcast_settings'], (d) => getPodcastSettings(d, podcastId), [
+    podcastId,
+  ]).data;
+  const order: 'newest' | 'oldest' = own?.episode_sort === 'oldest' ? 'oldest' : 'newest';
   const [expanded, setExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const podcast = useDbQuery(
@@ -81,6 +92,11 @@ export default function PodcastScreen() {
       <View style={[styles.topBar, { paddingTop: insets.top + Spacing.two }]}>
         <IconButton icon="caret-left" label="Back" onPress={() => router.back()} />
         <View style={styles.flex} />
+        <IconButton
+          icon="gear"
+          label="Podcast settings"
+          onPress={() => router.push(`/podcast-settings/${podcastId}`)}
+        />
         <IconButton icon="dots-three-vertical" label="More options" onPress={menu} />
       </View>
       <View style={styles.hero}>
@@ -138,7 +154,14 @@ export default function PodcastScreen() {
           {podcast.new_count ? `${podcast.new_count} new` : `${episodes?.length ?? 0} episodes`}
         </Txt>
         <Pressable
-          onPress={() => setOrder((o) => (o === 'newest' ? 'oldest' : 'newest'))}
+          onPress={() =>
+            void setPodcastSetting(
+              db,
+              podcastId,
+              'episode_sort',
+              order === 'newest' ? 'oldest' : null,
+            )
+          }
           accessibilityRole="button"
           hitSlop={10}>
           <Txt variant="small" secondary>

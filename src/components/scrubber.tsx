@@ -11,10 +11,21 @@ type Props = {
   durationMs: number | null;
   bufferedMs: number;
   onSeek: (ms: number) => void;
+  /** Chapter starts, drawn as small gaps in the bar. */
+  marks?: number[];
+  /** Ranges that will be skipped (unticked chapters, ads), drawn as shaded bands. */
+  bands?: { startMs: number; endMs: number }[];
 };
 
 /** The position bar: drag or tap to seek; the thumb follows the finger until it lets go. */
-export function Scrubber({ positionMs, durationMs, bufferedMs, onSeek }: Props) {
+export function Scrubber({
+  positionMs,
+  durationMs,
+  bufferedMs,
+  onSeek,
+  marks = [],
+  bands = [],
+}: Props) {
   const theme = useTheme();
   const [width, setWidth] = useState(1);
   const [dragMs, setDragMs] = useState<number | null>(null);
@@ -56,7 +67,34 @@ export function Scrubber({ positionMs, durationMs, bufferedMs, onSeek }: Props) 
             <View
               style={[styles.fill, { width: `${fraction * 100}%`, backgroundColor: theme.accent }]}
             />
+            {!!durationMs &&
+              marks
+                .filter((m) => m > 0 && m < durationMs)
+                .map((m) => (
+                  <View
+                    key={m}
+                    style={[
+                      styles.mark,
+                      { left: `${(m / durationMs) * 100}%`, backgroundColor: theme.background },
+                    ]}
+                  />
+                ))}
           </View>
+          {!!durationMs &&
+            bands.map((b) => (
+              <View
+                key={b.startMs}
+                pointerEvents="none"
+                style={[
+                  styles.band,
+                  {
+                    left: `${(b.startMs / durationMs) * 100}%`,
+                    width: `${(Math.max(0, b.endMs - b.startMs) / durationMs) * 100}%`,
+                    backgroundColor: theme.text,
+                  },
+                ]}
+              />
+            ))}
           <View
             pointerEvents="none"
             style={[
@@ -83,6 +121,8 @@ const styles = StyleSheet.create({
   hit: { height: 32, justifyContent: 'center' },
   track: { height: 5, borderRadius: 3, overflow: 'hidden' },
   fill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
+  mark: { position: 'absolute', top: 0, bottom: 0, width: 2, marginLeft: -1 },
+  band: { position: 'absolute', top: 11, height: 10, borderRadius: 3, opacity: 0.22 },
   thumb: { position: 'absolute', width: 16, height: 16, borderRadius: 8, top: 8 },
   thumbActive: { width: 22, height: 22, borderRadius: 11, top: 5 },
   times: { flexDirection: 'row', justifyContent: 'space-between' },

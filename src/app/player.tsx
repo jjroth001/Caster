@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
 import { Background } from '@/components/background';
+import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { IconButton } from '@/components/controls';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { Scrubber } from '@/components/scrubber';
@@ -285,6 +286,7 @@ export default function PlayerScreen() {
           <Txt variant="smallBold">Up Next</Txt>
         </Pressable>
       </ScrollView>
+      <StatusBarScrim />
     </View>
   );
 }

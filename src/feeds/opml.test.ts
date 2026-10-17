@@ -23,7 +23,9 @@ describe('OPML', () => {
   });
 
   it('round-trips an export', () => {
-    const feeds = [{ title: 'Low Tide <Radio> & "Friends"', feedUrl: 'https://lt.example/?a=1&b=2' }];
+    const feeds = [
+      { title: 'Low Tide <Radio> & "Friends"', feedUrl: 'https://lt.example/?a=1&b=2' },
+    ];
     expect(parseOpml(toOpml(feeds))).toEqual(feeds);
   });
 
@@ -38,7 +40,10 @@ describe('classifyQuery', () => {
     ['https://feeds.example/show.xml', { kind: 'url', url: 'https://feeds.example/show.xml' }],
     ['feed://feeds.example/show.xml', { kind: 'url', url: 'https://feeds.example/show.xml' }],
     ['feeds.example/show.xml', { kind: 'url', url: 'https://feeds.example/show.xml' }],
-    ['https://podcasts.apple.com/us/podcast/some-show/id1234567890?i=1', { kind: 'apple', id: '1234567890' }],
+    [
+      'https://podcasts.apple.com/us/podcast/some-show/id1234567890?i=1',
+      { kind: 'apple', id: '1234567890' },
+    ],
   ])('%s', (input, expected) => {
     expect(classifyQuery(input)).toEqual(expected);
   });

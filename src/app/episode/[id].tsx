@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
 import { Background } from '@/components/background';
+import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { Button, IconButton } from '@/components/controls';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { Txt } from '@/components/text';
@@ -166,6 +167,7 @@ export default function EpisodeScreen() {
           </Pressable>
         )}
       </ScrollView>
+      <StatusBarScrim />
     </View>
   );
 }

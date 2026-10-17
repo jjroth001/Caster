@@ -127,11 +127,13 @@ export default function SettingsScreen() {
       );
       if (result) {
         const ok = result.total - result.failed.length;
+        const failed = result.failed.slice(0, 6).map((f) => `• ${f}`);
+        if (result.failed.length > 6) failed.push(`…and ${result.failed.length - 6} more`);
         Alert.alert(
           'Import finished',
           `Now following ${ok} podcast${ok === 1 ? '' : 's'}.` +
-            (result.failed.length
-              ? `\n\nCouldn’t load: ${result.failed.slice(0, 8).join(', ')}${result.failed.length > 8 ? '…' : ''}`
+            (failed.length
+              ? `\n\nCouldn’t load ${result.failed.length}:\n${failed.join('\n')}`
               : ''),
         );
       }

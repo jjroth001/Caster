@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
 import { Background } from '@/components/background';
+import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { Button, IconButton } from '@/components/controls';
 import { EpisodeRow } from '@/components/episode-row';
 import { Icon } from '@/components/icons/icon';
@@ -171,6 +172,7 @@ export default function PodcastScreen() {
           />
         }
       />
+      <StatusBarScrim />
     </View>
   );
 }

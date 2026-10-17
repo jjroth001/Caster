@@ -56,7 +56,10 @@ describe('parseFeed', () => {
   });
 
   it('keeps playable, unique episodes only', () => {
-    expect(feed.episodes.map((e) => e.title)).toEqual(['The lighthouse keeper’s log', 'Trailer video']);
+    expect(feed.episodes.map((e) => e.title)).toEqual([
+      'The lighthouse keeper’s log',
+      'Trailer video',
+    ]);
   });
 
   it('reads episode details', () => {

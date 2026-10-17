@@ -36,8 +36,7 @@ export function EpisodeRow({ episode, showPodcast, cards, trailing }: Props) {
     (current && player.durationMs ? player.durationMs / 1000 : null) ?? episode.duration_s;
   const played = !!episode.played && !current;
   const inProgress = positionS > 5 && !played;
-  const isNew =
-    !episode.played && !inProgress && (episode.pub_date ?? 0) > now - 7 * 86_400_000;
+  const isNew = !episode.played && !inProgress && (episode.pub_date ?? 0) > now - 7 * 86_400_000;
 
   const status = played
     ? 'Played'

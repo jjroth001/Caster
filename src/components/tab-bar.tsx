@@ -126,7 +126,10 @@ export function TabBar({ state, navigation, position }: TabBarProps) {
       <View style={styles.miniWrap}>
         <MiniPlayer />
       </View>
+      {/* Rebuilt when the theme changes: switching between the floating and flat bar in place
+          left Android drawing an empty bar. */}
       <View
+        key={theme.name}
         style={[
           floating
             ? [
@@ -212,7 +215,6 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.three,
     borderRadius: BAR_HEIGHT / 2,
     borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
   },
   flat: { borderTopWidth: StyleSheet.hairlineWidth },
   bar: { height: BAR_HEIGHT, flexDirection: 'row', alignItems: 'center' },

@@ -146,6 +146,25 @@ export async function listInProgress(db: SQLiteDatabase, limit = 50) {
 
 // --- Writes -------------------------------------------------------------------
 
+let writeQueue: Promise<unknown> = Promise.resolve();
+
+/**
+ * Runs `work` in a transaction, one at a time. expo-sqlite allows only one transaction per
+ * connection, so two overlapping ones (an OPML import saves several feeds at once) would fail
+ * with "cannot start a transaction within a transaction".
+ */
+export function inTransaction<T>(db: SQLiteDatabase, work: () => Promise<T>): Promise<T> {
+  const run = writeQueue.then(async () => {
+    let result!: T;
+    await db.withTransactionAsync(async () => {
+      result = await work();
+    });
+    return result;
+  });
+  writeQueue = run.catch(() => undefined);
+  return run;
+}
+
 const EPISODE_UPSERT = `
   INSERT INTO episode (podcast_id, guid, title, description, link, pub_date, duration_s,
     enclosure_url, mime, size_bytes, media_type, artwork_url, transcript_url, transcript_type,
@@ -209,7 +228,7 @@ export async function savePodcast(
 ): Promise<number> {
   const now = Date.now();
   let id = 0;
-  await db.withTransactionAsync(async () => {
+  await inTransaction(db, async () => {
     const existing = await findPodcastByFeed(db, feedUrl);
     if (existing) {
       id = existing.id;
@@ -391,7 +410,7 @@ export async function moveInQueue(db: SQLiteDatabase, episodeId: number, beforeI
   const ids = rows.map((r) => r.episode_id).filter((id) => id !== episodeId);
   const at = beforeId == null ? ids.length : Math.max(0, ids.indexOf(beforeId));
   ids.splice(at, 0, episodeId);
-  await db.withTransactionAsync(async () => {
+  await inTransaction(db, async () => {
     for (let i = 0; i < ids.length; i++) {
       await db.runAsync('UPDATE queue_item SET position = ? WHERE episode_id = ?', i, ids[i]);
     }

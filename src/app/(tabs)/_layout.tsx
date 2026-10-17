@@ -1,6 +1,7 @@
 import TopTabs from 'expo-router/js-top-tabs';
 
 import { Background } from '@/components/background';
+import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { TABS, TabBar, type TabBarProps } from '@/components/tab-bar';
 
 /**
@@ -19,6 +20,7 @@ export default function TabsLayout() {
           <TopTabs.Screen key={tab.name} name={tab.name} options={{ title: tab.title }} />
         ))}
       </TopTabs>
+      <StatusBarScrim />
     </>
   );
 }

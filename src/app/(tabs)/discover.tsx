@@ -100,7 +100,7 @@ export default function DiscoverScreen() {
                 if (!t.trim()) setResults({ kind: 'idle' });
               }}
               onSubmitEditing={submit}
-              placeholder="Search, or paste a feed or Apple Podcasts link"
+              placeholder="Search, or paste a link"
               placeholderTextColor={theme.textSecondary}
               returnKeyType={kind === 'search' ? 'search' : 'go'}
               autoCapitalize="none"

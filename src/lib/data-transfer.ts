@@ -64,8 +64,9 @@ export async function importOpml(
       const feed = feeds[next++];
       try {
         await subscribeToFeed(db, feed.feedUrl);
-      } catch {
-        progress.failed.push(feed.title ?? feed.feedUrl);
+      } catch (e) {
+        const reason = e instanceof Error ? e.message : 'unknown error';
+        progress.failed.push(`${feed.title ?? feed.feedUrl} (${reason})`);
       }
       progress.done++;
       onProgress({ ...progress, failed: [...progress.failed] });

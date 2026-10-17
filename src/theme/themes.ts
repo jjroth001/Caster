@@ -17,7 +17,7 @@ export type Theme = {
   /** Cards and grouped rows. */
   card: string;
   cardBorder: string;
-  /** Chips, small round buttons, inputs. */
+  /** Small round buttons, inputs, pressed rows. */
   element: string;
   accent: string;
   onAccent: string;

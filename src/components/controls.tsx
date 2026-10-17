@@ -9,41 +9,6 @@ import { Radius, Spacing } from '@/theme/themes';
 
 const pressed = ({ pressed: p }: { pressed: boolean }) => (p ? { opacity: 0.6 } : null);
 
-export function Chip({
-  label,
-  selected,
-  onPress,
-  icon,
-  disabled,
-}: {
-  label: string;
-  selected?: boolean;
-  onPress?: () => void;
-  icon?: IconName;
-  disabled?: boolean;
-}) {
-  const theme = useTheme();
-  const fg = selected ? theme.onAccent : theme.text;
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityState={{ selected, disabled }}
-      style={(s) => [
-        styles.chip,
-        { backgroundColor: selected ? theme.accent : theme.element },
-        disabled && { opacity: 0.35 },
-        pressed(s),
-      ]}>
-      {icon && <Icon name={icon} size={16} color={fg} />}
-      <Txt variant="smallBold" color={fg}>
-        {label}
-      </Txt>
-    </Pressable>
-  );
-}
-
 export function Button({
   label,
   onPress,
@@ -187,14 +152,6 @@ export function Card({ children, style }: { children: ReactNode; style?: StylePr
 }
 
 const styles = StyleSheet.create({
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: Radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
   button: {
     flexDirection: 'row',
     alignItems: 'center',

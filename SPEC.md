@@ -76,8 +76,8 @@ The React Native layer owns UI, library data and rules; one native Kotlin module
 | Layer | Choice | Why |
 | --- | --- | --- |
 | App shell | Expo SDK (current), React Native, TypeScript, Expo Router | Same as Plantaloon and LibreBaby |
-| Local database | `expo-sqlite` + Drizzle ORM | Typed queries and migrations; smart playlists compile to SQL |
-| State | Zustand (UI state), SQLite as source of truth | Player state streams from native events |
+| Local database | `expo-sqlite` with plain SQL migrations (same pattern as LibreBaby) | Live queries via the change listener; smart playlists compile to SQL |
+| State | SQLite as source of truth; small `useSyncExternalStore` stores | Player state streams from native events |
 | Audio/video engine | Custom Expo module `player-core` on AndroidX Media3 (ExoPlayer + `MediaLibraryService`) | Apache-2.0; skip silence, speed, Android Auto browse tree |
 | Expo Go fallback | `expo-audio` | Basic playback when `player-core` isn't present |
 | Volume boost | `android.media.audiofx.LoudnessEnhancer` on the player's audio session | Built into Android |

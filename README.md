@@ -9,7 +9,11 @@ Not on the Play Store and no Google Play services: install the signed APK direct
 - [SPEC.md](SPEC.md): the full feature list, design and build order.
 - [BUILDING.md](BUILDING.md): how to build and sign the APK.
 
-Status: early development.
+Status: early development (0.2). Working so far: follow podcasts by search, feed address,
+Apple Podcasts link or OPML import; episode lists that refresh when the app opens; Up Next;
+background playback with notification and headset controls, speed, trim silence, volume boost
+and a sleep timer; Paper, Dusk and Midnight themes. See the build order in SPEC.md for what's
+next.
 
 ## License
 

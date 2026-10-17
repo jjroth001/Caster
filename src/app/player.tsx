@@ -71,14 +71,16 @@ export default function PlayerScreen() {
   const { width, height } = useWindowDimensions();
   const episode = useNowPlaying();
   const player = usePlayerState();
-  const settings = useSettings().data ?? DEFAULT_SETTINGS;
+  const settingsQuery = useSettings();
+  const settings = settingsQuery.data ?? DEFAULT_SETTINGS;
   const setSetting = useSetSetting();
   const stopAtEnd = useStopAtEndOfEpisode();
 
-  // Nothing left to show (the queue ran out): close.
+  // Nothing left to play (Up Next ran out): close.
+  const finished = settingsQuery.status === 'success' && settings.nowPlaying === null;
   useEffect(() => {
-    if (settingsLoadedWithoutEpisode(episode, settings.nowPlaying)) router.back();
-  }, [episode, settings.nowPlaying]);
+    if (finished && router.canGoBack()) router.back();
+  }, [finished]);
 
   if (!episode) return <Background />;
 
@@ -285,10 +287,6 @@ export default function PlayerScreen() {
       </ScrollView>
     </View>
   );
-}
-
-function settingsLoadedWithoutEpisode(episode: unknown, nowPlaying: number | null) {
-  return !episode && nowPlaying === null;
 }
 
 const styles = StyleSheet.create({

@@ -128,7 +128,8 @@ export function startPlayerSync(db: SQLiteDatabase): () => void {
     if (!state.id || state.state === 'ended') return;
     const paused = prev?.playWhenReady && !state.playWhenReady;
     const moved = Math.abs(state.positionMs - lastSavedMs) >= 5000;
-    if (paused || (state.playing && moved) || prev?.id !== state.id) {
+    // (Not on load: the first updates can report 0 before the resume position is applied.)
+    if (paused || (state.playing && moved)) {
       lastSavedMs = state.positionMs;
       void savePosition(db, Number(state.id), state.positionMs / 1000);
     }

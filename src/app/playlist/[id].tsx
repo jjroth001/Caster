@@ -1,12 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Alert, FlatList, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, IconButton } from '@/components/controls';
 import { EpisodeRow } from '@/components/episode-row';
 import { showPrompt, showSheet } from '@/components/sheet';
 import { SubScreen } from '@/components/sub-screen';
+import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import { queueEpisode } from '@/db/library';
 import {
@@ -27,7 +27,7 @@ export default function PlaylistScreen() {
   const playlistId = Number(id);
   const db = useSQLiteContext();
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const playlist = useDbQuery(['playlist'], (d) => getPlaylist(d, playlistId), [playlistId]).data;
   const episodes =
     useDbQuery(
@@ -101,7 +101,7 @@ export default function PlaylistScreen() {
       <FlatList
         data={episodes}
         keyExtractor={(e) => String(e.id)}
-        contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.five }}
+        contentContainerStyle={{ paddingBottom: tabSpace + Spacing.two }}
         ListHeaderComponent={
           episodes.length ? (
             <View style={styles.header}>

@@ -2,11 +2,11 @@ import { useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Children, Fragment, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/controls';
 import { PickerRow, RowDivider } from '@/components/picker-row';
 import { SubScreen } from '@/components/sub-screen';
+import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import {
   getPodcast,
@@ -71,7 +71,7 @@ export default function PodcastSettingsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const podcastId = Number(id);
   const db = useSQLiteContext();
-  const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const global = useSettings().data ?? DEFAULT_SETTINGS;
   const podcast = useDbQuery(['podcast'], (d) => getPodcast(d, podcastId), [podcastId]).data;
   const own = useDbQuery(['podcast_settings'], (d) => getPodcastSettings(d, podcastId), [
@@ -90,7 +90,7 @@ export default function PodcastSettingsScreen() {
 
   return (
     <SubScreen title={podcast?.title ?? 'Podcast settings'}>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.five }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: tabSpace + Spacing.two }}>
         <Group title="Playback">
           <Setting
             label="Speed"

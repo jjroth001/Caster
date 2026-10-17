@@ -2,13 +2,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
 import { Button, Card } from '@/components/controls';
 import { Icon } from '@/components/icons/icon';
 import { PickerRow, RowDivider, SettingRow } from '@/components/picker-row';
 import { SubScreen } from '@/components/sub-screen';
+import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import { listLibrary } from '@/db/library';
 import {
@@ -30,7 +30,7 @@ export default function PlaylistEditScreen() {
   const editingId = id ? Number(id) : null;
   const db = useSQLiteContext();
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const [draft, setDraft] = useState<{ name: string; rules: SmartRules } | null>(
     editingId == null ? { name: '', rules: DEFAULT_RULES } : null,
   );
@@ -93,7 +93,7 @@ export default function PlaylistEditScreen() {
   return (
     <SubScreen title={editingId == null ? 'New smart playlist' : 'Edit smart playlist'}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.six }}
+        contentContainerStyle={{ paddingBottom: tabSpace + Spacing.two }}
         keyboardShouldPersistTaps="handled">
         <TextInput
           value={draft.name}

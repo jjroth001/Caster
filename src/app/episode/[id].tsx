@@ -9,6 +9,7 @@ import { Background } from '@/components/background';
 import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { Button, IconButton } from '@/components/controls';
 import { Icon, type IconName } from '@/components/icons/icon';
+import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import { dequeue, getEpisode, queueEpisode, setPlayed, setStarred } from '@/db/library';
 import { listBookmarks } from '@/db/bookmarks';
@@ -49,6 +50,7 @@ export default function EpisodeScreen() {
   const db = useSQLiteContext();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const player = usePlayerState();
   const episode = useDbQuery(['episode', 'episode_state'], (d) => getEpisode(d, episodeId), [
     episodeId,
@@ -98,7 +100,7 @@ export default function EpisodeScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top + Spacing.two,
-          paddingBottom: insets.bottom + Spacing.five,
+          paddingBottom: tabSpace + Spacing.two,
         }}>
         <View style={styles.topBar}>
           <IconButton icon="caret-down" label="Close" onPress={() => router.back()} />

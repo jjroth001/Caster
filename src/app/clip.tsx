@@ -1,12 +1,12 @@
 import * as Sharing from 'expo-sharing';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PlayerCore } from '@modules/player-core/src';
 import { Button, Card } from '@/components/controls';
 import { PickerRow } from '@/components/picker-row';
 import { SubScreen } from '@/components/sub-screen';
+import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import { clock } from '@/lib/format';
 import { engine } from '@/player/engine';
@@ -37,7 +37,7 @@ function Nudge({ label, onPress }: { label: string; onPress: () => void }) {
 /** Pick up to three minutes of the playing episode and share it as audio or a cover-art video. */
 export default function ClipScreen() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const episode = useNowPlaying();
   const player = usePlayerState();
   const durationS = (player.durationMs ?? (episode?.duration_s ?? 0) * 1000) / 1000;
@@ -104,8 +104,7 @@ export default function ClipScreen() {
 
   return (
     <SubScreen title="Make a clip">
-      <ScrollView
-        contentContainerStyle={[styles.pad, { paddingBottom: insets.bottom + Spacing.six }]}>
+      <ScrollView contentContainerStyle={[styles.pad, { paddingBottom: tabSpace + Spacing.two }]}>
         <Txt variant="bodyBold" numberOfLines={2}>
           {episode.title}
         </Txt>

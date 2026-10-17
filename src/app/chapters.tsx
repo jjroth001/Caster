@@ -1,10 +1,10 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
 import { Icon } from '@/components/icons/icon';
 import { SubScreen } from '@/components/sub-screen';
+import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import { useDbQuery } from '@/db/use-db-query';
 import { clock } from '@/lib/format';
@@ -19,7 +19,7 @@ import { Radius, Spacing } from '@/theme/themes';
 export default function ChaptersScreen() {
   const db = useSQLiteContext();
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const episode = useNowPlaying();
   const player = usePlayerState();
   const chapters =
@@ -34,7 +34,7 @@ export default function ChaptersScreen() {
       <FlatList
         data={chapters}
         keyExtractor={(c) => String(c.start_s)}
-        contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.five }}
+        contentContainerStyle={{ paddingBottom: tabSpace + Spacing.two }}
         ListHeaderComponent={
           <Txt variant="small" secondary style={styles.hint}>
             Tap a chapter to jump to it. Untick chapters to skip them

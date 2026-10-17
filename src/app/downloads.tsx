@@ -1,10 +1,10 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { Alert, FlatList, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconButton } from '@/components/controls';
 import { EpisodeRow } from '@/components/episode-row';
 import { SubScreen } from '@/components/sub-screen';
+import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import { listDownloads } from '@/db/library';
 import { useDbQuery } from '@/db/use-db-query';
@@ -20,7 +20,7 @@ function size(bytes: number) {
 export default function DownloadsScreen() {
   const db = useSQLiteContext();
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const episodes = useDbQuery(['episode_state', 'episode'], listDownloads).data ?? [];
   const total = episodes.length ? downloadedBytes() : 0;
 
@@ -41,7 +41,7 @@ export default function DownloadsScreen() {
       <FlatList
         data={episodes}
         keyExtractor={(e) => String(e.id)}
-        contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.five }}
+        contentContainerStyle={{ paddingBottom: tabSpace + Spacing.two }}
         ListHeaderComponent={
           <Txt variant="small" secondary style={styles.summary}>
             {episodes.length

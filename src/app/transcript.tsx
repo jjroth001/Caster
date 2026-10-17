@@ -2,11 +2,11 @@ import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, Share, StyleSheet, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, IconButton } from '@/components/controls';
 import { Icon } from '@/components/icons/icon';
 import { SubScreen } from '@/components/sub-screen';
+import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import { useDbQuery } from '@/db/use-db-query';
 import { clock } from '@/lib/format';
@@ -23,7 +23,7 @@ import { Radius, Spacing } from '@/theme/themes';
 export default function TranscriptScreen() {
   const db = useSQLiteContext();
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const episode = useNowPlaying();
   const player = usePlayerState();
   const list = useRef<FlatList>(null);
@@ -130,7 +130,7 @@ export default function TranscriptScreen() {
         data={cues}
         keyExtractor={(_, i) => String(i)}
         contentContainerStyle={{
-          paddingBottom: insets.bottom + Spacing.six,
+          paddingBottom: tabSpace + Spacing.two,
           paddingHorizontal: Spacing.three,
         }}
         onScrollBeginDrag={() => setFollow(false)}

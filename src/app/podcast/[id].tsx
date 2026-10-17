@@ -11,6 +11,7 @@ import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { Button, IconButton } from '@/components/controls';
 import { EpisodeRow } from '@/components/episode-row';
 import { Icon } from '@/components/icons/icon';
+import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import {
   followPodcast,
@@ -32,6 +33,7 @@ export default function PodcastScreen() {
   const db = useSQLiteContext();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const own = useDbQuery(['podcast_settings'], (d) => getPodcastSettings(d, podcastId), [
     podcastId,
   ]).data;
@@ -153,7 +155,7 @@ export default function PodcastScreen() {
         keyExtractor={(e) => String(e.id)}
         renderItem={({ item }) => <EpisodeRow episode={item} cards={cards} />}
         ListHeaderComponent={header}
-        contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.six }}
+        contentContainerStyle={{ paddingBottom: tabSpace + Spacing.two }}
         initialNumToRender={12}
         windowSize={11}
         refreshControl={

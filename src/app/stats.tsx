@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
 import { Card } from '@/components/controls';
 import { PickerRow } from '@/components/picker-row';
 import { SubScreen } from '@/components/sub-screen';
+import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import { useDbQuery } from '@/db/use-db-query';
 import { span } from '@/lib/format';
@@ -23,7 +23,7 @@ const DAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export default function StatsScreen() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const [range, setRange] = useState<(typeof RANGES)[number]>(RANGES[0]);
   const stats = useDbQuery([], (d) => loadStats(d, range.days), [range.days]).data;
   const saved = stats ? stats.speed + stats.silence + stats.skip : 0;
@@ -40,7 +40,7 @@ export default function StatsScreen() {
 
   return (
     <SubScreen title="Listening stats">
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.six }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: tabSpace + Spacing.two }}>
         <Card style={styles.rangeCard}>
           <PickerRow
             label="Showing"

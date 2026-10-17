@@ -1,12 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Alert, FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconButton } from '@/components/controls';
 import { PodcastTile } from '@/components/library-tiles';
 import { showPrompt, showSheet } from '@/components/sheet';
 import { SubScreen } from '@/components/sub-screen';
+import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import { deleteFolder, FOLDER_COLORS, getFolder, renameFolder, setFolderColor } from '@/db/folders';
 import { listLibrary } from '@/db/library';
@@ -21,7 +21,7 @@ export default function FolderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const folderId = Number(id);
   const db = useSQLiteContext();
-  const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const { width } = useWindowDimensions();
   const settings = useSettings().data ?? DEFAULT_SETTINGS;
   const folder = useDbQuery(['folder'], (d) => getFolder(d, folderId), [folderId]).data;
@@ -100,7 +100,7 @@ export default function FolderScreen() {
         columnWrapperStyle={columns > 1 ? { gap, paddingHorizontal: side } : undefined}
         ItemSeparatorComponent={columns > 1 ? () => <View style={{ height: gap }} /> : undefined}
         contentContainerStyle={{
-          paddingBottom: insets.bottom + Spacing.five,
+          paddingBottom: tabSpace + Spacing.two,
           paddingTop: Spacing.two,
         }}
         renderItem={({ item }) => <PodcastTile item={item} layout={layout} size={tile} />}

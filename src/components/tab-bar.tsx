@@ -1,6 +1,6 @@
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import Reanimated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,7 +27,7 @@ export const TABS: { name: string; title: string; icon: IconName }[] = [
 const BAR_HEIGHT = 62;
 const MINI_HEIGHT = 58;
 
-/** Room to leave at the bottom of a tab screen so its last row scrolls clear of the bar. */
+/** Room to leave at the bottom of any screen so its last row scrolls clear of the bar. */
 export function useTabBarSpace(): number {
   const insets = useSafeAreaInsets();
   const nowPlaying = useNowPlaying();
@@ -107,23 +107,93 @@ function MiniPlayer() {
   );
 }
 
+// --- The tabs' state, shared with the bar drawn at the root ---------------------------------
+
+type TabsLink = {
+  index: number;
+  position: Animated.AnimatedInterpolation<number> | null;
+  select: ((name: string) => void) | null;
+};
+
+let link: TabsLink = { index: 0, position: null, select: null };
+const linkListeners = new Set<() => void>();
+function setLink(next: Partial<TabsLink>) {
+  link = { ...link, ...next };
+  linkListeners.forEach((l) => l());
+}
+function useTabsLink() {
+  return useSyncExternalStore(
+    (l) => {
+      linkListeners.add(l);
+      return () => linkListeners.delete(l);
+    },
+    () => link,
+  );
+}
+
 /**
- * The bottom of every tab: the mini player above the tab bar. The selected pill follows the
- * pager while you swipe, so it glides between tabs rather than jumping.
+ * Rendered by the pager in place of its own tab bar: hands the selected tab, the swipe position
+ * and a way to switch tabs to the bar at the root, then draws nothing itself.
  */
-export function TabBar({ state, navigation, position }: TabBarProps) {
+export function TabsBridge({ state, navigation, position }: TabBarProps) {
+  useEffect(() => {
+    setLink({
+      index: state.index,
+      position,
+      select: (name) => {
+        const route = state.routes.find((r) => r.name === name);
+        if (!route) return;
+        const event = navigation.emit({
+          type: 'tabPress',
+          target: route.key,
+          canPreventDefault: true,
+        });
+        if (!event.defaultPrevented) navigation.navigate(name);
+      },
+    });
+  }, [state, navigation, position]);
+  return null;
+}
+
+/** Screens that cover the bar: the full player slides up over it, as in Pocket Casts. */
+const COVERING = ['/player'];
+const TAB_PATHS = ['/', '/up-next', '/playlists', '/discover', '/settings'];
+
+/**
+ * The mini player and tab bar, drawn once over the whole app so they stay put while podcast
+ * pages, episodes and other screens open and close above the tabs. The selected pill follows
+ * the pager while you swipe between tabs.
+ */
+export function GlobalTabBar() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+  const tabs = useTabsLink();
   const [width, setWidth] = useState(0);
   const slot = width / TABS.length;
-  const translateX = position.interpolate({
-    inputRange: TABS.map((_, i) => i),
-    outputRange: TABS.map((_, i) => i * slot),
-  });
   const floating = theme.floatingTabBar;
+  const onTab = TAB_PATHS.includes(pathname);
+  if (COVERING.includes(pathname)) return null;
+
+  const translateX = tabs.position
+    ? tabs.position.interpolate({
+        inputRange: TABS.map((_, i) => i),
+        outputRange: TABS.map((_, i) => i * slot),
+      })
+    : tabs.index * slot;
+
+  const press = (name: string, focused: boolean) => {
+    // From a page opened on top of the tabs, go back down to the tabs first.
+    if (!onTab && router.canDismiss()) router.dismissAll();
+    if (!focused || !onTab) tabs.select?.(name);
+  };
 
   return (
-    <View pointerEvents="box-none" style={styles.wrap}>
+    <Reanimated.View
+      entering={Motion.fadeIn}
+      exiting={Motion.exit}
+      pointerEvents="box-none"
+      style={styles.wrap}>
       <View style={styles.miniWrap}>
         <MiniPlayer />
       </View>
@@ -154,26 +224,17 @@ export function TabBar({ state, navigation, position }: TabBarProps) {
               ]}
             />
           )}
-          {state.routes.map((route, index) => {
-            const tab = TABS.find((t) => t.name === route.name);
-            if (!tab) return null;
-            const focused = state.index === index;
+          {TABS.map((tab, index) => {
+            const focused = tabs.index === index;
             const color = focused ? theme.tabActive : theme.textSecondary;
             return (
               <Pressable
-                key={route.key}
+                key={tab.name}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: focused }}
                 accessibilityLabel={tab.title}
                 style={styles.item}
-                onPress={() => {
-                  const event = navigation.emit({
-                    type: 'tabPress',
-                    target: route.key,
-                    canPreventDefault: true,
-                  });
-                  if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
-                }}>
+                onPress={() => press(tab.name, focused)}>
                 <Icon name={tab.icon} size={22} color={color} />
                 <Txt variant="meta" color={color} style={styles.label}>
                   {tab.title}
@@ -183,7 +244,7 @@ export function TabBar({ state, navigation, position }: TabBarProps) {
           })}
         </View>
       </View>
-    </View>
+    </Reanimated.View>
   );
 }
 

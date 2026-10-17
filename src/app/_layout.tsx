@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { SheetHost } from '@/components/sheet';
 import { SkipToast } from '@/components/skip-toast';
+import { GlobalTabBar } from '@/components/tab-bar';
 import { migrateDbIfNeeded } from '@/db/migrations';
 import { useSettings } from '@/db/use-settings';
 import { startAppSync } from '@/downloads/app-sync';
@@ -92,6 +93,7 @@ function Root() {
           options={{ presentation: 'modal', animation: 'fade_from_bottom' }}
         />
       </Stack>
+      <GlobalTabBar />
       <SkipToast />
       <SheetHost />
     </NavThemeProvider>

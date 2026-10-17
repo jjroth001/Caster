@@ -10,6 +10,7 @@ import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { Button, IconButton } from '@/components/controls';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { useTabBarSpace } from '@/components/tab-bar';
+import { showSheet } from '@/components/sheet';
 import { Txt } from '@/components/text';
 import { dequeue, getEpisode, queueEpisode, setPlayed, setStarred } from '@/db/library';
 import { listBookmarks } from '@/db/bookmarks';
@@ -23,21 +24,31 @@ import { playEpisode } from '@/player/controller';
 import { engine } from '@/player/engine';
 import { usePlayerState } from '@/player/use-player';
 import { useTheme } from '@/theme/theme-provider';
-import { Radius, Spacing } from '@/theme/themes';
+import { Spacing } from '@/theme/themes';
 
-function Action({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+/** A round icon button with a short label underneath, like the player's controls. */
+function Action({
+  icon,
+  label,
+  onPress,
+  active,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  active?: boolean;
+}) {
   const theme = useTheme();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      style={({ pressed }) => [
-        styles.action,
-        { backgroundColor: theme.element },
-        pressed && { opacity: 0.6 },
-      ]}>
-      <Icon name={icon} size={22} color={theme.text} />
-      <Txt variant="small" style={styles.actionLabel} numberOfLines={1}>
+      accessibilityLabel={label}
+      style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}>
+      <View style={[styles.actionCircle, { backgroundColor: theme.element }]}>
+        <Icon name={icon} size={22} color={active ? theme.accent : theme.text} />
+      </View>
+      <Txt variant="small" secondary numberOfLines={1} style={styles.actionLabel}>
         {label}
       </Txt>
     </Pressable>
@@ -78,16 +89,69 @@ export default function EpisodeScreen() {
       ? timeLeft(episode.position_s, episode.duration_s)
       : '';
 
-  const downloadLabel =
-    episode.download_status === 'done'
-      ? 'Remove download'
-      : episode.download_status === 'downloading'
-        ? `Downloading ${Math.round((downloadProgress ?? 0) * 100)}% · Cancel`
-        : episode.download_status === 'queued'
-          ? 'Waiting to download · Cancel'
-          : episode.download_status === 'failed'
-            ? 'Download failed · Retry'
+  const downloadState = episode.download_status;
+  const downloadShort =
+    downloadState === 'done'
+      ? 'Downloaded'
+      : downloadState === 'downloading'
+        ? `${Math.round((downloadProgress ?? 0) * 100)}%`
+        : downloadState === 'queued'
+          ? 'Waiting'
+          : downloadState === 'failed'
+            ? 'Retry'
             : 'Download';
+  const onDownload = () => {
+    if (downloadState === 'done') {
+      showSheet({
+        title: 'Downloaded',
+        message: 'This episode plays from your phone, without the internet.',
+        options: [
+          {
+            label: 'Remove download',
+            icon: 'trash',
+            destructive: true,
+            onPress: () => void removeDownload(db, episode.id),
+          },
+        ],
+      });
+    } else if (downloadState === 'downloading' || downloadState === 'queued') {
+      showSheet({
+        title: downloadState === 'queued' ? 'Waiting to download' : 'Downloading',
+        options: [
+          {
+            label: 'Cancel download',
+            icon: 'x',
+            destructive: true,
+            onPress: () => void removeDownload(db, episode.id),
+          },
+        ],
+      });
+    } else {
+      void downloadEpisode(db, episode.id);
+    }
+  };
+  const more = () =>
+    showSheet({
+      title: episode.title,
+      options: [
+        {
+          label: episode.played ? 'Mark as unplayed' : 'Mark as played',
+          icon: episode.played ? 'arrow-counter-clockwise' : 'check-circle',
+          onPress: () => void setPlayed(db, episode.id, !episode.played),
+        },
+        {
+          label: 'Add to playlist',
+          icon: 'playlist',
+          onPress: () => void chooseManualPlaylist(db, episode.id),
+        },
+        { label: 'Share', icon: 'share-network', onPress: share },
+        {
+          label: 'Go to podcast',
+          icon: 'squares-four',
+          onPress: () => router.replace(`/podcast/${episode.podcast_id}`),
+        },
+      ],
+    });
 
   const share = () => {
     const url = episode.link ?? episode.enclosure_url;
@@ -143,7 +207,8 @@ export default function EpisodeScreen() {
           {queued ? (
             <Action
               icon="x"
-              label="Remove from Up Next"
+              label="In Up Next"
+              active
               onPress={() => void dequeue(db, episode.id)}
             />
           ) : (
@@ -160,35 +225,21 @@ export default function EpisodeScreen() {
               />
             </>
           )}
-          <Action
-            icon={episode.played ? 'arrow-counter-clockwise' : 'check-circle'}
-            label={episode.played ? 'Mark unplayed' : 'Mark played'}
-            onPress={() => void setPlayed(db, episode.id, !episode.played)}
-          />
-          <Action
-            icon={episode.starred ? 'star-fill' : 'star'}
-            label={episode.starred ? 'Starred' : 'Star'}
-            onPress={() => void setStarred(db, episode.id, !episode.starred)}
-          />
           {downloadsAvailable && (
             <Action
-              icon={episode.download_status === 'done' ? 'trash' : 'download-simple'}
-              label={downloadLabel}
-              onPress={() =>
-                void (episode.download_status === 'done' ||
-                episode.download_status === 'queued' ||
-                episode.download_status === 'downloading'
-                  ? removeDownload(db, episode.id)
-                  : downloadEpisode(db, episode.id))
-              }
+              icon={downloadState === 'failed' ? 'warning' : 'download-simple'}
+              label={downloadShort}
+              active={downloadState === 'done'}
+              onPress={onDownload}
             />
           )}
           <Action
-            icon="playlist"
-            label="Add to playlist"
-            onPress={() => void chooseManualPlaylist(db, episode.id)}
+            icon={episode.starred ? 'star-fill' : 'star'}
+            label={episode.starred ? 'Starred' : 'Star'}
+            active={!!episode.starred}
+            onPress={() => void setStarred(db, episode.id, !episode.starred)}
           />
-          <Action icon="share-network" label="Share" onPress={share} />
+          <Action icon="dots-three-vertical" label="More" onPress={more} />
         </View>
 
         {bookmarks.length > 0 && (
@@ -236,20 +287,19 @@ const styles = StyleSheet.create({
   play: { marginHorizontal: Spacing.four, marginTop: Spacing.four },
   actions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.four,
-    marginTop: Spacing.three,
+    justifyContent: 'space-around',
+    paddingHorizontal: Spacing.two,
+    marginTop: Spacing.four,
   },
-  action: {
-    flexDirection: 'row',
+  action: { alignItems: 'center', gap: 6, width: 72 },
+  actionCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: Radius.pill,
+    justifyContent: 'center',
   },
-  actionLabel: { fontWeight: '600' },
+  actionLabel: { textAlign: 'center' },
   bookmarks: { marginTop: Spacing.four },
   bookmarksTitle: { marginHorizontal: Spacing.four, marginBottom: Spacing.two },
   notes: { marginHorizontal: Spacing.four, marginTop: Spacing.four, lineHeight: 24 },

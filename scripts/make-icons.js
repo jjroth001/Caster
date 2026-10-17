@@ -27,7 +27,8 @@ const star = (x, y, r, rot = -18) => {
 const sparkle = (x, y, s) =>
   `M ${x} ${y - s} Q ${x} ${y} ${x + s} ${y} Q ${x} ${y} ${x} ${y + s} Q ${x} ${y} ${x - s} ${y} Q ${x} ${y} ${x} ${y - s} Z`;
 
-const HAT = 'M 296 700 C 380 520 440 360 474 256 C 492 204 560 186 650 232 C 596 232 572 262 576 304 C 590 430 654 570 728 700 Z';
+const HAT =
+  'M 296 700 C 380 520 440 360 474 256 C 492 204 560 186 650 232 C 596 232 572 262 576 304 C 590 430 654 570 728 700 Z';
 
 /** The hat, brim and sparkles in one colour; scaled to fit the adaptive-icon safe circle. */
 function art(color) {
@@ -57,13 +58,17 @@ const files = {
 
 const out = process.argv[2];
 fs.mkdirSync(out, { recursive: true });
-const render = (s, width) => new Resvg(s, { fitTo: { mode: 'width', value: width } }).render().asPng();
-for (const [name, s] of Object.entries(files)) fs.writeFileSync(path.join(out, name), render(s, 1024));
+const render = (s, width) =>
+  new Resvg(s, { fitTo: { mode: 'width', value: width } }).render().asPng();
+for (const [name, s] of Object.entries(files))
+  fs.writeFileSync(path.join(out, name), render(s, 1024));
 fs.writeFileSync(path.join(out, 'favicon.png'), render(files['icon.png'], 48));
 
 if (process.argv.includes('--preview')) {
   // Launchers show the middle 72 of the 108 dp canvas: circle and rounded-square masks.
-  const inner = (gradient + art('#FFFFFF')).replace(/id="(\w+)"/g, 'id="$1X"').replace(/url\(#(\w+)\)/g, 'url(#$1X)');
+  const inner = (gradient + art('#FFFFFF'))
+    .replace(/id="(\w+)"/g, 'id="$1X"')
+    .replace(/url\(#(\w+)\)/g, 'url(#$1X)');
   const crop = (x, y, scale, clip) =>
     `<g transform="translate(${x} ${y}) scale(${scale}) translate(-171 -171)"><g clip-path="url(#${clip})">${inner}</g></g>`;
   const preview = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="360">

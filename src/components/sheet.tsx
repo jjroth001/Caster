@@ -1,0 +1,240 @@
+import { useState, useSyncExternalStore } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import Reanimated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { Icon, type IconName } from '@/components/icons/icon';
+import { Txt } from '@/components/text';
+import { useTheme } from '@/theme/theme-provider';
+import { Radius, Spacing } from '@/theme/themes';
+
+/**
+ * Bottom sheets for choices and short text entry. Android's alert dialogs show at most three
+ * buttons and have no text field, so menus and prompts go through here.
+ *
+ *   showSheet({ title: 'Speed', options: [{ label: '1×', selected: true, onPress }] })
+ *   showPrompt({ title: 'New folder', onSubmit: (name) => … })
+ */
+
+export type SheetOption = {
+  label: string;
+  hint?: string;
+  icon?: IconName;
+  selected?: boolean;
+  destructive?: boolean;
+  onPress: () => void;
+};
+
+type Request =
+  | { kind: 'sheet'; title?: string; message?: string; options: SheetOption[] }
+  | {
+      kind: 'prompt';
+      title: string;
+      message?: string;
+      initial?: string;
+      placeholder?: string;
+      confirm?: string;
+      onSubmit: (text: string) => void;
+    };
+
+let current: Request | null = null;
+const listeners = new Set<() => void>();
+const set = (r: Request | null) => {
+  current = r;
+  listeners.forEach((l) => l());
+};
+
+export const showSheet = (r: Omit<Extract<Request, { kind: 'sheet' }>, 'kind'>) =>
+  set({ kind: 'sheet', ...r });
+export const showPrompt = (r: Omit<Extract<Request, { kind: 'prompt' }>, 'kind'>) =>
+  set({ kind: 'prompt', ...r });
+const close = () => set(null);
+
+function useRequest() {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => current,
+  );
+}
+
+function PromptBody({ request }: { request: Extract<Request, { kind: 'prompt' }> }) {
+  const theme = useTheme();
+  const [text, setText] = useState(request.initial ?? '');
+  const submit = () => {
+    close();
+    request.onSubmit(text.trim());
+  };
+  return (
+    <View style={styles.promptBody}>
+      <TextInput
+        value={text}
+        onChangeText={setText}
+        autoFocus
+        placeholder={request.placeholder}
+        placeholderTextColor={theme.textSecondary}
+        onSubmitEditing={submit}
+        returnKeyType="done"
+        style={[styles.input, { color: theme.text, backgroundColor: theme.element }]}
+      />
+      <View style={styles.promptButtons}>
+        <Pressable onPress={close} accessibilityRole="button" style={styles.textButton}>
+          <Txt variant="bodyBold" secondary>
+            Cancel
+          </Txt>
+        </Pressable>
+        <Pressable
+          onPress={submit}
+          accessibilityRole="button"
+          style={[styles.confirm, { backgroundColor: theme.accent }]}>
+          <Txt variant="bodyBold" color={theme.onAccent}>
+            {request.confirm ?? 'Save'}
+          </Txt>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+/** Mount once near the root. */
+export function SheetHost() {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const request = useRequest();
+  const panel = theme.dark ? (theme.name === 'midnight' ? '#121212' : '#22305A') : '#FFFFFF';
+
+  return (
+    <Modal
+      visible={!!request}
+      transparent
+      animationType="none"
+      onRequestClose={close}
+      statusBarTranslucent>
+      {request && (
+        <View style={styles.fill}>
+          <Reanimated.View
+            entering={FadeIn.duration(180)}
+            exiting={FadeOut.duration(150)}
+            style={StyleSheet.absoluteFill}>
+            <Pressable
+              style={[StyleSheet.absoluteFill, styles.scrim]}
+              onPress={close}
+              accessibilityLabel="Close"
+            />
+          </Reanimated.View>
+          <Reanimated.View
+            entering={SlideInDown.duration(240)}
+            exiting={SlideOutDown.duration(180)}
+            style={[
+              styles.panel,
+              { backgroundColor: panel, paddingBottom: insets.bottom + Spacing.three },
+            ]}>
+            <View style={[styles.handle, { backgroundColor: theme.textSecondary }]} />
+            {!!request.title && (
+              <Txt variant="heading" style={styles.title}>
+                {request.title}
+              </Txt>
+            )}
+            {!!request.message && (
+              <Txt variant="small" secondary style={styles.message}>
+                {request.message}
+              </Txt>
+            )}
+            {request.kind === 'prompt' ? (
+              <PromptBody request={request} />
+            ) : (
+              <ScrollView style={styles.list} bounces={false}>
+                {request.options.map((o) => (
+                  <Pressable
+                    key={o.label}
+                    onPress={() => {
+                      close();
+                      o.onPress();
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: o.selected }}
+                    style={({ pressed }) => [
+                      styles.option,
+                      pressed && { backgroundColor: theme.element },
+                    ]}>
+                    {o.icon && (
+                      <Icon
+                        name={o.icon}
+                        size={22}
+                        color={o.destructive ? theme.danger : theme.text}
+                      />
+                    )}
+                    <View style={styles.optionText}>
+                      <Txt
+                        variant="body"
+                        color={
+                          o.destructive ? theme.danger : o.selected ? theme.accent : theme.text
+                        }>
+                        {o.label}
+                      </Txt>
+                      {!!o.hint && (
+                        <Txt variant="small" secondary>
+                          {o.hint}
+                        </Txt>
+                      )}
+                    </View>
+                    {o.selected && (
+                      <Icon name="check" size={20} color={theme.accent} duotone={false} />
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+          </Reanimated.View>
+        </View>
+      )}
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  fill: { flex: 1, justifyContent: 'flex-end' },
+  scrim: { backgroundColor: 'rgba(0,0,0,0.45)' },
+  panel: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: Spacing.two,
+    maxHeight: '80%',
+  },
+  handle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    opacity: 0.4,
+    marginBottom: Spacing.two,
+  },
+  title: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two },
+  message: { paddingHorizontal: Spacing.four, marginBottom: Spacing.two },
+  list: { flexGrow: 0 },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: 14,
+  },
+  optionText: { flex: 1, gap: 2 },
+  promptBody: { paddingHorizontal: Spacing.four, gap: Spacing.three },
+  input: {
+    borderRadius: Radius.medium,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 12,
+    fontSize: 16,
+  },
+  promptButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  textButton: { paddingHorizontal: Spacing.two, paddingVertical: 10 },
+  confirm: { paddingHorizontal: Spacing.four, paddingVertical: 10, borderRadius: Radius.pill },
+});

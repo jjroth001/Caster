@@ -5,6 +5,7 @@ import { useState, type ReactNode } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { HeadsetAction } from '@modules/player-core/src';
 import { Card, Chip } from '@/components/controls';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { ScreenHeader } from '@/components/screen-header';
@@ -101,6 +102,14 @@ function LinkRow({
     </Pressable>
   );
 }
+
+const HEADSET_OPTIONS: { value: HeadsetAction; label: string }[] = [
+  { value: 'skipForward', label: 'Skip forward' },
+  { value: 'skipBack', label: 'Skip back' },
+  { value: 'nextChapter', label: 'Next chapter' },
+  { value: 'bookmark', label: 'Bookmark' },
+  { value: 'none', label: 'Nothing' },
+];
 
 export default function SettingsScreen() {
   const db = useSQLiteContext();
@@ -238,6 +247,40 @@ export default function SettingsScreen() {
           <Switch
             value={s.autoPlayNext}
             onValueChange={set('autoPlayNext')}
+            trackColor={{ true: theme.accent, false: theme.track }}
+            thumbColor={theme.dark ? '#ddd' : '#fff'}
+          />
+        </Row>
+        {engine.kind === 'native' && (
+          <>
+            <Row label="Headphone double-press" hint="One press always plays or pauses" />
+            <Choices
+              options={HEADSET_OPTIONS}
+              value={s.headsetDouble}
+              onChange={setPlayback('headsetDouble')}
+            />
+            <Row label="Headphone triple-press" />
+            <Choices
+              options={HEADSET_OPTIONS}
+              value={s.headsetTriple}
+              onChange={setPlayback('headsetTriple')}
+            />
+          </>
+        )}
+        <Row
+          label="Skip ads"
+          hint="Chapters titled like ads (sponsor, promo…) and ad reads found in transcripts">
+          <Switch
+            value={s.adSkip}
+            onValueChange={set('adSkip')}
+            trackColor={{ true: theme.accent, false: theme.track }}
+            thumbColor={theme.dark ? '#ddd' : '#fff'}
+          />
+        </Row>
+        <Row label="Smart bookmarks" hint="With a transcript, bookmarks keep what was just said">
+          <Switch
+            value={s.smartBookmarks}
+            onValueChange={set('smartBookmarks')}
             trackColor={{ true: theme.accent, false: theme.track }}
             thumbColor={theme.dark ? '#ddd' : '#fff'}
           />

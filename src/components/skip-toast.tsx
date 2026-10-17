@@ -41,11 +41,13 @@ export function SkipToast() {
           numberOfLines={1}>
           {notice.label}
         </Txt>
-        <Pressable onPress={() => undoSkip(notice)} accessibilityRole="button" hitSlop={10}>
-          <Txt variant="smallBold" color={theme.accent}>
-            Undo
-          </Txt>
-        </Pressable>
+        {notice.undo && (
+          <Pressable onPress={() => undoSkip(notice)} accessibilityRole="button" hitSlop={10}>
+            <Txt variant="smallBold" color={theme.accent}>
+              Undo
+            </Txt>
+          </Pressable>
+        )}
       </Reanimated.View>
     </View>
   );

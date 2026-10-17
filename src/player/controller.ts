@@ -11,7 +11,9 @@ import {
   setPodcastSetting,
 } from '@/db/library';
 import { getSettings, setSetting } from '@/db/settings';
+import { addBookmark, deleteBookmark } from '@/db/bookmarks';
 import { removeDownload } from '@/downloads/downloads';
+import { passageBefore } from '@/transcripts/passages';
 
 import { ensureChapters, saveEmbeddedChapters } from './chapters';
 import { engine, type PlayerState, type TrimSilence } from './engine';
@@ -54,7 +56,8 @@ const stopAtEnd = store(false);
 export const setStopAtEndOfEpisode = (on: boolean) => stopAtEnd.set(on);
 export const useStopAtEndOfEpisode = stopAtEnd.use;
 
-export type SkipNotice = { id: number; label: string; undoToMs: number; rangeKey: string };
+/** A short notice with an optional Undo (skipped ads and chapters, new bookmarks). */
+export type SkipNotice = { id: number; label: string; undo: (() => void) | null };
 const skipNotice = store<SkipNotice | null>(null);
 export const useSkipNotice = skipNotice.use;
 export const dismissSkipNotice = () => skipNotice.set(null);
@@ -112,6 +115,7 @@ export async function setPlaybackOption<K extends 'speed' | 'trimSilence' | 'vol
 export async function applyPlayerSettings(db: SQLiteDatabase) {
   const s = await getSettings(db);
   await engine.setSkipIntervals(s.skipBackS, s.skipForwardS);
+  engine.setHeadsetActions(s.headsetDouble, s.headsetTriple);
 }
 
 // --- Skip rules for the episode in the player ----------------------------------------------
@@ -155,9 +159,8 @@ async function refreshRules(db: SQLiteDatabase, episodeId: number) {
 }
 
 export function undoSkip(notice: SkipNotice) {
-  heard.add(notice.rangeKey);
   skipNotice.set(null);
-  void engine.seekTo(notice.undoToMs);
+  notice.undo?.();
 }
 
 // --- Loading and finishing ---------------------------------------------------------------
@@ -172,7 +175,7 @@ async function saveCurrent(db: SQLiteDatabase) {
 export async function playEpisode(
   db: SQLiteDatabase,
   episodeId: number,
-  { playWhenReady = true }: { playWhenReady?: boolean } = {},
+  { playWhenReady = true, startAtS }: { playWhenReady?: boolean; startAtS?: number } = {},
 ) {
   const episode = await getEpisode(db, episodeId);
   if (!episode) return;
@@ -183,6 +186,7 @@ export async function playEpisode(
   if (episode.duration_s && startS > episode.duration_s - 10) startS = 0;
   // Skip the intro: never start before the podcast's "skip first N seconds".
   if (startS < options.skipStartS) startS = options.skipStartS;
+  if (startAtS != null) startS = startAtS;
   if (episode.played) await setPlayed(db, episodeId, false);
   await dequeue(db, episodeId);
   await setSetting(db, 'nowPlaying', episodeId);
@@ -206,6 +210,43 @@ export async function playEpisode(
     engine.setVolumeBoost(options.volumeBoost),
   ]);
   void ensureChapters(db, episodeId).then(() => refreshRules(db, episodeId));
+}
+
+/** Plays an episode from a given moment (bookmarks, transcript lines). */
+export async function playEpisodeAt(db: SQLiteDatabase, episodeId: number, positionS: number) {
+  if (lastState?.id === String(episodeId) && lastState.state !== 'ended') {
+    await engine.seekTo(positionS * 1000);
+    await engine.play();
+  } else {
+    await playEpisode(db, episodeId, { startAtS: positionS });
+  }
+}
+
+/** Bookmarks the current moment of the episode in the player. Returns the bookmark id. */
+export async function bookmarkNow(db: SQLiteDatabase): Promise<number | null> {
+  const state = lastState ?? (await engine.getState());
+  if (!state.id) return null;
+  const positionS = state.positionMs / 1000;
+  const passage = await passageBefore(db, Number(state.id), positionS);
+  const id = await addBookmark(db, Number(state.id), positionS, passage?.title, passage?.text);
+  skipNotice.set({
+    id: Date.now(),
+    label: 'Bookmark added',
+    undo: () => void deleteBookmark(db, id),
+  });
+  return id;
+}
+
+/** Jumps to the start of the next chapter, if there is one. */
+export async function nextChapter(db: SQLiteDatabase) {
+  const state = lastState;
+  if (!state?.id) return;
+  const next = await db.getFirstAsync<{ start_s: number }>(
+    'SELECT start_s FROM chapter WHERE episode_id = ? AND start_s > ? ORDER BY start_s LIMIT 1',
+    Number(state.id),
+    state.positionMs / 1000 + 0.5,
+  );
+  if (next) await engine.seekTo(next.start_s * 1000);
 }
 
 /** Plays or pauses; with nothing loaded, starts the first Up Next episode. */
@@ -233,7 +274,7 @@ async function onEnded(db: SQLiteDatabase, id: string) {
     await engine.pause();
     return;
   }
-  const next = settings.autoPlayNext ? await popQueue(db) : null;
+  const next = settings.autoPlayNext ? await popQueue(db, settings.upNextShuffle) : null;
   if (next) {
     await playEpisode(db, next);
   } else {
@@ -259,8 +300,7 @@ function applyRules(db: SQLiteDatabase, state: PlayerState) {
   skipNotice.set({
     id: Date.now(),
     label: skip.label,
-    undoToMs: skip.start * 1000,
-    rangeKey: skip.key,
+    undo: () => void engine.seekTo(skip.start * 1000),
   });
 }
 
@@ -272,6 +312,11 @@ export function startPlayerSync(db: SQLiteDatabase): () => void {
   const unsubscribe = engine.subscribe((event) => {
     if (event.type === 'ended') {
       void onEnded(db, event.id);
+      return;
+    }
+    if (event.type === 'headset') {
+      if (event.action === 'bookmark') void bookmarkNow(db);
+      if (event.action === 'nextChapter') void nextChapter(db);
       return;
     }
     if (event.type === 'chapters') {

@@ -18,7 +18,8 @@ import {
   type EpisodeItem,
 } from '@/db/library';
 import { useDbQuery } from '@/db/use-db-query';
-import { useSettings } from '@/db/use-settings';
+import { DEFAULT_SETTINGS } from '@/db/settings';
+import { useSetSetting, useSettings } from '@/db/use-settings';
 import { useTheme } from '@/theme/theme-provider';
 import { Spacing } from '@/theme/themes';
 
@@ -29,7 +30,9 @@ export default function UpNextScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const bottom = useTabBarSpace();
-  const nowPlaying = useSettings().data?.nowPlaying ?? null;
+  const settings = useSettings().data ?? DEFAULT_SETTINGS;
+  const setSetting = useSetSetting();
+  const nowPlaying = settings.nowPlaying;
   const tables = ['queue_item', 'episode', 'episode_state', 'podcast'] as const;
   const queue = useDbQuery(tables, listQueue).data ?? [];
   const inProgress = useDbQuery(tables, (d) => listInProgress(d, 10)).data ?? [];
@@ -64,6 +67,13 @@ export default function UpNextScreen() {
       contentContainerStyle={{ paddingTop: insets.top, paddingBottom: bottom }}
       ListHeaderComponent={
         <ScreenHeader title="Up Next">
+          <IconButton
+            icon="shuffle"
+            label={settings.upNextShuffle ? 'Shuffle on' : 'Shuffle off'}
+            color={settings.upNextShuffle ? theme.accent : undefined}
+            filled={settings.upNextShuffle}
+            onPress={() => void setSetting('upNextShuffle', !settings.upNextShuffle)}
+          />
           {queue.length > 0 && (
             <IconButton icon="trash" label="Clear Up Next" onPress={confirmClear} />
           )}

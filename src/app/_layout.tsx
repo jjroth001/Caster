@@ -6,6 +6,7 @@ import * as SystemUI from 'expo-system-ui';
 import { Suspense, useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { SheetHost } from '@/components/sheet';
 import { SkipToast } from '@/components/skip-toast';
 import { migrateDbIfNeeded } from '@/db/migrations';
 import { useSettings } from '@/db/use-settings';
@@ -74,6 +75,10 @@ function Root() {
         <Stack.Screen name="podcast/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="downloads" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="chapters" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="bookmarks" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="folder/[id]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="playlist/[id]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="playlist-edit" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="podcast-settings/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen
           name="player"
@@ -85,6 +90,7 @@ function Root() {
         />
       </Stack>
       <SkipToast />
+      <SheetHost />
     </NavThemeProvider>
   );
 }

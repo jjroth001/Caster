@@ -77,12 +77,15 @@ class PlayerCoreModule : Module() {
 
       override fun onChapters(id: String, chapters: List<Map<String, Any?>>) =
         sendEvent("onChapters", mapOf("id" to id, "chapters" to chapters))
+
+      override fun onHeadsetAction(action: String) =
+        sendEvent("onHeadsetAction", mapOf("action" to action))
     }
 
   override fun definition() = ModuleDefinition {
     Name("PlayerCore")
 
-    Events("onState", "onProgress", "onEnded", "onError", "onDownload", "onChapters")
+    Events("onState", "onProgress", "onEnded", "onError", "onDownload", "onChapters", "onHeadsetAction")
 
     OnCreate {
       handler.post {
@@ -167,6 +170,12 @@ class PlayerCoreModule : Module() {
 
     AsyncFunction("setSleepTimer") { ms: Double -> PlayerCore.setSleepTimer(ms.toLong()) }
       .runOnQueue(Queues.MAIN)
+
+    /** What double and triple presses of a headset button do. */
+    Function("setHeadsetActions") { double: String, triple: String ->
+      HeadsetButtons.doubleAction = double
+      HeadsetButtons.tripleAction = triple
+    }
 
     AsyncFunction("stop") { PlayerCore.stop() }.runOnQueue(Queues.MAIN)
 

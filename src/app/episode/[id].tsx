@@ -4,17 +4,20 @@ import { Linking, Pressable, ScrollView, Share, StyleSheet, View } from 'react-n
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
+import { BookmarkRow } from '@/components/bookmark-row';
 import { Background } from '@/components/background';
 import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { Button, IconButton } from '@/components/controls';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { Txt } from '@/components/text';
 import { dequeue, getEpisode, queueEpisode, setPlayed, setStarred } from '@/db/library';
+import { listBookmarks } from '@/db/bookmarks';
 import { useDbQuery } from '@/db/use-db-query';
 import { downloadEpisode, downloadsAvailable, keyFor, removeDownload } from '@/downloads/downloads';
 import { useDownloadProgress } from '@/downloads/progress';
 import { htmlToText } from '@/feeds/text';
 import { duration, releaseDate, timeLeft } from '@/lib/format';
+import { chooseManualPlaylist } from '@/lib/library-actions';
 import { playEpisode } from '@/player/controller';
 import { engine } from '@/player/engine';
 import { usePlayerState } from '@/player/use-player';
@@ -57,6 +60,8 @@ export default function EpisodeScreen() {
     [episodeId],
   ).data;
 
+  const bookmarks =
+    useDbQuery(['bookmark'], (d) => listBookmarks(d, episodeId), [episodeId]).data ?? [];
   const downloadProgress = useDownloadProgress(episode ? keyFor(episode) : null);
 
   if (!episode) return <Background />;
@@ -176,8 +181,24 @@ export default function EpisodeScreen() {
               }
             />
           )}
+          <Action
+            icon="playlist"
+            label="Add to playlist"
+            onPress={() => void chooseManualPlaylist(db, episode.id)}
+          />
           <Action icon="share-network" label="Share" onPress={share} />
         </View>
+
+        {bookmarks.length > 0 && (
+          <View style={styles.bookmarks}>
+            <Txt variant="meta" secondary style={styles.bookmarksTitle}>
+              Bookmarks
+            </Txt>
+            {bookmarks.map((b) => (
+              <BookmarkRow key={b.id} item={b} showEpisode={false} />
+            ))}
+          </View>
+        )}
 
         {!!notes && (
           <Txt selectable style={styles.notes}>
@@ -227,6 +248,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   actionLabel: { fontWeight: '600' },
+  bookmarks: { marginTop: Spacing.four },
+  bookmarksTitle: { marginHorizontal: Spacing.four, marginBottom: Spacing.two },
   notes: { marginHorizontal: Spacing.four, marginTop: Spacing.four, lineHeight: 24 },
   link: { marginHorizontal: Spacing.four, marginTop: Spacing.three },
 });

@@ -42,6 +42,9 @@ interface PlayerCoreListener {
 
   /** Chapters embedded in the file (ID3 CHAP frames), once the player has read them. */
   fun onChapters(id: String, chapters: List<Map<String, Any?>>)
+
+  /** A headset press mapped to something the app does (next chapter, bookmark). */
+  fun onHeadsetAction(action: String)
 }
 
 /**
@@ -80,6 +83,9 @@ object PlayerCore {
 
   val isCreated: Boolean
     get() = exo != null
+
+  /** The player if it exists, without creating one. */
+  fun current(): CasterPlayer? = forwarding
 
   /** The player the media session and JS controls use (skip buttons follow our intervals). */
   fun player(context: Context): CasterPlayer {

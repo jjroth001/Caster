@@ -3,6 +3,7 @@
 package org.caster.playercore
 
 import android.app.PendingIntent
+import android.content.Intent
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession
@@ -20,6 +21,15 @@ class PlaybackService : MediaSessionService() {
   override fun onCreate() {
     super.onCreate()
     val builder = MediaSession.Builder(this, PlayerCore.player(this))
+      .setCallback(
+        object : MediaSession.Callback {
+          override fun onMediaButtonEvent(
+            session: MediaSession,
+            controllerInfo: MediaSession.ControllerInfo,
+            intent: Intent,
+          ): Boolean = HeadsetButtons.handle(intent)
+        }
+      )
     packageManager.getLaunchIntentForPackage(packageName)?.let { launch ->
       builder.setSessionActivity(
         PendingIntent.getActivity(

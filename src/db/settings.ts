@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import type { HeadsetAction } from '@modules/player-core/src';
 import type { TrimSilence } from '@/player/engine';
 
 export type ThemeChoice = 'auto' | 'paper' | 'dusk' | 'midnight';
@@ -37,6 +38,12 @@ export type Settings = {
   adSkip: boolean;
   /** Chapters whose title contains one of these are skipped as ads. */
   adKeywords: string[];
+  headsetDouble: HeadsetAction;
+  headsetTriple: HeadsetAction;
+  /** Up Next picks a random episode each time one ends, instead of the next in line. */
+  upNextShuffle: boolean;
+  /** Bookmarks keep the transcript passage before them and take a title from it. */
+  smartBookmarks: boolean;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -62,6 +69,10 @@ export const DEFAULT_SETTINGS: Settings = {
   deletePlayedDownloads: false,
   adSkip: true,
   adKeywords: ['sponsor', 'advertisement', 'ad break', 'promo'],
+  headsetDouble: 'skipForward',
+  headsetTriple: 'skipBack',
+  upNextShuffle: false,
+  smartBookmarks: true,
 };
 
 /** All settings, with defaults filled in for anything never set. Values are stored as JSON. */

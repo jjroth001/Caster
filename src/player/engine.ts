@@ -2,6 +2,7 @@ import { type AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-aud
 
 import {
   type EmbeddedChapter,
+  type HeadsetAction,
   type LoadItem,
   PlayerCore,
   type PlayerState,
@@ -14,7 +15,8 @@ export type PlayerEvent =
   | { type: 'state'; state: PlayerState }
   | { type: 'ended'; id: string }
   | { type: 'error'; id: string | null; message: string }
-  | { type: 'chapters'; id: string; chapters: EmbeddedChapter[] };
+  | { type: 'chapters'; id: string; chapters: EmbeddedChapter[] }
+  | { type: 'headset'; action: HeadsetAction };
 
 /** One player API, backed by the native Media3 service or, in Expo Go, by expo-audio. */
 export type PlayerEngine = {
@@ -32,6 +34,8 @@ export type PlayerEngine = {
   setSkipIntervals(backSeconds: number, forwardSeconds: number): Promise<void>;
   /** Pauses after `ms`; 0 turns the timer off. */
   setSleepTimer(ms: number): Promise<void>;
+  /** What double and triple presses of a headset button do (installed app only). */
+  setHeadsetActions(double: HeadsetAction, triple: HeadsetAction): void;
   stop(): Promise<void>;
   getState(): Promise<PlayerState>;
   subscribe(listener: (event: PlayerEvent) => void): () => void;
@@ -65,6 +69,7 @@ function nativeEngine(core: NonNullable<typeof PlayerCore>): PlayerEngine {
     setVolumeBoost: (enabled) => core.setVolumeBoost(enabled),
     setSkipIntervals: (back, forward) => core.setSkipIntervals(back, forward),
     setSleepTimer: (ms) => core.setSleepTimer(ms),
+    setHeadsetActions: (double, triple) => core.setHeadsetActions(double, triple),
     stop: () => core.stop(),
     getState: () => core.getState(),
     subscribe(listener) {
@@ -73,6 +78,7 @@ function nativeEngine(core: NonNullable<typeof PlayerCore>): PlayerEngine {
         core.addListener('onProgress', (state) => listener({ type: 'state', state })),
         core.addListener('onEnded', ({ id }) => listener({ type: 'ended', id })),
         core.addListener('onError', ({ id, message }) => listener({ type: 'error', id, message })),
+        core.addListener('onHeadsetAction', ({ action }) => listener({ type: 'headset', action })),
         core.addListener('onChapters', ({ id, chapters }) =>
           listener({ type: 'chapters', id, chapters }),
         ),
@@ -199,6 +205,7 @@ function basicEngine(): PlayerEngine {
       emit({ type: 'state', state: state() });
     },
     getState: async () => state(),
+    setHeadsetActions() {},
     subscribe(listener) {
       listeners.add(listener);
       listener({ type: 'state', state: state() });

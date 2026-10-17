@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
@@ -16,13 +16,12 @@ import {
   getPodcast,
   getPodcastSettings,
   listEpisodes,
-  markAllPlayed,
   setPodcastSetting,
-  unsubscribe,
 } from '@/db/library';
 import { useDbQuery } from '@/db/use-db-query';
 import { htmlToText } from '@/feeds/text';
 import { refreshPodcast } from '@/feeds/sync';
+import { podcastMenu } from '@/lib/library-actions';
 import { useTheme } from '@/theme/theme-provider';
 import { Spacing } from '@/theme/themes';
 
@@ -56,36 +55,7 @@ export default function PodcastScreen() {
   const description = htmlToText(podcast.description);
   const cards = theme.name !== 'paper';
 
-  const menu = () => {
-    Alert.alert(podcast.title, undefined, [
-      { text: 'Mark all as played', onPress: () => void markAllPlayed(db, podcastId) },
-      ...(following
-        ? [
-            {
-              text: 'Unfollow',
-              style: 'destructive' as const,
-              onPress: () =>
-                Alert.alert(
-                  `Unfollow ${podcast.title}?`,
-                  'Its episodes, listening progress and Up Next entries are removed from this phone.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Unfollow',
-                      style: 'destructive',
-                      onPress: () => {
-                        router.back();
-                        void unsubscribe(db, podcastId);
-                      },
-                    },
-                  ],
-                ),
-            },
-          ]
-        : []),
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
+  const menu = () => podcastMenu(db, podcast);
 
   const header = (
     <View>

@@ -1,43 +1,28 @@
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Artwork } from '@/components/artwork';
 import { Button, IconButton } from '@/components/controls';
 import { ScreenHeader } from '@/components/screen-header';
 import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
+import { listFolders, type LibraryFolder } from '@/db/folders';
 import { listLibrary, type LibraryPodcast } from '@/db/library';
+import { FolderTile, PodcastTile } from '@/components/library-tiles';
 import { DEFAULT_SETTINGS } from '@/db/settings';
 import { useDbQuery } from '@/db/use-db-query';
 import { useSetSetting, useSettings } from '@/db/use-settings';
 import { refreshAll } from '@/feeds/sync';
-import { releaseDate } from '@/lib/format';
 import { useTheme } from '@/theme/theme-provider';
-import { Radius, Spacing } from '@/theme/themes';
+import { Spacing } from '@/theme/themes';
 
 const LAYOUTS = ['grid', 'large', 'list'] as const;
 
-function Badge({ count }: { count: number }) {
-  const theme = useTheme();
-  if (!count) return null;
-  return (
-    <View style={[styles.badge, { backgroundColor: theme.accent }]}>
-      <Txt variant="smallBold" color={theme.onAccent} style={styles.badgeText}>
-        {count > 99 ? '99+' : count}
-      </Txt>
-    </View>
-  );
-}
+type Item =
+  | { kind: 'folder'; key: string; folder: LibraryFolder }
+  | { kind: 'podcast'; key: string; podcast: LibraryPodcast };
 
 export default function PodcastsScreen() {
   const db = useSQLiteContext();
@@ -49,8 +34,17 @@ export default function PodcastsScreen() {
   const setSetting = useSetSetting();
   const layout = settings.libraryLayout;
   const library = useDbQuery(
-    ['podcast', 'episode', 'episode_state'],
-    (d) => listLibrary(d, settings.librarySort),
+    ['podcast', 'episode', 'episode_state', 'folder'],
+    async (d) => {
+      const [folders, podcasts] = await Promise.all([
+        listFolders(d),
+        listLibrary(d, settings.librarySort, null),
+      ]);
+      return [
+        ...folders.map((f) => ({ kind: 'folder' as const, key: `f${f.id}`, folder: f })),
+        ...podcasts.map((p) => ({ kind: 'podcast' as const, key: `p${p.id}`, podcast: p })),
+      ];
+    },
     [settings.librarySort],
   );
   const [refreshing, setRefreshing] = useState(false);
@@ -74,67 +68,12 @@ export default function PodcastsScreen() {
     void setSetting('libraryLayout', LAYOUTS[(i + 1) % LAYOUTS.length]);
   };
 
-  const renderItem = ({ item }: { item: LibraryPodcast }) => {
-    const open = () => router.push(`/podcast/${item.id}`);
-    if (layout === 'list') {
-      return (
-        <Pressable
-          onPress={open}
-          accessibilityRole="button"
-          accessibilityLabel={`${item.title}${item.new_count ? `, ${item.new_count} new` : ''}`}
-          style={({ pressed }) => [
-            styles.listRow,
-            { borderBottomColor: theme.cardBorder },
-            pressed && styles.pressed,
-          ]}>
-          <Artwork uri={item.artwork_url} title={item.title} size={56} radius={10} />
-          <View style={styles.listText}>
-            <Txt
-              variant="bodyBold"
-              numberOfLines={1}
-              style={theme.serifTitles ? styles.serif : null}>
-              {item.title}
-            </Txt>
-            <Txt variant="small" secondary numberOfLines={1}>
-              {[releaseDate(item.latest_pub), item.latest_title].filter(Boolean).join(' · ')}
-            </Txt>
-          </View>
-          <Badge count={item.new_count} />
-        </Pressable>
-      );
-    }
-    return (
-      <Pressable
-        onPress={open}
-        accessibilityRole="button"
-        accessibilityLabel={`${item.title}${item.new_count ? `, ${item.new_count} new` : ''}`}
-        style={({ pressed }) => [{ width: tile }, pressed && styles.pressed]}>
-        <Artwork
-          uri={item.artwork_url}
-          title={item.title}
-          size={tile}
-          radius={layout === 'large' ? 20 : 14}
-        />
-        {layout === 'grid' ? (
-          <View style={styles.gridBadge}>
-            <Badge count={item.new_count} />
-          </View>
-        ) : (
-          <View style={styles.largeText}>
-            <Txt variant="bodyBold" numberOfLines={1}>
-              {item.title}
-            </Txt>
-            <Txt
-              variant="small"
-              color={item.new_count ? theme.accent : theme.textSecondary}
-              numberOfLines={1}>
-              {item.new_count ? `${item.new_count} new` : 'Up to date'}
-            </Txt>
-          </View>
-        )}
-      </Pressable>
+  const renderItem = ({ item }: { item: Item }) =>
+    item.kind === 'folder' ? (
+      <FolderTile item={item.folder} layout={layout} size={tile} />
+    ) : (
+      <PodcastTile item={item.podcast} layout={layout} size={tile} />
     );
-  };
 
   const empty = library.status === 'success' && library.data.length === 0;
 
@@ -143,7 +82,7 @@ export default function PodcastsScreen() {
       <FlatList
         key={layout}
         data={library.data ?? []}
-        keyExtractor={(p) => String(p.id)}
+        keyExtractor={(item) => item.key}
         numColumns={columns}
         renderItem={renderItem}
         columnWrapperStyle={columns > 1 ? { gap, paddingHorizontal: side } : undefined}
@@ -199,28 +138,6 @@ export default function PodcastsScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  pressed: { opacity: 0.7 },
-  serif: { fontFamily: 'serif', fontWeight: '700' },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    marginHorizontal: Spacing.four,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  listText: { flex: 1, gap: 2 },
-  gridBadge: { position: 'absolute', top: 6, right: 6 },
-  largeText: { paddingTop: 8, paddingHorizontal: 2 },
-  badge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: Radius.pill,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: { fontSize: 12, lineHeight: 16, fontWeight: '700' },
   empty: {
     alignItems: 'center',
     gap: Spacing.three,

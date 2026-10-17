@@ -55,7 +55,7 @@ export type EpisodeItem = {
   podcast_artwork: string | null;
 };
 
-const EPISODE_SELECT = `
+export const EPISODE_SELECT = `
   SELECT e.id, e.podcast_id, e.guid, e.title, e.description, e.link, e.pub_date, e.duration_s,
          e.enclosure_url, e.mime, e.media_type, e.artwork_url, e.transcript_url, e.chapters_url,
          e.season, e.number,
@@ -72,21 +72,30 @@ const NEW_COUNT = `
    WHERE e.podcast_id = p.id AND COALESCE(e.pub_date, 0) >= p.new_since
      AND COALESCE(s.played, 0) = 0 AND COALESCE(s.archived, 0) = 0)`;
 
+/**
+ * Followed podcasts. `folder`: a folder id for that folder's podcasts, null for the ones in no
+ * folder, or undefined for all.
+ */
 export async function listLibrary(
   db: SQLiteDatabase,
   sort: 'latest' | 'title' | 'added' = 'latest',
+  folder?: number | null,
 ): Promise<LibraryPodcast[]> {
+  const inFolder =
+    folder === undefined ? '' : folder === null ? 'AND p.folder_id IS NULL' : 'AND p.folder_id = ?';
   const order =
     sort === 'title'
       ? 'p.title COLLATE NOCASE'
       : sort === 'added'
         ? 'p.added_at DESC'
         : 'latest_pub DESC NULLS LAST, p.title COLLATE NOCASE';
-  return db.getAllAsync<LibraryPodcast>(`
-    SELECT p.*, ${NEW_COUNT} AS new_count,
+  return db.getAllAsync<LibraryPodcast>(
+    `SELECT p.*, ${NEW_COUNT} AS new_count,
       (SELECT MAX(pub_date) FROM episode WHERE podcast_id = p.id) AS latest_pub,
       (SELECT title FROM episode WHERE podcast_id = p.id ORDER BY pub_date DESC LIMIT 1) AS latest_title
-    FROM podcast p WHERE p.subscribed = 1 ORDER BY ${order}`);
+    FROM podcast p WHERE p.subscribed = 1 ${inFolder} ORDER BY ${order}`,
+    ...(typeof folder === 'number' ? [folder] : []),
+  );
 }
 
 export async function getPodcast(db: SQLiteDatabase, id: number) {
@@ -484,10 +493,12 @@ export async function moveInQueue(db: SQLiteDatabase, episodeId: number, beforeI
   });
 }
 
-/** Takes the first Up Next episode off the list and returns it. */
-export async function popQueue(db: SQLiteDatabase): Promise<number | null> {
+/** Takes the next Up Next episode (a random one with shuffle on) off the list and returns it. */
+export async function popQueue(db: SQLiteDatabase, shuffle = false): Promise<number | null> {
   const row = await db.getFirstAsync<{ episode_id: number }>(
-    'SELECT episode_id FROM queue_item ORDER BY position LIMIT 1',
+    shuffle
+      ? 'SELECT episode_id FROM queue_item ORDER BY RANDOM() LIMIT 1'
+      : 'SELECT episode_id FROM queue_item ORDER BY position LIMIT 1',
   );
   if (!row) return null;
   await dequeue(db, row.episode_id);

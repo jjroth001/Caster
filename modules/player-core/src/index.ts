@@ -64,7 +64,10 @@ type PlayerCoreEvents = {
   onError(event: { id: string | null; code: string; message: string }): void;
   onDownload(event: DownloadEvent): void;
   onChapters(event: { id: string; chapters: EmbeddedChapter[] }): void;
+  onHeadsetAction(event: { action: HeadsetAction }): void;
 };
+
+export type HeadsetAction = 'skipForward' | 'skipBack' | 'nextChapter' | 'bookmark' | 'none';
 
 export type EmbeddedChapter = { startMs: number; endMs: number; title: string | null };
 
@@ -82,6 +85,8 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   setSkipIntervals(backSeconds: number, forwardSeconds: number): Promise<void>;
   /** Pauses after `ms` (fading out over the last 10 s); 0 turns the timer off. */
   setSleepTimer(ms: number): Promise<void>;
+  /** What double and triple presses of a headset's play button do. */
+  setHeadsetActions(double: HeadsetAction, triple: HeadsetAction): void;
   stop(): Promise<void>;
   getState(): Promise<PlayerState>;
 

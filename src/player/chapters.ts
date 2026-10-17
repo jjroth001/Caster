@@ -73,7 +73,9 @@ export function isAdTitle(title: string | null, keywords: string[]): boolean {
     const word = k.trim().toLowerCase();
     if (!word) return false;
     // Whole words (plurals too), so "ad" doesn't match "Adam" or "read".
-    return new RegExp(`(^|[^a-z])${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}s?([^a-z]|$)`).test(t);
+    return new RegExp(`(^|[^a-z])${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}s?([^a-z]|$)`).test(
+      t,
+    );
   });
 }
 

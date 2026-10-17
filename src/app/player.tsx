@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
@@ -10,6 +10,7 @@ import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { IconButton } from '@/components/controls';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { Scrubber } from '@/components/scrubber';
+import { showSheet } from '@/components/sheet';
 import { SkipButton } from '@/components/skip-button';
 import { Txt } from '@/components/text';
 import { DEFAULT_SETTINGS } from '@/db/settings';
@@ -18,6 +19,7 @@ import { useSettings } from '@/db/use-settings';
 import { clock, speedLabel } from '@/lib/format';
 import { chapterAt, listChapters } from '@/player/chapters';
 import {
+  bookmarkNow,
   setPlaybackOption,
   setStopAtEndOfEpisode,
   togglePlay,
@@ -106,20 +108,16 @@ export default function PlayerScreen() {
   const sleepLeft = player.sleepRemainingMs;
   const currentChapter = chapterAt(chapters, positionMs / 1000);
 
-  const chooseSpeed = () => {
-    Alert.alert(
-      'Playback speed',
-      undefined,
-      [
-        ...SPEEDS.filter((s) => !basic || s <= 2).map((s) => ({
-          text: `${speedLabel(s)}${Math.abs(player.speed - s) < 0.01 ? '  ✓' : ''}`,
-          onPress: () => void setPlaybackOption(db, episode.podcast_id, 'speed', s),
-        })),
-        { text: 'Cancel', style: 'cancel' as const },
-      ],
-      { cancelable: true },
-    );
-  };
+  const chooseSpeed = () =>
+    showSheet({
+      title: 'Playback speed',
+      message: basic ? 'Up to 2× in Expo Go.' : undefined,
+      options: SPEEDS.filter((s) => !basic || s <= 2).map((s) => ({
+        label: speedLabel(s),
+        selected: Math.abs(player.speed - s) < 0.01,
+        onPress: () => void setPlaybackOption(db, episode.podcast_id, 'speed', s),
+      })),
+    });
 
   const cycleTrim = () => {
     const order: TrimSilence[] = ['off', 'mild', 'aggressive'];
@@ -132,15 +130,18 @@ export default function PlayerScreen() {
 
   const chooseSleep = () => {
     const on = sleepLeft != null || stopAtEnd;
-    Alert.alert(
-      'Sleep timer',
-      on ? 'Playback will pause on its own.' : 'Pause playback after…',
-      [
+    showSheet({
+      title: 'Sleep timer',
+      message: on
+        ? 'Playback will pause on its own, fading out at the end.'
+        : 'Pause playback after…',
+      options: [
         ...(on
           ? [
               {
-                text: 'Turn off',
-                style: 'destructive' as const,
+                label: 'Turn off',
+                icon: 'x' as const,
+                destructive: true,
                 onPress: () => {
                   void engine.setSleepTimer(0);
                   setStopAtEndOfEpisode(false);
@@ -149,23 +150,22 @@ export default function PlayerScreen() {
             ]
           : []),
         ...SLEEP_MINUTES.map((m) => ({
-          text: `${m} minutes`,
+          label: `${m} minutes`,
           onPress: () => {
             setStopAtEndOfEpisode(false);
             void engine.setSleepTimer(m * 60_000);
           },
         })),
         {
-          text: 'End of episode',
+          label: 'End of episode',
+          selected: stopAtEnd,
           onPress: () => {
             void engine.setSleepTimer(0);
             setStopAtEndOfEpisode(true);
           },
         },
-        { text: 'Cancel', style: 'cancel' as const },
       ],
-      { cancelable: true },
-    );
+    });
   };
 
   return (
@@ -296,6 +296,7 @@ export default function PlayerScreen() {
             active={stopAtEnd || sleepLeft != null}
             onPress={chooseSleep}
           />
+          <Control icon="bookmark-simple" label="Bookmark" onPress={() => void bookmarkNow(db)} />
         </View>
 
         <Pressable
@@ -330,7 +331,7 @@ const styles = StyleSheet.create({
   },
   play: { width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center' },
   controls: { flexDirection: 'row', justifyContent: 'space-around', marginTop: Spacing.two },
-  control: { alignItems: 'center', gap: 6, width: 76 },
+  control: { alignItems: 'center', gap: 6, width: 66 },
   controlCircle: {
     width: 48,
     height: 48,

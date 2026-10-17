@@ -19,6 +19,7 @@ import { Radius, Spacing } from '@/theme/themes';
 export const TABS: { name: string; title: string; icon: IconName }[] = [
   { name: 'index', title: 'Podcasts', icon: 'squares-four' },
   { name: 'up-next', title: 'Up Next', icon: 'queue' },
+  { name: 'playlists', title: 'Playlists', icon: 'playlist' },
   { name: 'discover', title: 'Discover', icon: 'compass' },
   { name: 'settings', title: 'Settings', icon: 'gear' },
 ];

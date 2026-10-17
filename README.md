@@ -8,6 +8,7 @@ Not on the Play Store and no Google Play services: install the signed APK direct
 
 - [SPEC.md](SPEC.md): the full feature list, design and build order.
 - [BUILDING.md](BUILDING.md): how to build and sign the APK.
+- [docs/TESTING.md](docs/TESTING.md): the checklist to try on a phone before each release.
 
 ## Features
 

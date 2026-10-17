@@ -28,4 +28,6 @@ dependencies {
   implementation "androidx.work:work-runtime:2.11.2"
   // Picking a colour from cover art (AndroidX, Apache-2.0).
   implementation "androidx.palette:palette:1.0.0"
+  // Running the app's transcription task headless (version pinned by the app's React Native).
+  implementation 'com.facebook.react:react-android'
 }

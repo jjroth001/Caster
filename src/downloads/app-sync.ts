@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 
 import { PlayerCore } from '@modules/player-core/src';
 import { applyPendingState, writeAutoLibrary } from '@/auto/snapshot';
+import { runAutoTranscribe, startAutoTranscribe } from '@/transcripts/auto';
 import { pruneUnfollowed } from '@/db/library';
 import { getSettings } from '@/db/settings';
 import { refreshAll } from '@/feeds/sync';
@@ -44,7 +45,9 @@ export function startAppSync(db: SQLiteDatabase): () => void {
     await catchUp(db, { force: true });
   })();
   const appState = AppState.addEventListener('change', (state) => {
-    if (state === 'active') void catchUp(db, { force: false });
+    if (state === 'active') {
+      void catchUp(db, { force: false }).then(() => runAutoTranscribe(db));
+    }
     if (state === 'background') {
       void writeBackgroundConfig(db);
       void writeAutoLibrary(db);
@@ -63,7 +66,9 @@ export function startAppSync(db: SQLiteDatabase): () => void {
       event.state === 'done' ? enforceStorageCap(db) : undefined,
     );
   });
+  const transcribe = startAutoTranscribe(db);
   return () => {
+    transcribe();
     appState.remove();
     downloads?.remove();
     changes.remove();

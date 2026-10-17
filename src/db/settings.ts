@@ -48,6 +48,11 @@ export type Settings = {
   adSensitivity: 'cautious' | 'balanced' | 'eager';
   /** The whisper.cpp model used for generated transcripts (null: none chosen). */
   speechModel: string | null;
+  /**
+   * Transcribe downloaded episodes automatically while charging: never, while Caster is open
+   * or playing, or any time (Android wakes Caster to do it while it's closed).
+   */
+  autoTranscribe: 'off' | 'open' | 'always';
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -79,6 +84,7 @@ export const DEFAULT_SETTINGS: Settings = {
   smartBookmarks: true,
   adSensitivity: 'balanced',
   speechModel: null,
+  autoTranscribe: 'off',
 };
 
 /** All settings, with defaults filled in for anything never set. Values are stored as JSON. */

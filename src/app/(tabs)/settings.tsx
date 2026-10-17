@@ -28,6 +28,7 @@ import {
 import { releaseDate } from '@/lib/format';
 import { applyPlayerSettings } from '@/player/controller';
 import { engine } from '@/player/engine';
+import { runAutoTranscribe, syncBackgroundTranscribe } from '@/transcripts/auto';
 import { speechAvailable } from '@/transcripts/whisper';
 import { useTheme } from '@/theme/theme-provider';
 import { Spacing } from '@/theme/themes';
@@ -423,6 +424,41 @@ export default function SettingsScreen() {
             hint="Make transcripts on this phone for episodes that don’t come with one. Bigger models are more accurate and slower."
           />
           <SpeechModels />
+          <RowDivider />
+          <PickerRow
+            label="Transcribe automatically"
+            hint="Downloaded episodes without a transcript, while your phone is charging"
+            options={[
+              {
+                value: 'off' as const,
+                label: 'Off',
+                hint: 'Only when you ask, from an episode’s transcript',
+              },
+              {
+                value: 'open' as const,
+                label: 'While Caster is open',
+                hint: 'Or playing in the background',
+              },
+              {
+                value: 'always' as const,
+                label: 'Any time',
+                hint: 'Android wakes Caster while charging, even when it’s closed (shows a notification while it works)',
+              },
+            ]}
+            value={s.autoTranscribe}
+            onChange={async (v) => {
+              await setSetting('autoTranscribe', v);
+              await syncBackgroundTranscribe(db);
+              void runAutoTranscribe(db);
+            }}
+          />
+          <RowDivider />
+          <LinkRow
+            icon="file-text"
+            label="Transcripts"
+            hint="See and export every transcript"
+            onPress={() => router.push('/transcripts')}
+          />
         </Section>
       )}
 

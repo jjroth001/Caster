@@ -44,6 +44,13 @@ export default function PlaylistsScreen() {
     void seedPlaylists(db);
   }, [db]);
 
+  const transcripts =
+    useDbQuery(
+      ['transcript'],
+      async (d) =>
+        (await d.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM transcript'))?.n ?? 0,
+    ).data ?? 0;
+
   const rows: Row[] = [
     {
       key: 'bookmarks',
@@ -58,6 +65,13 @@ export default function PlaylistsScreen() {
       hint: `${downloads} episode${downloads === 1 ? '' : 's'}`,
       icon: 'download-simple',
       href: '/downloads',
+    },
+    {
+      key: 'transcripts',
+      title: 'Transcripts',
+      hint: `${transcripts} saved`,
+      icon: 'file-text',
+      href: '/transcripts',
     },
     ...playlists.map((p) => ({
       key: `p${p.id}`,

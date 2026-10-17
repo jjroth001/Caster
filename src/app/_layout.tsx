@@ -78,6 +78,7 @@ function Root() {
         <Stack.Screen name="chapters" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="bookmarks" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="transcript" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="transcripts" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="stats" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="clip" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="folder/[id]" options={{ animation: 'slide_from_right' }} />

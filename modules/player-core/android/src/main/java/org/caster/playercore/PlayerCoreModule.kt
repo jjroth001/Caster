@@ -2,7 +2,11 @@
 
 package org.caster.playercore
 
+import android.content.BroadcastReceiver
 import android.content.ComponentName
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -94,9 +98,15 @@ class PlayerCoreModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("PlayerCore")
 
-    Events("onState", "onProgress", "onEnded", "onError", "onDownload", "onChapters", "onHeadsetAction", "onSpeechProgress")
+    Events("onState", "onProgress", "onEnded", "onError", "onDownload", "onChapters", "onHeadsetAction", "onSpeechProgress", "onPower")
 
     OnCreate {
+      // Plugged in or unplugged: automatic transcription only runs while charging.
+      val filter = IntentFilter().apply {
+        addAction(Intent.ACTION_POWER_CONNECTED)
+        addAction(Intent.ACTION_POWER_DISCONNECTED)
+      }
+      runCatching { context.registerReceiver(powerReceiver, filter) }
       handler.post {
         PlayerCore.listener = listener
         downloads = WorkManager.getInstance(context).getWorkInfosByTagLiveData(Downloads.TAG).also {
@@ -113,6 +123,7 @@ class PlayerCoreModule : Module() {
         controller = null
         downloads?.removeObserver(downloadObserver)
         downloads = null
+        runCatching { context.unregisterReceiver(powerReceiver) }
       }
     }
 
@@ -237,6 +248,19 @@ class PlayerCoreModule : Module() {
 
     // --- Generated transcripts ---
 
+    /** Transcribe while Caster is closed and the phone charges (or stop doing so). */
+    Function("configureBackgroundTranscribe") { enabled: Boolean ->
+      BackgroundTranscribe.configure(context, enabled)
+    }
+
+    /** How many downloaded episodes are waiting for a transcript (0: nothing to wake up for). */
+    Function("setTranscribePending") { count: Int -> BackgroundTranscribe.setPending(context, count) }
+
+    /** Whether the phone is charging (or full while plugged in). */
+    Function("isCharging") {
+      context.getSystemService(BatteryManager::class.java)?.isCharging ?: false
+    }
+
     /** Converts a downloaded episode to 16 kHz mono WAV for whisper.cpp; resolves with its path. */
     AsyncFunction("decodeForSpeech") { source: String ->
       val out = java.io.File(context.cacheDir, "speech-${System.currentTimeMillis()}.wav")
@@ -270,6 +294,13 @@ class PlayerCoreModule : Module() {
 
     Function("clearInbox") { podcastId: Double -> Background.clearInbox(context, podcastId.toLong()) }
   }
+
+  private val powerReceiver =
+    object : BroadcastReceiver() {
+      override fun onReceive(context: Context, intent: Intent) {
+        sendEvent("onPower", mapOf("charging" to (intent.action == Intent.ACTION_POWER_CONNECTED)))
+      }
+    }
 
   private var downloads: LiveData<List<WorkInfo>>? = null
   private val lastSent = HashMap<String, String>()

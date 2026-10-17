@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, Share, StyleSheet, TextInput, View } from 'react-native';
@@ -8,7 +8,9 @@ import { Icon } from '@/components/icons/icon';
 import { SubScreen } from '@/components/sub-screen';
 import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
+import { getEpisode } from '@/db/library';
 import { useDbQuery } from '@/db/use-db-query';
+import { shareTranscript } from '@/lib/transcript-share';
 import { clock } from '@/lib/format';
 import { playEpisodeAt } from '@/player/controller';
 import { useNowPlaying } from '@/player/use-now-playing';
@@ -24,7 +26,15 @@ export default function TranscriptScreen() {
   const db = useSQLiteContext();
   const theme = useTheme();
   const tabSpace = useTabBarSpace();
-  const episode = useNowPlaying();
+  // Opened from Transcripts for a particular episode, or from the player for the one playing.
+  const { episode: param } = useLocalSearchParams<{ episode?: string }>();
+  const nowPlaying = useNowPlaying();
+  const picked = useDbQuery(
+    ['episode', 'episode_state'],
+    async (d) => (param ? getEpisode(d, Number(param)) : null),
+    [param],
+  ).data;
+  const episode = param ? (picked ?? null) : nowPlaying;
   const player = usePlayerState();
   const list = useRef<FlatList>(null);
   const [follow, setFollow] = useState(true);
@@ -89,15 +99,24 @@ export default function TranscriptScreen() {
     <SubScreen
       title="Transcript"
       actions={
-        timed ? (
-          <IconButton
-            icon="arrows-clockwise"
-            label={follow ? 'Following along. Tap to stop.' : 'Follow along'}
-            color={follow ? theme.accent : theme.textSecondary}
-            filled={follow}
-            onPress={() => setFollow((f) => !f)}
-          />
-        ) : undefined
+        <>
+          {cues.length > 0 && (
+            <IconButton
+              icon="export"
+              label="Export transcript"
+              onPress={() => void shareTranscript(db, episode.id)}
+            />
+          )}
+          {timed ? (
+            <IconButton
+              icon="arrows-clockwise"
+              label={follow ? 'Following along. Tap to stop.' : 'Follow along'}
+              color={follow ? theme.accent : theme.textSecondary}
+              filled={follow}
+              onPress={() => setFollow((f) => !f)}
+            />
+          ) : null}
+        </>
       }>
       <View style={[styles.search, { backgroundColor: theme.element }]}>
         <Icon name="magnifying-glass" size={18} color={theme.textSecondary} />

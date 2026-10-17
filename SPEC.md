@@ -243,8 +243,8 @@ One SQLite database, managed by Drizzle migrations. Large blobs (audio, transcri
 9. Clip editor and export.
 
 **Progress (0.4):** steps 1–9 are built except Chromaprint repeated-audio detection (layer 3).
-Notes on what was built differently: transcription runs in the app (with progress) rather than
-as a charging-and-idle background job; clip videos show the cover art without a waveform; the
+Notes on what was built differently: transcription can run on request, automatically while
+Caster is open, or any time while charging (a WorkManager job wakes Caster headless); clip videos show the cover art without a waveform; the
 clip editor uses a range bar with nudge buttons rather than a waveform; background refresh
 fetches feeds into an inbox the app saves on its next run, so only the app writes its database.
 

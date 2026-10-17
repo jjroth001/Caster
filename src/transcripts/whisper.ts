@@ -99,6 +99,8 @@ export async function generateTranscript(
   onProgress: (p: number, step: string) => void,
 ): Promise<Cue[]> {
   if (!PlayerCore) throw new Error('Generated transcripts need the installed app.');
+  if (running)
+    throw new Error('Another transcript is being made right now. Try again when it finishes.');
   const settings = await getSettings(db);
   const model = SPEECH_MODELS.find((m) => m.id === settings.speechModel) ?? null;
   const uri = model ? modelUri(model.id) : null;

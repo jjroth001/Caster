@@ -72,6 +72,7 @@ type PlayerCoreEvents = {
   onChapters(event: { id: string; chapters: EmbeddedChapter[] }): void;
   onHeadsetAction(event: { action: HeadsetAction }): void;
   onSpeechProgress(event: { progress: number }): void;
+  onPower(event: { charging: boolean }): void;
 };
 
 export type HeadsetAction = 'skipForward' | 'skipBack' | 'nextChapter' | 'bookmark' | 'none';
@@ -112,6 +113,12 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
     format: 'audio' | 'square' | 'story';
   }): Promise<string>;
 
+  /** Transcribe while Caster is closed and the phone charges (or stop doing so). */
+  configureBackgroundTranscribe(enabled: boolean): void;
+  /** How many downloaded episodes are waiting for a transcript. */
+  setTranscribePending(count: number): void;
+  /** Whether the phone is charging. */
+  isCharging(): boolean;
   /** Converts a downloaded episode to 16 kHz mono WAV for speech recognition; resolves with its path. */
   decodeForSpeech(source: string): Promise<string>;
 

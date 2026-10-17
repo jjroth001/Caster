@@ -51,7 +51,7 @@ Every Pocket Casts feature below ships free in this app, except the server-only 
 | Clip sharing as audio file or video | Free on mobile, Plus on web/desktop | Yes | Media3 Transformer trims audio; video = waveform over cover art |
 | Android Auto | Free | Yes | Media3 `MediaLibraryService` |
 | Chromecast | Free | Dropped | Requires Google Play services |
-| Light, dark, Extra Dark themes | Free | Yes | |
+| Light, dark, Extra Dark themes | Free | Yes | Paper, Dusk, Midnight |
 | Folders | Plus | Yes | |
 | Bookmarks (incl. headphone-triggered) | Plus | Yes | Headphone double/triple-press action |
 | Preselect Chapters (skip unwanted chapters) | Plus | Yes | |
@@ -157,7 +157,21 @@ Shared rules for all layers: a "Skipped ad · Undo" snackbar on every auto-skip,
 
 ### Appearance
 
-- Light, Dark, Extra Dark (true black for OLED), and Material You dynamic color. A few extra accent themes and alternate app icons, all free.
+Three themes, all free, mocked up in `docs/mockups/`:
+
+- **Paper** (light): warm cream pages, serif headings, terracotta accent.
+- **Dusk** (dark): night-blue-to-teal gradient, frosted glass cards, apricot accent.
+- **Midnight** (true black for OLED): black background, mint accent.
+
+Theme setting: Automatic (default: Paper in light mode, Dusk in dark mode, following the phone), or any one theme always. Automatic's dark pick can be switched to Midnight.
+
+Separate from the theme, so any combination works:
+
+- **Library view:** list (with each show's newest episode), grid of covers, or large grid.
+- **Tint from cover art:** the player and podcast pages take their colour from the artwork. On by default in Midnight, optional in the others.
+- **Alternate app icons** via Android activity aliases.
+
+Theme changes cross-fade; nothing pops.
 
 ### Backup and restore
 

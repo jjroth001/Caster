@@ -41,3 +41,9 @@ example
 # generated native folders
 /ios
 /android
+
+# Signing keys never belong in the repo
+*.keystore
+
+# Native build output of local modules
+modules/*/android/build/

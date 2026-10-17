@@ -1,0 +1,45 @@
+import { PickerRow, RowDivider } from '@/components/picker-row';
+import {
+  Row,
+  Section,
+  SettingsPage,
+  settingsStyles,
+  Toggle,
+  useSettingsEditor,
+} from '@/components/settings-ui';
+import { Txt } from '@/components/text';
+
+export default function AdSettings() {
+  const { s, set } = useSettingsEditor();
+  return (
+    <SettingsPage title="Ad skipping">
+      <Section>
+        <Row
+          label="Skip ads"
+          hint="Chapters titled like ads (sponsor, promo…) and ad reads found in transcripts">
+          <Toggle value={s.adSkip} onChange={set('adSkip')} />
+        </Row>
+        {s.adSkip && (
+          <>
+            <RowDivider />
+            <PickerRow
+              label="Ad detection"
+              hint="How sure Caster must be before skipping an ad read"
+              options={[
+                { value: 'cautious', label: 'Cautious', hint: 'Only clear-cut ad reads' },
+                { value: 'balanced', label: 'Balanced' },
+                { value: 'eager', label: 'Eager', hint: 'Skips more, sometimes wrongly' },
+              ]}
+              value={s.adSensitivity}
+              onChange={set('adSensitivity')}
+            />
+          </>
+        )}
+      </Section>
+      <Txt variant="small" secondary style={settingsStyles.note}>
+        Every skip shows “Skipped ad · Undo”. Turn skipping off for a single show in its podcast
+        settings, and set seconds to skip at its start and end there too.
+      </Txt>
+    </SettingsPage>
+  );
+}

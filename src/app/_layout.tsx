@@ -88,6 +88,14 @@ function Root() {
         <Stack.Screen name="playlist/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="playlist-edit" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="folder-edit" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/appearance" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/playback" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/ads" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/new-episodes" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/downloads" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/transcripts" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/backup" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/about" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="podcast-settings/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen
           name="player"

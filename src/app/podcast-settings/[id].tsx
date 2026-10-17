@@ -16,7 +16,8 @@ import {
 } from '@/db/library';
 import { DEFAULT_SETTINGS } from '@/db/settings';
 import { useDbQuery } from '@/db/use-db-query';
-import { useSettings } from '@/db/use-settings';
+import { useSetSetting, useSettings } from '@/db/use-settings';
+import { runAutoDownloads, setPodcastAutoDownload } from '@/downloads/auto-download';
 import { writeBackgroundConfig } from '@/downloads/background';
 import { downloadsAvailable } from '@/downloads/downloads';
 import { speedLabel } from '@/lib/format';
@@ -73,6 +74,7 @@ export default function PodcastSettingsScreen() {
   const db = useSQLiteContext();
   const tabSpace = useTabBarSpace();
   const global = useSettings().data ?? DEFAULT_SETTINGS;
+  const setGlobal = useSetSetting();
   const podcast = useDbQuery(['podcast'], (d) => getPodcast(d, podcastId), [podcastId]).data;
   const own = useDbQuery(['podcast_settings'], (d) => getPodcastSettings(d, podcastId), [
     podcastId,
@@ -168,25 +170,26 @@ export default function PodcastSettingsScreen() {
           {downloadsAvailable && (
             <Setting
               label="Auto-download"
+              hint={
+                own.auto_download_n
+                  ? `New episodes, keeping the latest ${global.autoDownloadLimit}. Change the limit in Settings → Auto-download.`
+                  : 'Download new episodes as they come out'
+              }
               options={[
-                {
-                  value: null,
-                  label: def(
-                    global.autoDownload === 1
-                      ? 'newest episode'
-                      : global.autoDownload
-                        ? `newest ${global.autoDownload}`
-                        : 'off',
-                  ),
-                },
                 { value: 0, label: 'Off' },
-                { value: 1, label: 'Newest episode' },
-                { value: 2, label: 'Newest 2' },
-                { value: 3, label: 'Newest 3' },
-                { value: 5, label: 'Newest 5' },
+                { value: 1, label: 'On' },
               ]}
-              value={own.auto_download_n}
-              onChange={set('auto_download_n')}
+              value={own.auto_download_n ? 1 : 0}
+              onChange={(v) =>
+                void (async () => {
+                  await setPodcastAutoDownload(db, podcastId, v === 1);
+                  if (v === 1 && !global.autoDownloadNew) {
+                    await setGlobal('autoDownloadNew', true);
+                  }
+                  await writeBackgroundConfig(db);
+                  await runAutoDownloads(db);
+                })()
+              }
             />
           )}
           <Setting

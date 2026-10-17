@@ -69,6 +69,7 @@ internal object Downloads {
     title: String,
     wifiOnly: Boolean,
     chargingOnly: Boolean,
+    storageNotLow: Boolean = false,
   ) {
     val ext = extension(url, mime)
     // A sidecar so a finished file can be traced back to its episode after a restart.
@@ -79,6 +80,7 @@ internal object Downloads {
         Constraints.Builder()
           .setRequiredNetworkType(if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED)
           .setRequiresCharging(chargingOnly)
+          .setRequiresStorageNotLow(storageNotLow)
           .build()
       )
       .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)

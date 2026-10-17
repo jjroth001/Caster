@@ -35,6 +35,7 @@ export async function writeBackgroundConfig(db: SQLiteDatabase) {
         refreshHours: settings.refreshHours,
         wifiOnly: settings.downloadWifiOnly,
         chargingOnly: settings.downloadChargingOnly,
+        storageNotLow: settings.downloadStorageNotLow,
       },
       podcasts: podcasts.map((p) => ({
         id: p.id,
@@ -44,7 +45,7 @@ export async function writeBackgroundConfig(db: SQLiteDatabase) {
         lastModified: p.last_modified,
         latestPub: p.latest_pub ?? 0,
         notify: p.notify == null ? settings.notifyNewEpisodes : !!p.notify,
-        autoDownload: p.auto_n ?? settings.autoDownload,
+        autoDownload: settings.autoDownloadNew && p.auto_n ? settings.autoDownloadLimit : 0,
       })),
     }),
   );

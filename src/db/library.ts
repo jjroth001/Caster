@@ -457,6 +457,9 @@ export async function setPodcastSetting<K extends keyof PodcastSettings>(
 
 // --- Up Next ----------------------------------------------------------------------
 
+/** Called after an episode is added to Up Next (auto-download listens here). */
+export const queueListeners = new Set<(db: SQLiteDatabase, episodeId: number) => void>();
+
 export async function queueEpisode(db: SQLiteDatabase, episodeId: number, where: 'next' | 'last') {
   const edge = await db.getFirstAsync<{ lo: number | null; hi: number | null }>(
     'SELECT MIN(position) AS lo, MAX(position) AS hi FROM queue_item',
@@ -468,6 +471,7 @@ export async function queueEpisode(db: SQLiteDatabase, episodeId: number, where:
     episodeId,
     position,
   );
+  queueListeners.forEach((l) => l(db, episodeId));
 }
 
 export async function dequeue(db: SQLiteDatabase, episodeId: number) {

@@ -51,6 +51,8 @@ export type DownloadRequest = {
   title: string;
   wifiOnly: boolean;
   chargingOnly: boolean;
+  /** Wait while the phone is low on storage. */
+  storageNotLow?: boolean;
 };
 
 export type InboxFeed = {

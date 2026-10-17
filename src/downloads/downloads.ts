@@ -43,6 +43,7 @@ async function setDownloadState(
   episodeId: number,
   status: string | null,
   localPath: string | null,
+  automatic?: boolean,
 ) {
   await db.runAsync(
     `INSERT INTO episode_state (episode_id, updated_at, download_status, local_path) VALUES (?, ?, ?, ?)
@@ -53,6 +54,14 @@ async function setDownloadState(
     status,
     localPath,
   );
+  // Whether auto-download started it (its limit only ever removes those); gone means neither.
+  if (automatic !== undefined || status === null) {
+    await db.runAsync(
+      'UPDATE episode_state SET auto_downloaded = ? WHERE episode_id = ?',
+      automatic && status !== null ? 1 : 0,
+      episodeId,
+    );
+  }
 }
 
 export async function downloadEpisode(
@@ -75,8 +84,9 @@ export async function downloadEpisode(
     // Downloads you start yourself go ahead on mobile data; automatic ones follow the settings.
     wifiOnly: automatic && settings.downloadWifiOnly,
     chargingOnly: automatic && settings.downloadChargingOnly,
+    storageNotLow: automatic && settings.downloadStorageNotLow,
   });
-  await setDownloadState(db, e.id, 'queued', null);
+  await setDownloadState(db, e.id, 'queued', null, automatic);
 }
 
 export async function removeDownload(db: SQLiteDatabase, episodeId: number) {
@@ -138,42 +148,13 @@ export async function reconcileDownloads(db: SQLiteDatabase) {
   for (const [key, uri] of byKey) {
     if (known.has(key)) continue;
     const episode = await episodeForKey(db, key);
-    if (episode) await setDownloadState(db, episode.id, 'done', uri);
+    // Only the background check starts downloads the library doesn't know about.
+    if (episode) await setDownloadState(db, episode.id, 'done', uri, true);
   }
   for (const [key, state] of activeKeys) {
     if (known.has(key)) continue;
     const episode = await episodeForKey(db, key);
     if (episode) await setDownloadState(db, episode.id, state, null);
-  }
-}
-
-/** Downloads the newest new episodes of podcasts with auto-download on. */
-export async function autoDownloadNew(db: SQLiteDatabase) {
-  if (!PlayerCore) return;
-  const settings = await getSettings(db);
-  const podcasts = await db.getAllAsync<{ id: number; new_since: number; n: number | null }>(
-    `SELECT p.id, p.new_since, ps.auto_download_n AS n FROM podcast p
-     LEFT JOIN podcast_settings ps ON ps.podcast_id = p.id WHERE p.subscribed = 1`,
-  );
-  for (const p of podcasts) {
-    const n = p.n ?? settings.autoDownload;
-    if (n <= 0) continue;
-    const candidates = await db.getAllAsync<{ id: number }>(
-      `SELECT e.id FROM episode e LEFT JOIN episode_state s ON s.episode_id = e.id
-       WHERE e.podcast_id = ? AND COALESCE(e.pub_date, 0) >= ?
-         AND COALESCE(s.played, 0) = 0 AND COALESCE(s.archived, 0) = 0
-       ORDER BY e.pub_date DESC LIMIT ?`,
-      p.id,
-      p.new_since,
-      n,
-    );
-    for (const c of candidates) {
-      const state = await db.getFirstAsync<{ download_status: string | null }>(
-        'SELECT download_status FROM episode_state WHERE episode_id = ?',
-        c.id,
-      );
-      if (!state?.download_status) await downloadEpisode(db, c.id, { automatic: true });
-    }
   }
 }
 

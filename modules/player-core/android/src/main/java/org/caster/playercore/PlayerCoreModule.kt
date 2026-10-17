@@ -42,6 +42,7 @@ class DownloadRequest : Record {
   @Field val title: String = ""
   @Field val wifiOnly: Boolean = true
   @Field val chargingOnly: Boolean = false
+  @Field val storageNotLow: Boolean = false
 }
 
 class LoadItem : Record {
@@ -212,6 +213,7 @@ class PlayerCoreModule : Module() {
         request.title,
         request.wifiOnly,
         request.chargingOnly,
+        request.storageNotLow,
       )
     }
 

@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { HeadsetAction } from '@modules/player-core/src';
 import { Card } from '@/components/controls';
-import { PickerRow, RowDivider } from '@/components/picker-row';
+import { NavRow, PickerRow, RowDivider } from '@/components/picker-row';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { ScreenHeader } from '@/components/screen-header';
 import { SpeechModels } from '@/components/speech-models';
@@ -16,7 +16,7 @@ import { Txt } from '@/components/text';
 import { DEFAULT_SETTINGS, type Settings } from '@/db/settings';
 import { useSetSetting, useSettings } from '@/db/use-settings';
 import { requestNotificationPermission, writeBackgroundConfig } from '@/downloads/background';
-import { autoDownloadNew, downloadsAvailable, enforceStorageCap } from '@/downloads/downloads';
+import { downloadsAvailable, enforceStorageCap } from '@/downloads/downloads';
 import { refreshAll } from '@/feeds/sync';
 import {
   importOpml,
@@ -124,7 +124,6 @@ export default function SettingsScreen() {
     async (value: Settings[K]) => {
       await setSetting(key, value);
       await writeBackgroundConfig(db);
-      if (key === 'autoDownload') await autoDownloadNew(db);
     };
 
   const runImport = async () => {
@@ -368,31 +367,16 @@ export default function SettingsScreen() {
             })}
           </Row>
           <RowDivider />
-          <PickerRow
+          <NavRow
             label="Auto-download"
-            hint="The newest new episodes of every podcast"
-            options={[
-              { value: 0, label: 'Off' },
-              { value: 1, label: 'Newest episode' },
-              { value: 2, label: 'Newest 2' },
-              { value: 3, label: 'Newest 3' },
-              { value: 5, label: 'Newest 5' },
-            ]}
-            value={s.autoDownload}
-            onChange={setBackground('autoDownload')}
+            hint="New episodes, Up Next and playlists, and when to download them"
+            value={
+              s.autoDownloadNew || s.autoDownloadUpNext || s.autoDownloadPlaylists.length > 0
+                ? 'On'
+                : 'Off'
+            }
+            onPress={() => router.push('/auto-download')}
           />
-          {s.autoDownload > 0 && (
-            <>
-              <RowDivider />
-              <Row label="Only on Wi-Fi">
-                {toggle(s.downloadWifiOnly, setBackground('downloadWifiOnly'))}
-              </Row>
-              <RowDivider />
-              <Row label="Only while charging">
-                {toggle(s.downloadChargingOnly, setBackground('downloadChargingOnly'))}
-              </Row>
-            </>
-          )}
           <RowDivider />
           <PickerRow
             label="Storage limit"

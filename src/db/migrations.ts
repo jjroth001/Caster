@@ -165,6 +165,10 @@ export const MIGRATIONS: string[] = [
   );
   CREATE INDEX ad_segment_episode ON ad_segment (episode_id, start_s);
   `,
+  // 3: remember which downloads auto-download made, so its limit never removes your own.
+  `
+  ALTER TABLE episode_state ADD COLUMN auto_downloaded INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {

@@ -73,6 +73,45 @@ export function PickerRow<T>({
   );
 }
 
+/** A row laid out like a PickerRow that opens another screen (or runs an action) instead. */
+export function NavRow({
+  label,
+  hint,
+  value,
+  onPress,
+  chevron = true,
+}: {
+  label: string;
+  hint?: string;
+  value?: string;
+  onPress: () => void;
+  chevron?: boolean;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={value ? `${label}: ${value}` : label}
+      style={({ pressed }) => [styles.row, pressed && { backgroundColor: theme.element }]}>
+      <View style={styles.text}>
+        <Txt variant="bodyBold">{label}</Txt>
+        {!!hint && (
+          <Txt variant="small" secondary>
+            {hint}
+          </Txt>
+        )}
+      </View>
+      {!!value && (
+        <Txt variant="smallBold" color={theme.accent} style={styles.value} numberOfLines={1}>
+          {value}
+        </Txt>
+      )}
+      {chevron && <Icon name="caret-right" size={16} color={theme.textSecondary} duotone={false} />}
+    </Pressable>
+  );
+}
+
 /** A thin line between rows in a card. */
 export function RowDivider() {
   const theme = useTheme();

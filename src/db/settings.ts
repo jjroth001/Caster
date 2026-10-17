@@ -27,10 +27,27 @@ export type Settings = {
   /** Check for new episodes in the background every N hours (0: only when the app opens). */
   refreshHours: number;
   notifyNewEpisodes: boolean;
-  /** Download the newest N new episodes of each podcast automatically (0: off). */
+  /**
+   * Before 0.4.3: download the newest N new episodes of every podcast (0: off). Only read once,
+   * to carry it over to the settings below.
+   */
   autoDownload: number;
+  /** Set once the old auto-download setting has been carried over. */
+  autoDownloadUpgraded: boolean;
+  /** Download new episodes of the podcasts chosen for it (podcast_settings.auto_download_n). */
+  autoDownloadNew: boolean;
+  /** Keep at most this many automatic downloads per chosen podcast, newest first. */
+  autoDownloadLimit: number;
+  /** Download the latest two episodes of a podcast when you follow it. */
+  autoDownloadOnFollow: boolean;
+  /** Download episodes when they're added to Up Next. */
+  autoDownloadUpNext: boolean;
+  /** Download the first episodes of these playlists. */
+  autoDownloadPlaylists: number[];
   downloadWifiOnly: boolean;
   downloadChargingOnly: boolean;
+  /** Automatic downloads wait while the phone is low on storage. */
+  downloadStorageNotLow: boolean;
   /** Keep downloads under this many GB by removing played ones, oldest first (0: no limit). */
   storageCapGb: number;
   deletePlayedDownloads: boolean;
@@ -72,8 +89,15 @@ export const DEFAULT_SETTINGS: Settings = {
   refreshHours: 4,
   notifyNewEpisodes: false,
   autoDownload: 0,
+  autoDownloadUpgraded: false,
+  autoDownloadNew: false,
+  autoDownloadLimit: 2,
+  autoDownloadOnFollow: false,
+  autoDownloadUpNext: false,
+  autoDownloadPlaylists: [],
   downloadWifiOnly: true,
   downloadChargingOnly: false,
+  downloadStorageNotLow: true,
   storageCapGb: 0,
   deletePlayedDownloads: false,
   adSkip: true,

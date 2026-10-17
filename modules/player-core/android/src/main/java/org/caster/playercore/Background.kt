@@ -167,6 +167,7 @@ class RefreshWorker(context: Context, params: WorkerParameters) : Worker(context
             title = item.title,
             wifiOnly = settings.optBoolean("wifiOnly", true),
             chargingOnly = settings.optBoolean("chargingOnly", false),
+            storageNotLow = settings.optBoolean("storageNotLow", true),
           )
         }
       } catch (_: Exception) {

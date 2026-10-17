@@ -75,6 +75,8 @@ function Root() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="podcast/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="downloads" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="auto-download" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="auto-download-choose" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="chapters" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="bookmarks" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="transcript" options={{ animation: 'slide_from_right' }} />

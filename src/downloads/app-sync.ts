@@ -4,17 +4,13 @@ import { AppState } from 'react-native';
 import { PlayerCore } from '@modules/player-core/src';
 import { applyPendingState, writeAutoLibrary } from '@/auto/snapshot';
 import { runAutoTranscribe, startAutoTranscribe } from '@/transcripts/auto';
-import { pruneUnfollowed } from '@/db/library';
+import { pruneUnfollowed, queueListeners } from '@/db/library';
 import { getSettings } from '@/db/settings';
 import { refreshAll } from '@/feeds/sync';
 
 import { processInbox, writeBackgroundConfig } from './background';
-import {
-  applyDownloadEvent,
-  autoDownloadNew,
-  enforceStorageCap,
-  reconcileDownloads,
-} from './downloads';
+import { autoDownloadQueued, runAutoDownloads } from './auto-download';
+import { applyDownloadEvent, enforceStorageCap, reconcileDownloads } from './downloads';
 
 const STALE_MS = 15 * 60_000;
 
@@ -27,7 +23,7 @@ async function catchUp(db: SQLiteDatabase, { force }: { force: boolean }) {
   if (force || !settings.lastRefreshAt || Date.now() - settings.lastRefreshAt > STALE_MS) {
     await refreshAll(db);
   }
-  await autoDownloadNew(db);
+  await runAutoDownloads(db);
   await enforceStorageCap(db);
   await writeBackgroundConfig(db);
   await writeAutoLibrary(db);
@@ -67,7 +63,10 @@ export function startAppSync(db: SQLiteDatabase): () => void {
     );
   });
   const transcribe = startAutoTranscribe(db);
+  const onQueued = (d: SQLiteDatabase, episodeId: number) => void autoDownloadQueued(d, episodeId);
+  queueListeners.add(onQueued);
   return () => {
+    queueListeners.delete(onQueued);
     transcribe();
     appState.remove();
     downloads?.remove();

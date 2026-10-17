@@ -21,6 +21,7 @@ import {
   setPodcastSetting,
 } from '@/db/library';
 import { useDbQuery } from '@/db/use-db-query';
+import { autoDownloadFollowed } from '@/downloads/auto-download';
 import { htmlToText } from '@/feeds/text';
 import { refreshPodcast } from '@/feeds/sync';
 import { podcastMenu } from '@/lib/library-actions';
@@ -100,7 +101,9 @@ export default function PodcastScreen() {
           <Button
             label="Follow"
             icon="plus"
-            onPress={() => void followPodcast(db, podcastId)}
+            onPress={() =>
+              void followPodcast(db, podcastId).then(() => autoDownloadFollowed(db, podcastId))
+            }
             style={styles.follow}
           />
         )}

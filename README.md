@@ -9,11 +9,37 @@ Not on the Play Store and no Google Play services: install the signed APK direct
 - [SPEC.md](SPEC.md): the full feature list, design and build order.
 - [BUILDING.md](BUILDING.md): how to build and sign the APK.
 
-Status: early development (0.2). Working so far: follow podcasts by search, feed address,
-Apple Podcasts link or OPML import; episode lists that refresh when the app opens; Up Next;
-background playback with notification and headset controls, speed, trim silence, volume boost
-and a sleep timer; Paper, Dusk and Midnight themes. See the build order in SPEC.md for what's
-next.
+## Features
+
+- **Find and follow:** search Apple's public directory, paste a feed or Apple Podcasts link,
+  top charts, OPML import and export.
+- **Library:** grid, large grid or list; coloured folders; new-episode counts.
+- **Listening:** background playback with notification, lock-screen and headset controls;
+  speed 0.5–3×; trim silence (mild or strong); volume boost; sleep timer with fade-out;
+  configurable skip intervals; headphone double/triple press actions.
+- **Per podcast:** its own speed, trim, boost, skip intro and outro, auto-download,
+  notifications and episode order.
+- **Up Next, playlists and bookmarks:** queue with shuffle, manual and smart playlists,
+  bookmarks (smart titles from transcripts).
+- **Chapters:** Podcasting 2.0 and ID3 chapters with artwork; untick chapters to skip them.
+- **Transcripts:** publisher transcripts that follow along and search; or make one on the
+  phone with Whisper (opt-in model download).
+- **Ad skipping:** chapters titled like ads, and ad reads found in transcripts, with
+  "Skipped · Undo" and a per-podcast off switch.
+- **Downloads and refresh:** downloads that finish with the app closed, auto-download,
+  Wi-Fi/charging rules, a storage limit, background checks with new-episode notifications.
+- **Android Auto:** browse Up Next, playlists, podcasts and downloads in the car.
+- **Clips and sharing:** share an episode or a moment, or a clip as audio or cover-art video.
+- **Your data:** full backup and merging restore; listening stats with time saved.
+- **Looks:** Paper, Dusk and Midnight themes, optional tint from the cover art.
+
+Not yet: repeated-audio ad detection (audio fingerprinting).
+
+**Android Auto with a sideloaded app:** Android Auto hides apps that didn't come from the
+Play Store. In Android Auto's settings, tap the version number 10 times, then turn on
+"Unknown sources" in its developer settings.
+
+Status: early test builds; see Releases.
 
 ## License
 

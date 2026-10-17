@@ -9,7 +9,7 @@ import { Icon } from '@/components/icons/icon';
 import { Txt } from '@/components/text';
 import type { EpisodeItem } from '@/db/library';
 import { keyFor } from '@/downloads/downloads';
-import { useDownloadProgress } from '@/downloads/progress';
+import { useDownloadLabel } from '@/downloads/progress';
 import { duration, releaseDate, timeLeft } from '@/lib/format';
 import { engine } from '@/player/engine';
 import { playEpisode } from '@/player/controller';
@@ -32,7 +32,7 @@ export function EpisodeRow({ episode, showPodcast, cards, trailing }: Props) {
   const theme = useTheme();
   const player = useEpisodePlayback(episode.id);
   const [now] = useState(Date.now);
-  const downloading = useDownloadProgress(
+  const downloading = useDownloadLabel(
     episode.download_status === 'downloading' ? keyFor(episode) : null,
   );
   const current = player.current;
@@ -94,7 +94,7 @@ export function EpisodeRow({ episode, showPodcast, cards, trailing }: Props) {
           )}
           {(episode.download_status === 'downloading' || episode.download_status === 'queued') && (
             <Txt variant="small" color={theme.accent}>
-              {downloading != null ? `${Math.round(downloading * 100)}%` : 'Queued'}
+              {downloading ?? 'Queued'}
             </Txt>
           )}
           <Txt variant="small" secondary numberOfLines={1}>

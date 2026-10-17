@@ -31,9 +31,10 @@ export function useArtworkTint(url: string | null | undefined): string | null {
   const theme = useTheme();
   const settings = useSettings().data ?? DEFAULT_SETTINGS;
   const enabled = theme.name === 'midnight' || settings.tintFromArtwork;
-  // Bumped when a colour arrives, so the cached value is read again.
-  const [, setLoaded] = useState(0);
-  const color = url ? (cache.get(url) ?? null) : null;
+  // The colour fetched for this cover, kept in state so the screen redraws when it arrives
+  // (React Compiler would otherwise keep the first read of the module-level cache).
+  const [fetched, setFetched] = useState<{ url: string; color: string | null } | null>(null);
+  const color = !url ? null : fetched?.url === url ? fetched.color : (cache.get(url) ?? null);
 
   useEffect(() => {
     if (!enabled || !url || !PlayerCore || cache.has(url)) return;
@@ -41,7 +42,7 @@ export function useArtworkTint(url: string | null | undefined): string | null {
     PlayerCore.artworkColor(url).then(
       (c) => {
         cache.set(url, c);
-        if (live) setLoaded((n) => n + 1);
+        if (live) setFetched({ url, color: c });
       },
       () => cache.set(url, null),
     );

@@ -16,7 +16,7 @@ import { dequeue, getEpisode, queueEpisode, setPlayed, setStarred } from '@/db/l
 import { listBookmarks } from '@/db/bookmarks';
 import { useDbQuery } from '@/db/use-db-query';
 import { downloadEpisode, downloadsAvailable, keyFor, removeDownload } from '@/downloads/downloads';
-import { useDownloadProgress } from '@/downloads/progress';
+import { useDownloadLabel } from '@/downloads/progress';
 import { htmlToText } from '@/feeds/text';
 import { duration, releaseDate, timeLeft } from '@/lib/format';
 import { chooseManualPlaylist } from '@/lib/library-actions';
@@ -75,7 +75,7 @@ export default function EpisodeScreen() {
 
   const bookmarks =
     useDbQuery(['bookmark'], (d) => listBookmarks(d, episodeId), [episodeId]).data ?? [];
-  const downloadProgress = useDownloadProgress(episode ? keyFor(episode) : null);
+  const downloadProgress = useDownloadLabel(episode ? keyFor(episode) : null);
 
   if (!episode) return <Background />;
   const current = player.id === String(episode.id);
@@ -94,7 +94,7 @@ export default function EpisodeScreen() {
     downloadState === 'done'
       ? 'Downloaded'
       : downloadState === 'downloading'
-        ? `${Math.round((downloadProgress ?? 0) * 100)}%`
+        ? (downloadProgress ?? '0%')
         : downloadState === 'queued'
           ? 'Waiting'
           : downloadState === 'failed'

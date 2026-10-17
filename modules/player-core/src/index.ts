@@ -35,7 +35,10 @@ export type DownloadEvent = {
   /** "<podcastId>:<guid>" */
   key: string;
   state: DownloadState;
+  /** 0–1, or -1 while downloading a file whose size the server didn't give. */
   progress: number;
+  /** Bytes saved so far while downloading. */
+  written: number;
   uri: string | null;
   bytes: number;
   error: string | null;

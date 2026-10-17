@@ -308,7 +308,7 @@ class PlayerCoreModule : Module() {
   private val downloadObserver = Observer<List<WorkInfo>> { infos ->
     for (info in infos) {
       val event = downloadEvent(info) ?: continue
-      val signature = "${event["state"]}:${event["progress"]}"
+      val signature = "${event["state"]}:${event["progress"]}:${event["written"]}"
       val key = event["key"] as String
       if (lastSent[key] == signature) continue
       lastSent[key] = signature
@@ -329,6 +329,7 @@ class PlayerCoreModule : Module() {
       "key" to key,
       "state" to state,
       "progress" to info.progress.getDouble("progress", 0.0),
+      "written" to info.progress.getLong("written", 0).toDouble(),
       "uri" to info.outputData.getString("uri"),
       "bytes" to info.outputData.getLong("bytes", 0).toDouble(),
       "error" to info.outputData.getString("error"),

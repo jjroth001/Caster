@@ -167,6 +167,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
         val total = connection.contentLengthLong.let { if (it > 0) it + (if (append) resumeFrom else 0) else -1 }
         var written = if (append) resumeFrom else 0L
         var lastPercent = -1
+        var lastReported = 0L
         connection.inputStream.use { input ->
           FileOutputStream(part, append).use { output ->
             val buffer = ByteArray(64 * 1024)
@@ -180,9 +181,13 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
                 val percent = ((written * 100) / total).toInt()
                 if (percent != lastPercent) {
                   lastPercent = percent
-                  setProgressAsync(workDataOf("progress" to percent / 100.0, "key" to key))
+                  setProgressAsync(workDataOf("progress" to percent / 100.0, "written" to written, "key" to key))
                   runCatching { setForegroundAsync(foregroundInfo(title, percent)) }
                 }
+              } else if (written - lastReported >= 1_000_000) {
+                // The server didn't say how big the file is: report megabytes so far instead.
+                lastReported = written
+                setProgressAsync(workDataOf("progress" to -1.0, "written" to written, "key" to key))
               }
             }
           }

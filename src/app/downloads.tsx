@@ -21,8 +21,13 @@ export default function DownloadsScreen() {
   const db = useSQLiteContext();
   const theme = useTheme();
   const tabSpace = useTabBarSpace();
-  const episodes = useDbQuery(['episode_state', 'episode'], listDownloads).data ?? [];
-  const total = episodes.length ? downloadedBytes() : 0;
+  // The total is read alongside the list, so it refreshes whenever downloads change.
+  const result = useDbQuery(['episode_state', 'episode'], async (d) => ({
+    episodes: await listDownloads(d),
+    total: downloadedBytes(),
+  })).data;
+  const episodes = result?.episodes ?? [];
+  const total = result?.total ?? 0;
 
   const clearPlayed = () =>
     Alert.alert(

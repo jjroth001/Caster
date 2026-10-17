@@ -1,5 +1,6 @@
 import { File } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { useSyncExternalStore } from 'react';
 
 import { PlayerCore } from '@modules/player-core/src';
 import { getSettings } from '@/db/settings';
@@ -84,8 +85,34 @@ export function cuesFromSegments(segments: { text: string; t0: number; t1: numbe
 }
 
 let running: { episodeId: number; stop: () => Promise<void> } | null = null;
+let cancelled = false;
+
+/**
+ * The transcript being made right now (one at a time), and the last failure per episode. Kept
+ * here, not in a screen, so leaving the transcript and coming back still shows the progress.
+ */
+export type TranscriptionState = {
+  job: { episodeId: number; title: string; progress: number; step: string } | null;
+  errors: Record<number, string>;
+};
+let state: TranscriptionState = { job: null, errors: {} };
+const stateListeners = new Set<() => void>();
+function setState(next: Partial<TranscriptionState>) {
+  state = { ...state, ...next };
+  stateListeners.forEach((l) => l());
+}
+export function useTranscriptionState(): TranscriptionState {
+  return useSyncExternalStore(
+    (l) => {
+      stateListeners.add(l);
+      return () => stateListeners.delete(l);
+    },
+    () => state,
+  );
+}
 
 export function cancelTranscription() {
+  cancelled = true;
   void running?.stop();
 }
 
@@ -96,11 +123,44 @@ export function cancelTranscription() {
 export async function generateTranscript(
   db: SQLiteDatabase,
   episodeId: number,
+  onProgress: (p: number, step: string) => void = () => {},
+): Promise<Cue[]> {
+  if (!PlayerCore) throw new Error('Generated transcripts need the installed app.');
+  if (state.job) {
+    throw new Error('Another transcript is being made right now. Try again when it finishes.');
+  }
+  const titleRow = await db.getFirstAsync<{ title: string }>(
+    'SELECT title FROM episode WHERE id = ?',
+    episodeId,
+  );
+  const title = titleRow?.title ?? 'Episode';
+  const { [episodeId]: _previous, ...otherErrors } = state.errors;
+  void _previous;
+  cancelled = false;
+  setState({ job: { episodeId, title, progress: 0, step: 'Starting…' }, errors: otherErrors });
+  const report = (progress: number, step: string) => {
+    setState({ job: { episodeId, title, progress, step } });
+    onProgress(progress, step);
+  };
+  try {
+    return await transcribe(db, episodeId, report);
+  } catch (e) {
+    if (!cancelled) {
+      const message = e instanceof Error ? e.message : 'Couldn’t make a transcript.';
+      setState({ errors: { ...state.errors, [episodeId]: message } });
+    }
+    throw e;
+  } finally {
+    setState({ job: null });
+  }
+}
+
+async function transcribe(
+  db: SQLiteDatabase,
+  episodeId: number,
   onProgress: (p: number, step: string) => void,
 ): Promise<Cue[]> {
   if (!PlayerCore) throw new Error('Generated transcripts need the installed app.');
-  if (running)
-    throw new Error('Another transcript is being made right now. Try again when it finishes.');
   const settings = await getSettings(db);
   const model = SPEECH_MODELS.find((m) => m.id === settings.speechModel) ?? null;
   const uri = model ? modelUri(model.id) : null;

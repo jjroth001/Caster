@@ -4,7 +4,7 @@ import { Icon } from '@/components/icons/icon';
 import { Txt } from '@/components/text';
 import { DEFAULT_SETTINGS } from '@/db/settings';
 import { useSetSetting, useSettings } from '@/db/use-settings';
-import { useDownloadStatus } from '@/downloads/progress';
+import { downloadLabel, useDownloadStatus } from '@/downloads/progress';
 import {
   deleteModel,
   downloadModel,
@@ -25,7 +25,7 @@ function ModelRow({ model, selected }: { model: SpeechModel; selected: boolean }
   const statusText = ready
     ? ' · downloaded'
     : status?.state === 'downloading'
-      ? ` · downloading ${Math.round(status.progress * 100)}%`
+      ? ` · downloading ${downloadLabel(status)}`
       : status?.state === 'queued'
         ? ' · waiting to download…'
         : failed

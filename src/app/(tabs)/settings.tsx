@@ -9,6 +9,7 @@ import type { HeadsetAction } from '@modules/player-core/src';
 import { Card, Chip } from '@/components/controls';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { ScreenHeader } from '@/components/screen-header';
+import { SpeechModels } from '@/components/speech-models';
 import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import { DEFAULT_SETTINGS, type Settings } from '@/db/settings';
@@ -26,6 +27,7 @@ import {
 import { releaseDate } from '@/lib/format';
 import { applyPlayerSettings } from '@/player/controller';
 import { engine } from '@/player/engine';
+import { speechAvailable } from '@/transcripts/whisper';
 import { useTheme } from '@/theme/theme-provider';
 import { Spacing } from '@/theme/themes';
 
@@ -437,6 +439,16 @@ export default function SettingsScreen() {
               thumbColor={theme.dark ? '#ddd' : '#fff'}
             />
           </Row>
+        </Section>
+      )}
+
+      {speechAvailable && (
+        <Section title="Generated transcripts">
+          <Row
+            label="Speech model"
+            hint="Make transcripts on this phone for episodes that don’t come with one. Bigger models are more accurate and slower."
+          />
+          <SpeechModels />
         </Section>
       )}
 

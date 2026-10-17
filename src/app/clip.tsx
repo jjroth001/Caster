@@ -125,8 +125,8 @@ export default function ClipScreen() {
           />
         </View>
         <Txt variant="small" secondary style={styles.center}>
-          {clock(range.start * 1000)} – {clock(range.end * 1000)} · {Math.round(length)} s (up to
-          3 min)
+          {clock(range.start * 1000)} – {clock(range.end * 1000)} · {Math.round(length)} s (up to 3
+          min)
         </Txt>
 
         <Card style={styles.card}>

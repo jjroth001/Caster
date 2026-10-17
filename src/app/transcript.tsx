@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, Share, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Chip, IconButton } from '@/components/controls';
+import { Button, Chip, IconButton } from '@/components/controls';
 import { Icon } from '@/components/icons/icon';
 import { SubScreen } from '@/components/sub-screen';
 import { Txt } from '@/components/text';
@@ -15,6 +15,7 @@ import { useNowPlaying } from '@/player/use-now-playing';
 import { usePlayerState } from '@/player/use-player';
 import { shareAtLink } from '@/lib/share';
 import { cueAt, ensureTranscript } from '@/transcripts/transcripts';
+import { cancelTranscription, generateTranscript, speechAvailable } from '@/transcripts/whisper';
 import { useTheme } from '@/theme/theme-provider';
 import { Radius, Spacing } from '@/theme/themes';
 
@@ -29,6 +30,8 @@ export default function TranscriptScreen() {
   const [follow, setFollow] = useState(true);
   const [query, setQuery] = useState('');
   const [hit, setHit] = useState(0);
+  const [generating, setGenerating] = useState<{ progress: number; step: string } | null>(null);
+  const [genError, setGenError] = useState<string | null>(null);
   const result = useDbQuery(
     ['transcript'],
     async (d) => (episode ? ensureTranscript(d, episode.id) : null),
@@ -56,6 +59,21 @@ export default function TranscriptScreen() {
   }, [matches, hit]);
 
   if (!episode) return <SubScreen title="Transcript">{null}</SubScreen>;
+
+  const generate = async () => {
+    setGenError(null);
+    setGenerating({ progress: 0, step: 'Starting…' });
+    try {
+      await generateTranscript(db, episode.id, (progress, step) =>
+        setGenerating({ progress, step }),
+      );
+      // The transcript table changed; the query above picks the new transcript up.
+    } catch (e) {
+      setGenError(e instanceof Error ? e.message : 'Couldn’t make a transcript.');
+    } finally {
+      setGenerating(null);
+    }
+  };
 
   const share = (index: number) => {
     const c = cues[index];
@@ -157,6 +175,35 @@ export default function TranscriptScreen() {
                 ? 'Loading the transcript…'
                 : 'This episode doesn’t come with a transcript from the publisher.'}
             </Txt>
+            {result.status !== 'loading' && speechAvailable && (
+              <>
+                {generating ? (
+                  <View style={styles.generating}>
+                    <Txt variant="small">{generating.step}</Txt>
+                    <View style={[styles.progressTrack, { backgroundColor: theme.track }]}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          { width: `${generating.progress * 100}%`, backgroundColor: theme.accent },
+                        ]}
+                      />
+                    </View>
+                    <Chip label="Stop" onPress={cancelTranscription} />
+                  </View>
+                ) : (
+                  <Button
+                    label="Make a transcript on this phone"
+                    icon="sparkle"
+                    onPress={() => void generate()}
+                  />
+                )}
+                {!!genError && (
+                  <Txt variant="small" color={theme.danger}>
+                    {genError}
+                  </Txt>
+                )}
+              </>
+            )}
             {result.status !== 'loading' && (
               <Chip label="Back to the player" onPress={() => router.back()} />
             )}
@@ -186,4 +233,7 @@ const styles = StyleSheet.create({
   },
   text: { fontSize: 17, lineHeight: 26 },
   empty: { padding: Spacing.four, gap: Spacing.three, alignItems: 'flex-start' },
+  generating: { alignSelf: 'stretch', gap: Spacing.two },
+  progressTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: 6, borderRadius: 3 },
 });

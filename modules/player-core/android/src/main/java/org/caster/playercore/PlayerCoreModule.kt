@@ -94,7 +94,7 @@ class PlayerCoreModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("PlayerCore")
 
-    Events("onState", "onProgress", "onEnded", "onError", "onDownload", "onChapters", "onHeadsetAction")
+    Events("onState", "onProgress", "onEnded", "onError", "onDownload", "onChapters", "onHeadsetAction", "onSpeechProgress")
 
     OnCreate {
       handler.post {
@@ -234,6 +234,20 @@ class PlayerCoreModule : Module() {
       )
     }
       .runOnQueue(Queues.MAIN)
+
+    // --- Generated transcripts ---
+
+    /** Converts a downloaded episode to 16 kHz mono WAV for whisper.cpp; resolves with its path. */
+    AsyncFunction("decodeForSpeech") { source: String ->
+      val out = java.io.File(context.cacheDir, "speech-${System.currentTimeMillis()}.wav")
+      try {
+        SpeechAudio.decodeToWav(source, out) { p -> sendEvent("onSpeechProgress", mapOf("progress" to p)) }
+        out.absolutePath
+      } catch (e: Exception) {
+        out.delete()
+        throw e
+      }
+    }
 
     // --- Android Auto ---
 

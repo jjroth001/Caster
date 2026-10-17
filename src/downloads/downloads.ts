@@ -182,7 +182,7 @@ export async function enforceStorageCap(db: SQLiteDatabase) {
   if (!PlayerCore) return;
   const { storageCapGb } = await getSettings(db);
   if (storageCapGb <= 0) return;
-  const files = PlayerCore.listDownloads();
+  const files = PlayerCore.listDownloads().filter((f) => !f.key.startsWith('model:'));
   let total = files.reduce((sum, f) => sum + f.bytes, 0);
   const cap = storageCapGb * 1024 ** 3;
   if (total <= cap) return;
@@ -200,7 +200,11 @@ export async function enforceStorageCap(db: SQLiteDatabase) {
 
 /** Total size of downloaded episodes, in bytes. */
 export function downloadedBytes(): number {
-  return PlayerCore?.listDownloads().reduce((sum, f) => sum + f.bytes, 0) ?? 0;
+  return (
+    PlayerCore?.listDownloads()
+      .filter((f) => !f.key.startsWith('model:'))
+      .reduce((sum, f) => sum + f.bytes, 0) ?? 0
+  );
 }
 
 export async function removePlayedDownloads(db: SQLiteDatabase) {

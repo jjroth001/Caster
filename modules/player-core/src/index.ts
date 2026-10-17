@@ -71,6 +71,7 @@ type PlayerCoreEvents = {
   onDownload(event: DownloadEvent): void;
   onChapters(event: { id: string; chapters: EmbeddedChapter[] }): void;
   onHeadsetAction(event: { action: HeadsetAction }): void;
+  onSpeechProgress(event: { progress: number }): void;
 };
 
 export type HeadsetAction = 'skipForward' | 'skipBack' | 'nextChapter' | 'bookmark' | 'none';
@@ -110,6 +111,9 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
     artworkUrl?: string | null;
     format: 'audio' | 'square' | 'story';
   }): Promise<string>;
+
+  /** Converts a downloaded episode to 16 kHz mono WAV for speech recognition; resolves with its path. */
+  decodeForSpeech(source: string): Promise<string>;
 
   /** The lists Android Auto can browse (JSON from src/auto/snapshot.ts). */
   setAutoLibrary(json: string): void;

@@ -46,6 +46,8 @@ export type Settings = {
   smartBookmarks: boolean;
   /** How sure transcript ad detection must be before skipping: cautious, balanced or eager. */
   adSensitivity: 'cautious' | 'balanced' | 'eager';
+  /** The whisper.cpp model used for generated transcripts (null: none chosen). */
+  speechModel: string | null;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -76,6 +78,7 @@ export const DEFAULT_SETTINGS: Settings = {
   upNextShuffle: false,
   smartBookmarks: true,
   adSensitivity: 'balanced',
+  speechModel: null,
 };
 
 /** All settings, with defaults filled in for anything never set. Values are stored as JSON. */

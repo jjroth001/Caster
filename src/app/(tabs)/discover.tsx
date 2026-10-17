@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,6 +25,9 @@ import { openFeed } from '@/feeds/sync';
 import { useTheme } from '@/theme/theme-provider';
 import { Radius, Spacing } from '@/theme/themes';
 
+/** How long after the last keystroke the search runs. */
+const TYPING_PAUSE_MS = 500;
+
 type Results =
   | { kind: 'idle' }
   | { kind: 'loading' }
@@ -41,11 +44,15 @@ export default function DiscoverScreen() {
   const [charts, setCharts] = useState<DirectoryPodcast[] | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const latestSearch = useRef(0);
   const country = deviceCountry();
 
   useEffect(() => {
     topPodcasts(country).then(setCharts, () => setCharts([]));
   }, [country]);
+
+  useEffect(() => () => clearTimeout(typingTimer.current), []);
 
   /** Loads the feed (without following) and opens the podcast's page. */
   const open = async (key: string, feedUrl: string | null, appleId?: string) => {
@@ -74,16 +81,41 @@ export default function DiscoverScreen() {
     }
   };
 
+  const search = async (term: string) => {
+    clearTimeout(typingTimer.current);
+    const request = ++latestSearch.current;
+    setResults({ kind: 'loading' });
+    try {
+      const items = await searchPodcasts(term, country);
+      // A slower, older search finishing late mustn't replace newer results.
+      if (request === latestSearch.current) setResults({ kind: 'done', items });
+    } catch (e) {
+      if (request === latestSearch.current) {
+        setResults({ kind: 'error', message: e instanceof Error ? e.message : 'Search failed.' });
+      }
+    }
+  };
+
   const submit = async () => {
     const q = classifyQuery(query);
     if (q.kind === 'url') return open('url', q.url);
     if (q.kind === 'apple') return open('apple', null, q.id);
     if (!q.term) return;
-    setResults({ kind: 'loading' });
-    try {
-      setResults({ kind: 'done', items: await searchPodcasts(q.term, country) });
-    } catch (e) {
-      setResults({ kind: 'error', message: e instanceof Error ? e.message : 'Search failed.' });
+    await search(q.term);
+  };
+
+  /** Searches by itself shortly after typing stops (links still wait for Go). */
+  const onType = (text: string) => {
+    setQuery(text);
+    clearTimeout(typingTimer.current);
+    const q = classifyQuery(text);
+    if (!text.trim()) {
+      latestSearch.current++;
+      setResults({ kind: 'idle' });
+      return;
+    }
+    if (q.kind === 'search' && q.term && q.term.length >= 2) {
+      typingTimer.current = setTimeout(() => void search(q.term), TYPING_PAUSE_MS);
     }
   };
 
@@ -108,10 +140,7 @@ export default function DiscoverScreen() {
             />
             <TextInput
               value={query}
-              onChangeText={(t) => {
-                setQuery(t);
-                if (!t.trim()) setResults({ kind: 'idle' });
-              }}
+              onChangeText={onType}
               onSubmitEditing={submit}
               placeholder="Search, or paste a link"
               placeholderTextColor={theme.textSecondary}

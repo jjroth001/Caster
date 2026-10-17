@@ -288,6 +288,23 @@ class PlayerCoreModule : Module() {
     /** How many downloaded episodes are waiting for a transcript (0: nothing to wake up for). */
     Function("setTranscribePending") { count: Int -> BackgroundTranscribe.setPending(context, count) }
 
+    // --- Repeated-audio ad detection ---
+
+    /** Fingerprints a downloaded episode's audio; resolves with the number of codes. */
+    AsyncFunction("fingerprintEpisode") { key: String, source: String ->
+      Fingerprints.compute(context, key, source)
+    }
+
+    /** Stretches of an episode that also play in the other episodes given. */
+    AsyncFunction("findRepeats") { key: String, others: List<String> ->
+      Fingerprints.findRepeats(context, key, others)
+    }
+
+    /** Keys of the episodes that have a fingerprint. */
+    Function("listFingerprints") { Fingerprints.list(context) }
+
+    Function("deleteFingerprint") { key: String -> Fingerprints.delete(context, key) }
+
     /** Whether the phone is charging (or full while plugged in). */
     Function("isCharging") {
       context.getSystemService(BatteryManager::class.java)?.isCharging ?: false

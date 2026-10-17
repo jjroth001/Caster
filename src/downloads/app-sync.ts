@@ -2,6 +2,7 @@ import { addDatabaseChangeListener, type SQLiteDatabase } from 'expo-sqlite';
 import { AppState } from 'react-native';
 
 import { PlayerCore } from '@modules/player-core/src';
+import { detectRepeatedAds } from '@/ads/repeats';
 import { applyPendingState, writeAutoLibrary } from '@/auto/snapshot';
 import { runAutoTranscribe, startAutoTranscribe } from '@/transcripts/auto';
 import { pruneUnfollowed, queueListeners } from '@/db/library';
@@ -33,6 +34,8 @@ async function catchUp(db: SQLiteDatabase, { force }: { force: boolean }) {
   await writeBackgroundConfig(db);
   await writeAutoLibrary(db);
   await runAutoBackupIfDue(db);
+  // Slow (decoding audio), so it carries on in the background.
+  void detectRepeatedAds(db);
 }
 
 /**
@@ -67,7 +70,7 @@ export function startAppSync(db: SQLiteDatabase): () => void {
   });
   const downloads = PlayerCore?.addListener('onDownload', (event) => {
     void applyDownloadEvent(db, event).then(() =>
-      event.state === 'done' ? enforceStorageCap(db) : undefined,
+      event.state === 'done' ? enforceStorageCap(db).then(() => detectRepeatedAds(db)) : undefined,
     );
   });
   const transcribe = startAutoTranscribe(db);

@@ -37,8 +37,10 @@ export default function AdSettings() {
         )}
       </Section>
       <Txt variant="small" secondary style={settingsStyles.note}>
-        Every skip shows “Skipped ad · Undo”. Turn skipping off for a single show in its podcast
-        settings, and set seconds to skip at its start and end there too.
+        Caster finds ads three ways: chapters titled like ads, ad reads in transcripts, and the same
+        audio turning up in more than one downloaded episode. Every skip shows “Skipped ad · Undo”.
+        Turn skipping off for a single show in its podcast settings, and set seconds to skip at its
+        start and end there too.
       </Txt>
     </SettingsPage>
   );

@@ -22,7 +22,7 @@ type EpisodeKeyRow = {
 
 export const keyFor = (e: { podcast_id: number; guid: string }) => `${e.podcast_id}:${e.guid}`;
 
-function splitKey(key: string): { podcastId: number; guid: string } | null {
+export function splitKey(key: string): { podcastId: number; guid: string } | null {
   const i = key.indexOf(':');
   if (i < 1) return null;
   const podcastId = Number(key.slice(0, i));

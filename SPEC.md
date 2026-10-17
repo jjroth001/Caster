@@ -242,8 +242,10 @@ One SQLite database, managed by Drizzle migrations. Large blobs (audio, transcri
 8. On-device Whisper transcripts, Smart Bookmarks, ad skipping layer 4.
 9. Clip editor and export.
 
-**Progress (0.4):** steps 1–9 are built except Chromaprint repeated-audio detection (layer 3).
-Notes on what was built differently: transcription can run on request, automatically while
+**Progress (0.5):** steps 1–9 are built. Notes on what was built differently: repeated-audio
+detection uses Caster's own Haitsma–Kalker fingerprints (Kotlin, 32-bit codes every 16 ms)
+instead of the Chromaprint library, compares each new download with the 40 most recent
+fingerprinted episodes, and keeps fingerprints after downloads are removed; transcription can run on request, automatically while
 Caster is open, or any time while charging (a WorkManager job wakes Caster headless); clip videos show the cover art without a waveform; the
 clip editor uses a range bar with nudge buttons rather than a waveform; background refresh
 fetches feeds into an inbox the app saves on its next run, so only the app writes its database.

@@ -169,6 +169,11 @@ async function refreshRules(db: SQLiteDatabase, episodeId: number) {
   rules = { id: episodeId, skipEndS: options.skipEndS, skips };
 }
 
+/** Picks up new ad findings for the episode in the player (they're found in the background). */
+export async function refreshSkipRules(db: SQLiteDatabase) {
+  if (rules) await refreshRules(db, rules.id);
+}
+
 export function undoSkip(notice: SkipNotice) {
   skipNotice.set(null);
   notice.undo?.();

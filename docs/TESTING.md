@@ -76,6 +76,9 @@ need a second device or a car; skip those if you can't try them.
 - [ ] Shaded bands on the progress bar where ads were found
 - [ ] Undo goes back and that stretch isn't skipped again
 - [ ] Chapters titled like ads are skipped
+- [ ] Repeated ads: download two or three episodes of a show with the same sponsor; after a
+      minute or two, the shared ad shows as a band and is skipped in both. A show's theme at the
+      very start is shaded but not skipped
 - [ ] Skip intro and outro seconds (podcast settings) work
 - [ ] The per-podcast off switch stops all of it for that show
 

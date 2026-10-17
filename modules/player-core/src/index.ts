@@ -82,6 +82,9 @@ type PlayerCoreEvents = {
   onPower(event: { charging: boolean }): void;
 };
 
+/** A stretch of one episode that also plays in another (seconds). */
+export type AudioRepeat = { start: number; end: number; otherKey: string; otherStart: number };
+
 export type HeadsetAction = 'skipForward' | 'skipBack' | 'nextChapter' | 'bookmark' | 'none';
 
 export type EmbeddedChapter = { startMs: number; endMs: number; title: string | null };
@@ -132,6 +135,13 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   configureBackgroundTranscribe(enabled: boolean): void;
   /** How many downloaded episodes are waiting for a transcript. */
   setTranscribePending(count: number): void;
+  /** Fingerprints a downloaded episode's audio (for finding repeated ads); resolves with its size. */
+  fingerprintEpisode(key: string, source: string): Promise<number>;
+  /** Stretches of an episode that also play in the other episodes given (seconds). */
+  findRepeats(key: string, others: string[]): Promise<AudioRepeat[]>;
+  /** Keys of the episodes that have a fingerprint. */
+  listFingerprints(): string[];
+  deleteFingerprint(key: string): void;
   /** Whether the phone is charging. */
   isCharging(): boolean;
   /** Whether Android's battery saving leaves Caster's background work alone. */

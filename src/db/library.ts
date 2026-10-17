@@ -1,0 +1,415 @@
+import type { SQLiteDatabase } from 'expo-sqlite';
+
+import type { ParsedEpisode, ParsedFeed } from '@/feeds/parse-feed';
+
+export type PodcastRow = {
+  id: number;
+  feed_url: string;
+  title: string;
+  author: string | null;
+  description: string | null;
+  artwork_url: string | null;
+  website: string | null;
+  folder_id: number | null;
+  subscribed: number;
+  added_at: number;
+  new_since: number;
+  etag: string | null;
+  last_modified: string | null;
+  last_refreshed: number | null;
+  refresh_error: string | null;
+};
+
+export type LibraryPodcast = PodcastRow & {
+  new_count: number;
+  latest_pub: number | null;
+  latest_title: string | null;
+};
+
+/** An episode with its listening state and its podcast's name and cover. */
+export type EpisodeItem = {
+  id: number;
+  podcast_id: number;
+  guid: string;
+  title: string;
+  description: string | null;
+  link: string | null;
+  pub_date: number | null;
+  duration_s: number | null;
+  enclosure_url: string;
+  mime: string | null;
+  media_type: 'audio' | 'video';
+  artwork_url: string | null;
+  transcript_url: string | null;
+  chapters_url: string | null;
+  season: number | null;
+  number: number | null;
+  position_s: number;
+  played: number;
+  starred: number;
+  archived: number;
+  download_status: string | null;
+  local_path: string | null;
+  podcast_title: string;
+  podcast_author: string | null;
+  podcast_artwork: string | null;
+};
+
+const EPISODE_SELECT = `
+  SELECT e.id, e.podcast_id, e.guid, e.title, e.description, e.link, e.pub_date, e.duration_s,
+         e.enclosure_url, e.mime, e.media_type, e.artwork_url, e.transcript_url, e.chapters_url,
+         e.season, e.number,
+         COALESCE(s.position_s, 0) AS position_s, COALESCE(s.played, 0) AS played,
+         COALESCE(s.starred, 0) AS starred, COALESCE(s.archived, 0) AS archived,
+         s.download_status, s.local_path,
+         p.title AS podcast_title, p.author AS podcast_author, p.artwork_url AS podcast_artwork
+  FROM episode e
+  JOIN podcast p ON p.id = e.podcast_id
+  LEFT JOIN episode_state s ON s.episode_id = e.id`;
+
+const NEW_COUNT = `
+  (SELECT COUNT(*) FROM episode e LEFT JOIN episode_state s ON s.episode_id = e.id
+   WHERE e.podcast_id = p.id AND COALESCE(e.pub_date, 0) >= p.new_since
+     AND COALESCE(s.played, 0) = 0 AND COALESCE(s.archived, 0) = 0)`;
+
+export async function listLibrary(
+  db: SQLiteDatabase,
+  sort: 'latest' | 'title' | 'added' = 'latest',
+): Promise<LibraryPodcast[]> {
+  const order =
+    sort === 'title'
+      ? 'p.title COLLATE NOCASE'
+      : sort === 'added'
+        ? 'p.added_at DESC'
+        : 'latest_pub DESC NULLS LAST, p.title COLLATE NOCASE';
+  return db.getAllAsync<LibraryPodcast>(`
+    SELECT p.*, ${NEW_COUNT} AS new_count,
+      (SELECT MAX(pub_date) FROM episode WHERE podcast_id = p.id) AS latest_pub,
+      (SELECT title FROM episode WHERE podcast_id = p.id ORDER BY pub_date DESC LIMIT 1) AS latest_title
+    FROM podcast p WHERE p.subscribed = 1 ORDER BY ${order}`);
+}
+
+export async function getPodcast(db: SQLiteDatabase, id: number) {
+  return db.getFirstAsync<LibraryPodcast>(
+    `SELECT p.*, ${NEW_COUNT} AS new_count, NULL AS latest_pub, NULL AS latest_title
+     FROM podcast p WHERE p.id = ?`,
+    id,
+  );
+}
+
+export async function findPodcastByFeed(db: SQLiteDatabase, feedUrl: string) {
+  return db.getFirstAsync<PodcastRow>('SELECT * FROM podcast WHERE feed_url = ?', feedUrl);
+}
+
+export async function listEpisodes(
+  db: SQLiteDatabase,
+  podcastId: number,
+  order: 'newest' | 'oldest' = 'newest',
+) {
+  return db.getAllAsync<EpisodeItem>(
+    `${EPISODE_SELECT} WHERE e.podcast_id = ? ORDER BY e.pub_date ${order === 'oldest' ? 'ASC' : 'DESC'}, e.id DESC`,
+    podcastId,
+  );
+}
+
+export async function getEpisode(db: SQLiteDatabase, id: number) {
+  return db.getFirstAsync<EpisodeItem>(`${EPISODE_SELECT} WHERE e.id = ?`, id);
+}
+
+/** Up Next, in order. */
+export async function listQueue(db: SQLiteDatabase) {
+  return db.getAllAsync<EpisodeItem>(
+    `${EPISODE_SELECT} JOIN queue_item q ON q.episode_id = e.id ORDER BY q.position`,
+  );
+}
+
+/** New episodes across all followed podcasts, newest first. */
+export async function listNewReleases(db: SQLiteDatabase, limit = 100) {
+  return db.getAllAsync<EpisodeItem>(
+    `${EPISODE_SELECT}
+     WHERE p.subscribed = 1 AND COALESCE(e.pub_date, 0) >= p.new_since
+       AND COALESCE(s.played, 0) = 0 AND COALESCE(s.archived, 0) = 0
+     ORDER BY e.pub_date DESC LIMIT ?`,
+    limit,
+  );
+}
+
+/** Started but not finished. */
+export async function listInProgress(db: SQLiteDatabase, limit = 50) {
+  return db.getAllAsync<EpisodeItem>(
+    `${EPISODE_SELECT}
+     WHERE s.position_s > 5 AND COALESCE(s.played, 0) = 0
+     ORDER BY s.updated_at DESC LIMIT ?`,
+    limit,
+  );
+}
+
+// --- Writes -------------------------------------------------------------------
+
+const EPISODE_UPSERT = `
+  INSERT INTO episode (podcast_id, guid, title, description, link, pub_date, duration_s,
+    enclosure_url, mime, size_bytes, media_type, artwork_url, transcript_url, transcript_type,
+    chapters_url, season, number, episode_type)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT (podcast_id, guid) DO UPDATE SET
+    title = excluded.title, description = excluded.description, link = excluded.link,
+    pub_date = excluded.pub_date, duration_s = COALESCE(excluded.duration_s, episode.duration_s),
+    enclosure_url = excluded.enclosure_url, mime = excluded.mime, size_bytes = excluded.size_bytes,
+    media_type = excluded.media_type, artwork_url = excluded.artwork_url,
+    transcript_url = excluded.transcript_url, transcript_type = excluded.transcript_type,
+    chapters_url = excluded.chapters_url, season = excluded.season, number = excluded.number,
+    episode_type = excluded.episode_type`;
+
+async function upsertEpisodes(db: SQLiteDatabase, podcastId: number, episodes: ParsedEpisode[]) {
+  const statement = await db.prepareAsync(EPISODE_UPSERT);
+  try {
+    for (const e of episodes) {
+      await statement.executeAsync(
+        podcastId,
+        e.guid,
+        e.title,
+        e.description,
+        e.link,
+        e.pubDate,
+        e.durationS,
+        e.enclosureUrl,
+        e.mime,
+        e.sizeBytes,
+        e.mediaType,
+        e.artworkUrl,
+        e.transcriptUrl,
+        e.transcriptType,
+        e.chaptersUrl,
+        e.season,
+        e.number,
+        e.episodeType,
+      );
+    }
+  } finally {
+    await statement.finalizeAsync();
+  }
+}
+
+/** When a podcast is first followed, only its newest episode counts as new. */
+export function initialNewSince(feed: ParsedFeed, now: number): number {
+  const latest = feed.episodes.reduce((max, e) => Math.max(max, e.pubDate ?? 0), 0);
+  return latest || now;
+}
+
+/**
+ * Adds a podcast (or re-follows one reached through a playlist) with all its episodes.
+ * Returns its id.
+ */
+export async function savePodcast(
+  db: SQLiteDatabase,
+  feedUrl: string,
+  feed: ParsedFeed,
+  cache: { etag: string | null; lastModified: string | null },
+  subscribe = true,
+): Promise<number> {
+  const now = Date.now();
+  let id = 0;
+  await db.withTransactionAsync(async () => {
+    const existing = await findPodcastByFeed(db, feedUrl);
+    if (existing) {
+      id = existing.id;
+      await db.runAsync(
+        `UPDATE podcast SET title = ?, author = ?, description = ?, artwork_url = ?, website = ?,
+           subscribed = MAX(subscribed, ?), etag = ?, last_modified = ?, last_refreshed = ?,
+           refresh_error = NULL
+         WHERE id = ?`,
+        feed.title,
+        feed.author,
+        feed.description,
+        feed.artworkUrl,
+        feed.website,
+        subscribe ? 1 : 0,
+        cache.etag,
+        cache.lastModified,
+        now,
+        id,
+      );
+    } else {
+      const result = await db.runAsync(
+        `INSERT INTO podcast (feed_url, title, author, description, artwork_url, website,
+           subscribed, added_at, new_since, etag, last_modified, last_refreshed)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        feedUrl,
+        feed.title,
+        feed.author,
+        feed.description,
+        feed.artworkUrl,
+        feed.website,
+        subscribe ? 1 : 0,
+        now,
+        initialNewSince(feed, now),
+        cache.etag,
+        cache.lastModified,
+        now,
+      );
+      id = result.lastInsertRowId;
+    }
+    await upsertEpisodes(db, id, feed.episodes);
+  });
+  return id;
+}
+
+/** Follows a podcast that was only being browsed; its newest episode counts as new. */
+export async function followPodcast(db: SQLiteDatabase, podcastId: number) {
+  await db.runAsync(
+    `UPDATE podcast SET subscribed = 1, added_at = ?,
+       new_since = COALESCE((SELECT MAX(pub_date) FROM episode WHERE podcast_id = ?), ?)
+     WHERE id = ? AND subscribed = 0`,
+    Date.now(),
+    podcastId,
+    Date.now(),
+    podcastId,
+  );
+}
+
+/**
+ * Forgets podcasts that were only browsed (never followed) more than a day ago, unless one of
+ * their episodes is in Up Next, the player, half-listened or starred.
+ */
+export async function pruneUnfollowed(db: SQLiteDatabase, keepEpisodeId: number | null) {
+  await db.runAsync(
+    `DELETE FROM podcast WHERE subscribed = 0 AND added_at < ? AND NOT EXISTS (
+       SELECT 1 FROM episode e LEFT JOIN episode_state s ON s.episode_id = e.id
+       LEFT JOIN queue_item q ON q.episode_id = e.id
+       WHERE e.podcast_id = podcast.id
+         AND (q.episode_id IS NOT NULL OR e.id = ? OR s.starred = 1 OR (s.position_s > 0 AND s.played = 0)))`,
+    Date.now() - 86_400_000,
+    keepEpisodeId ?? -1,
+  );
+}
+
+export async function unsubscribe(db: SQLiteDatabase, podcastId: number) {
+  // Episodes go too (cascade), along with their listening state and Up Next entries.
+  await db.runAsync('DELETE FROM podcast WHERE id = ?', podcastId);
+}
+
+export async function markRefreshed(
+  db: SQLiteDatabase,
+  podcastId: number,
+  error: string | null,
+  cache?: { etag: string | null; lastModified: string | null },
+) {
+  if (cache) {
+    await db.runAsync(
+      'UPDATE podcast SET last_refreshed = ?, refresh_error = ?, etag = ?, last_modified = ? WHERE id = ?',
+      Date.now(),
+      error,
+      cache.etag,
+      cache.lastModified,
+      podcastId,
+    );
+  } else {
+    await db.runAsync(
+      'UPDATE podcast SET last_refreshed = ?, refresh_error = ? WHERE id = ?',
+      Date.now(),
+      error,
+      podcastId,
+    );
+  }
+}
+
+async function upsertState(
+  db: SQLiteDatabase,
+  episodeId: number,
+  set: string,
+  ...values: unknown[]
+) {
+  await db.runAsync(
+    `INSERT INTO episode_state (episode_id, updated_at) VALUES (?, ?)
+     ON CONFLICT (episode_id) DO NOTHING`,
+    episodeId,
+    Date.now(),
+  );
+  await db.runAsync(
+    `UPDATE episode_state SET ${set}, updated_at = ? WHERE episode_id = ?`,
+    ...(values as (string | number | null)[]),
+    Date.now(),
+    episodeId,
+  );
+}
+
+export function savePosition(db: SQLiteDatabase, episodeId: number, positionS: number) {
+  return upsertState(db, episodeId, 'position_s = ?', positionS);
+}
+
+export function setPlayed(db: SQLiteDatabase, episodeId: number, played: boolean) {
+  return upsertState(
+    db,
+    episodeId,
+    'played = ?, played_at = ?, position_s = 0',
+    played ? 1 : 0,
+    played ? Date.now() : null,
+  );
+}
+
+export function setStarred(db: SQLiteDatabase, episodeId: number, starred: boolean) {
+  return upsertState(db, episodeId, 'starred = ?', starred ? 1 : 0);
+}
+
+export function setArchived(db: SQLiteDatabase, episodeId: number, archived: boolean) {
+  return upsertState(db, episodeId, 'archived = ?', archived ? 1 : 0);
+}
+
+/** Marks every episode of a podcast played (the "new" badge clears). */
+export async function markAllPlayed(db: SQLiteDatabase, podcastId: number) {
+  await db.runAsync('UPDATE podcast SET new_since = ? WHERE id = ?', Date.now() + 1, podcastId);
+}
+
+// --- Up Next ----------------------------------------------------------------------
+
+export async function queueEpisode(db: SQLiteDatabase, episodeId: number, where: 'next' | 'last') {
+  const edge = await db.getFirstAsync<{ lo: number | null; hi: number | null }>(
+    'SELECT MIN(position) AS lo, MAX(position) AS hi FROM queue_item',
+  );
+  const position = where === 'next' ? (edge?.lo ?? 1) - 1 : (edge?.hi ?? 0) + 1;
+  await db.runAsync(
+    `INSERT INTO queue_item (episode_id, position) VALUES (?, ?)
+     ON CONFLICT (episode_id) DO UPDATE SET position = excluded.position`,
+    episodeId,
+    position,
+  );
+}
+
+export async function dequeue(db: SQLiteDatabase, episodeId: number) {
+  await db.runAsync('DELETE FROM queue_item WHERE episode_id = ?', episodeId);
+}
+
+export async function clearQueue(db: SQLiteDatabase) {
+  await db.runAsync('DELETE FROM queue_item');
+}
+
+/** Moves an Up Next entry to sit just before `beforeId` (or to the end when null). */
+export async function moveInQueue(db: SQLiteDatabase, episodeId: number, beforeId: number | null) {
+  const rows = await db.getAllAsync<{ episode_id: number }>(
+    'SELECT episode_id FROM queue_item ORDER BY position',
+  );
+  const ids = rows.map((r) => r.episode_id).filter((id) => id !== episodeId);
+  const at = beforeId == null ? ids.length : Math.max(0, ids.indexOf(beforeId));
+  ids.splice(at, 0, episodeId);
+  await db.withTransactionAsync(async () => {
+    for (let i = 0; i < ids.length; i++) {
+      await db.runAsync('UPDATE queue_item SET position = ? WHERE episode_id = ?', i, ids[i]);
+    }
+  });
+}
+
+/** Takes the first Up Next episode off the list and returns it. */
+export async function popQueue(db: SQLiteDatabase): Promise<number | null> {
+  const row = await db.getFirstAsync<{ episode_id: number }>(
+    'SELECT episode_id FROM queue_item ORDER BY position LIMIT 1',
+  );
+  if (!row) return null;
+  await dequeue(db, row.episode_id);
+  return row.episode_id;
+}
+
+export async function feedList(db: SQLiteDatabase) {
+  return db.getAllAsync<{ title: string; feedUrl: string }>(
+    'SELECT title, feed_url AS feedUrl FROM podcast WHERE subscribed = 1 ORDER BY title COLLATE NOCASE',
+  );
+}

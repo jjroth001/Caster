@@ -1,198 +1,330 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { router } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useEffect } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ThemedText } from '@/components/themed-text';
-import { BottomTabInset, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Artwork } from '@/components/artwork';
+import { Background } from '@/components/background';
+import { IconButton } from '@/components/controls';
+import { Icon, type IconName } from '@/components/icons/icon';
+import { Scrubber } from '@/components/scrubber';
+import { SkipButton } from '@/components/skip-button';
+import { Txt } from '@/components/text';
+import { DEFAULT_SETTINGS } from '@/db/settings';
+import { useSetSetting, useSettings } from '@/db/use-settings';
+import { clock, speedLabel } from '@/lib/format';
+import { setStopAtEndOfEpisode, togglePlay, useStopAtEndOfEpisode } from '@/player/controller';
 import { engine, type TrimSilence } from '@/player/engine';
-import { usePlayerError, usePlayerState } from '@/player/use-player';
+import { useNowPlaying } from '@/player/use-now-playing';
+import { usePlayerState } from '@/player/use-player';
+import { useTheme } from '@/theme/theme-provider';
+import { Radius, Spacing } from '@/theme/themes';
 
-/** Public-domain LibriVox recording (O. Henry, "The Green Door"), served via a redirect. */
-const SAMPLE = {
-  id: 'sample-green-door',
-  url: 'https://archive.org/download/short_story_031_0807_librivox/shortstory031_greendoor_jl_64kb.mp3',
-  title: 'The Green Door',
-  artist: 'O. Henry · LibriVox',
-  album: 'Short Story Collection Vol. 031',
-};
+const SPEEDS = [0.8, 1, 1.1, 1.2, 1.3, 1.5, 1.7, 2, 2.5, 3];
+const TRIM_LABELS: Record<TrimSilence, string> = { off: 'Off', mild: 'Mild', aggressive: 'Strong' };
+const SLEEP_MINUTES = [5, 10, 15, 30, 45, 60];
 
-const SPEEDS = [0.8, 1, 1.2, 1.5, 2, 2.5, 3];
-const TRIM: TrimSilence[] = ['off', 'mild', 'aggressive'];
-
-function clock(ms: number | null) {
-  if (ms == null) return '--:--';
-  const s = Math.floor(ms / 1000);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = String(s % 60).padStart(2, '0');
-  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
-}
-
-/** Temporary screen for trying the player engine until the real player screen exists. */
-export default function PlayerTestScreen() {
+function Control({
+  icon,
+  label,
+  value,
+  active,
+  onPress,
+  text,
+}: {
+  icon?: IconName;
+  label: string;
+  value?: string;
+  active?: boolean;
+  onPress: () => void;
+  text?: string;
+}) {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
-  const state = usePlayerState();
-  const error = usePlayerError();
-  const [url, setUrl] = useState(SAMPLE.url);
-  const [barWidth, setBarWidth] = useState(1);
-  const basic = engine.kind === 'basic';
-
-  const load = () => {
-    const custom = url.trim() !== SAMPLE.url;
-    void engine.load(
-      custom ? { id: url.trim(), url: url.trim(), title: 'Test episode' } : { ...SAMPLE },
-    );
-  };
-  const progress = state.durationMs ? Math.min(1, state.positionMs / state.durationMs) : 0;
-  const buffered = state.durationMs ? Math.min(1, state.bufferedMs / state.durationMs) : 0;
-
-  const chip = (label: string, selected: boolean, onPress: () => void, disabled = false) => (
+  const color = active ? theme.accent : theme.text;
+  return (
     <Pressable
-      key={label}
       onPress={onPress}
-      disabled={disabled}
-      style={[
-        styles.chip,
-        { backgroundColor: selected ? theme.text : theme.backgroundElement },
-        disabled && styles.disabled,
-      ]}>
-      <ThemedText type="smallBold" style={{ color: selected ? theme.background : theme.text }}>
-        {label}
-      </ThemedText>
+      accessibilityRole="button"
+      accessibilityLabel={value ? `${label}: ${value}` : label}
+      style={({ pressed }) => [styles.control, pressed && { opacity: 0.6 }]}>
+      <View style={[styles.controlCircle, { backgroundColor: theme.element }]}>
+        {text ? (
+          <Txt variant="smallBold" color={color} style={styles.controlText}>
+            {text}
+          </Txt>
+        ) : (
+          icon && <Icon name={icon} size={22} color={color} />
+        )}
+      </View>
+      <Txt variant="small" secondary numberOfLines={1} style={styles.controlLabel}>
+        {value ?? label}
+      </Txt>
     </Pressable>
   );
+}
+
+export default function PlayerScreen() {
+  const db = useSQLiteContext();
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const episode = useNowPlaying();
+  const player = usePlayerState();
+  const settings = useSettings().data ?? DEFAULT_SETTINGS;
+  const setSetting = useSetSetting();
+  const stopAtEnd = useStopAtEndOfEpisode();
+
+  // Nothing left to show (the queue ran out): close.
+  useEffect(() => {
+    if (settingsLoadedWithoutEpisode(episode, settings.nowPlaying)) router.back();
+  }, [episode, settings.nowPlaying]);
+
+  if (!episode) return <Background />;
+
+  const current = player.id === String(episode.id);
+  const playing = current && player.playWhenReady;
+  const positionMs = current ? player.positionMs : episode.position_s * 1000;
+  const durationMs =
+    (current ? player.durationMs : null) ?? (episode.duration_s ? episode.duration_s * 1000 : null);
+  const basic = engine.kind === 'basic';
+  const art = Math.min(width - Spacing.five * 2, height * 0.4);
+  const sleepLeft = player.sleepRemainingMs;
+
+  const chooseSpeed = () => {
+    Alert.alert(
+      'Playback speed',
+      undefined,
+      [
+        ...SPEEDS.filter((s) => !basic || s <= 2).map((s) => ({
+          text: `${speedLabel(s)}${Math.abs(player.speed - s) < 0.01 ? '  ✓' : ''}`,
+          onPress: () => {
+            void engine.setSpeed(s);
+            void setSetting('speed', s);
+          },
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ],
+      { cancelable: true },
+    );
+  };
+
+  const cycleTrim = () => {
+    const order: TrimSilence[] = ['off', 'mild', 'aggressive'];
+    const next = order[(order.indexOf(settings.trimSilence) + 1) % order.length];
+    void engine.setTrimSilence(next);
+    void setSetting('trimSilence', next);
+  };
+
+  const toggleBoost = () => {
+    void engine.setVolumeBoost(!settings.volumeBoost);
+    void setSetting('volumeBoost', !settings.volumeBoost);
+  };
+
+  const chooseSleep = () => {
+    const on = sleepLeft != null || stopAtEnd;
+    Alert.alert(
+      'Sleep timer',
+      on ? 'Playback will pause on its own.' : 'Pause playback after…',
+      [
+        ...(on
+          ? [
+              {
+                text: 'Turn off',
+                style: 'destructive' as const,
+                onPress: () => {
+                  void engine.setSleepTimer(0);
+                  setStopAtEndOfEpisode(false);
+                },
+              },
+            ]
+          : []),
+        ...SLEEP_MINUTES.map((m) => ({
+          text: `${m} minutes`,
+          onPress: () => {
+            setStopAtEndOfEpisode(false);
+            void engine.setSleepTimer(m * 60_000);
+          },
+        })),
+        {
+          text: 'End of episode',
+          onPress: () => {
+            void engine.setSleepTimer(0);
+            setStopAtEndOfEpisode(true);
+          },
+        },
+        { text: 'Cancel', style: 'cancel' as const },
+      ],
+      { cancelable: true },
+    );
+  };
 
   return (
-    <ScrollView
-      style={{ backgroundColor: theme.background }}
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingTop: insets.top + Spacing.four,
-          paddingBottom: insets.bottom + BottomTabInset + Spacing.four,
-        },
-      ]}>
-      <ThemedText type="subtitle">Player test</ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
-        {basic
-          ? 'Basic player (Expo Go): no trim silence, volume boost or background playback.'
-          : 'Full player: plays in the background with notification and headset controls.'}
-      </ThemedText>
-
-      <TextInput
-        value={url}
-        onChangeText={setUrl}
-        autoCapitalize="none"
-        autoCorrect={false}
-        style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
-        placeholder="Audio URL"
-        placeholderTextColor={theme.textSecondary}
-      />
-      <Pressable onPress={load} style={[styles.button, { backgroundColor: theme.text }]}>
-        <ThemedText type="smallBold" style={{ color: theme.background }}>
-          Load and play
-        </ThemedText>
-      </Pressable>
-
-      <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
-        <ThemedText type="smallBold">
-          {state.id ? (state.id === SAMPLE.id ? SAMPLE.title : 'Test episode') : 'Nothing loaded'}
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {state.state}
-          {state.playing ? ' · playing' : ''}
-        </ThemedText>
-        <Pressable
-          onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
-          onPress={(e) => {
-            if (state.durationMs)
-              void engine.seekTo((e.nativeEvent.locationX / barWidth) * state.durationMs);
-          }}
-          style={styles.barHit}>
-          <View style={[styles.bar, { backgroundColor: theme.backgroundSelected }]}>
-            <View
-              style={[
-                styles.fill,
-                {
-                  width: `${buffered * 100}%`,
-                  backgroundColor: theme.textSecondary,
-                  opacity: 0.35,
-                },
-              ]}
-            />
-            <View
-              style={[styles.fill, { width: `${progress * 100}%`, backgroundColor: theme.text }]}
-            />
-          </View>
-        </Pressable>
-        <View style={styles.row}>
-          <ThemedText type="small">{clock(state.positionMs)}</ThemedText>
-          <ThemedText type="small">{clock(state.durationMs)}</ThemedText>
+    <View style={styles.flex}>
+      <Background />
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + Spacing.two, paddingBottom: insets.bottom + Spacing.four },
+        ]}>
+        <View style={styles.topBar}>
+          <IconButton icon="caret-down" label="Close player" onPress={() => router.back()} />
+          <Txt variant="meta" secondary style={styles.topTitle}>
+            Now playing
+          </Txt>
+          <IconButton
+            icon="dots-three-vertical"
+            label="Episode details"
+            onPress={() => router.push(`/episode/${episode.id}`)}
+          />
         </View>
+
+        <Artwork
+          uri={episode.artwork_url ?? episode.podcast_artwork}
+          title={episode.podcast_title}
+          size={art}
+          radius={22}
+          style={styles.art}
+        />
+
+        <View style={styles.titles}>
+          <Txt variant="heading" style={styles.center} numberOfLines={2}>
+            {episode.title}
+          </Txt>
+          <Pressable
+            onPress={() => router.push(`/podcast/${episode.podcast_id}`)}
+            accessibilityRole="link">
+            <Txt secondary style={styles.center} numberOfLines={1}>
+              {episode.podcast_title}
+            </Txt>
+          </Pressable>
+        </View>
+
+        <Scrubber
+          positionMs={positionMs}
+          durationMs={durationMs}
+          bufferedMs={current ? player.bufferedMs : 0}
+          onSeek={(ms) => void engine.seekTo(ms)}
+        />
+
         <View style={styles.transport}>
-          {chip('−10s', false, () => void engine.skipBack())}
-          {chip(
-            state.playWhenReady ? 'Pause' : 'Play',
-            true,
-            () => void (state.playWhenReady ? engine.pause() : engine.play()),
-          )}
-          {chip('+30s', false, () => void engine.skipForward())}
+          <SkipButton seconds={settings.skipBackS} onPress={() => void engine.skipBack()} />
+          <Pressable
+            onPress={() => void togglePlay(db)}
+            accessibilityRole="button"
+            accessibilityLabel={playing ? 'Pause' : 'Play'}
+            style={({ pressed }) => [
+              styles.play,
+              { backgroundColor: theme.accent },
+              pressed && { opacity: 0.8 },
+            ]}>
+            <View style={!playing && { marginLeft: 4 }}>
+              <Icon name={playing ? 'pause-fill' : 'play-fill'} size={36} color={theme.onAccent} />
+            </View>
+          </Pressable>
+          <SkipButton
+            seconds={settings.skipForwardS}
+            forward
+            onPress={() => void engine.skipForward()}
+          />
         </View>
-      </View>
-
-      <ThemedText type="smallBold">Speed</ThemedText>
-      <View style={styles.wrap}>
-        {SPEEDS.map((s) =>
-          chip(
-            `${s}×`,
-            Math.abs(state.speed - s) < 0.01,
-            () => void engine.setSpeed(s),
-            basic && s > 2,
-          ),
+        {current && player.state === 'buffering' && (
+          <Txt variant="small" secondary style={styles.center}>
+            Loading…
+          </Txt>
         )}
-      </View>
 
-      <ThemedText type="smallBold">Trim silence</ThemedText>
-      <View style={styles.wrap}>
-        {TRIM.map((t) =>
-          chip(t, state.trimSilence === t, () => void engine.setTrimSilence(t), basic),
-        )}
-      </View>
+        <View style={styles.controls}>
+          <Control
+            label="Speed"
+            text={speedLabel(player.speed)}
+            active={player.speed !== 1}
+            onPress={chooseSpeed}
+          />
+          {!basic && (
+            <Control
+              icon="waveform"
+              label="Trim silence"
+              value={
+                settings.trimSilence === 'off'
+                  ? 'Trim silence'
+                  : `Trim: ${TRIM_LABELS[settings.trimSilence]}`
+              }
+              active={settings.trimSilence !== 'off'}
+              onPress={cycleTrim}
+            />
+          )}
+          {!basic && (
+            <Control
+              icon="speaker-high"
+              label="Volume boost"
+              value={settings.volumeBoost ? 'Boost on' : 'Boost'}
+              active={settings.volumeBoost}
+              onPress={toggleBoost}
+            />
+          )}
+          <Control
+            icon="moon"
+            label="Sleep timer"
+            value={stopAtEnd ? 'End of ep.' : sleepLeft != null ? clock(sleepLeft) : 'Sleep'}
+            active={stopAtEnd || sleepLeft != null}
+            onPress={chooseSleep}
+          />
+        </View>
 
-      <ThemedText type="smallBold">Volume boost</ThemedText>
-      <View style={styles.wrap}>
-        {chip('Off', !state.volumeBoost, () => void engine.setVolumeBoost(false), basic)}
-        {chip('On', state.volumeBoost, () => void engine.setVolumeBoost(true), basic)}
-      </View>
-
-      {error && (
-        <ThemedText type="small" style={styles.error}>
-          {error}
-        </ThemedText>
-      )}
-    </ScrollView>
+        <Pressable
+          onPress={() => {
+            router.back();
+            router.navigate('/up-next');
+          }}
+          accessibilityRole="button"
+          style={[styles.upNext, { backgroundColor: theme.element }]}>
+          <Icon name="queue" size={18} color={theme.text} />
+          <Txt variant="smallBold">Up Next</Txt>
+        </Pressable>
+      </ScrollView>
+    </View>
   );
+}
+
+function settingsLoadedWithoutEpisode(episode: unknown, nowPlaying: number | null) {
+  return !episode && nowPlaying === null;
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   content: { paddingHorizontal: Spacing.four, gap: Spacing.three },
-  input: {
-    borderRadius: 12,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    fontSize: 14,
+  topBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: -Spacing.three },
+  topTitle: { flex: 1, textAlign: 'center' },
+  art: { alignSelf: 'center', marginTop: Spacing.two },
+  titles: { gap: 4, marginTop: Spacing.two },
+  center: { textAlign: 'center' },
+  transport: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.five + 4,
   },
-  button: { borderRadius: 999, paddingVertical: Spacing.three, alignItems: 'center' },
-  card: { borderRadius: 16, padding: Spacing.three, gap: Spacing.two },
-  barHit: { paddingVertical: Spacing.two },
-  bar: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  fill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 3 },
-  row: { flexDirection: 'row', justifyContent: 'space-between' },
-  transport: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.three },
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  chip: { borderRadius: 999, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
-  disabled: { opacity: 0.35 },
-  error: { color: '#C4553E' },
+  play: { width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center' },
+  controls: { flexDirection: 'row', justifyContent: 'space-around', marginTop: Spacing.two },
+  control: { alignItems: 'center', gap: 6, width: 76 },
+  controlCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  controlText: { fontSize: 14 },
+  controlLabel: { textAlign: 'center' },
+  upNext: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 10,
+    borderRadius: Radius.pill,
+    marginTop: Spacing.two,
+  },
 });

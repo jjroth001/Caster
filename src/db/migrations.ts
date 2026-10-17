@@ -1,0 +1,125 @@
+import type { SQLiteDatabase } from 'expo-sqlite';
+
+/**
+ * Ordered schema migrations; each upgrades the database by one version (tracked in
+ * `PRAGMA user_version`). Never edit a migration that has shipped — append a new one.
+ */
+export const MIGRATIONS: string[] = [
+  // 1: initial schema
+  `
+  CREATE TABLE folder (
+    id          INTEGER PRIMARY KEY,
+    name        TEXT NOT NULL,
+    color       TEXT NOT NULL,
+    sort_order  INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE TABLE podcast (
+    id              INTEGER PRIMARY KEY,
+    feed_url        TEXT NOT NULL UNIQUE,
+    title           TEXT NOT NULL,
+    author          TEXT,
+    description     TEXT,
+    artwork_url     TEXT,
+    website         TEXT,
+    folder_id       INTEGER REFERENCES folder(id) ON DELETE SET NULL,
+    subscribed      INTEGER NOT NULL DEFAULT 1, -- 0: reached only through a playlist
+    sort_order      INTEGER NOT NULL DEFAULT 0,
+    added_at        INTEGER NOT NULL,           -- unix ms
+    new_since       INTEGER NOT NULL DEFAULT 0, -- episodes published at or after this count as new
+    etag            TEXT,
+    last_modified   TEXT,
+    last_refreshed  INTEGER,
+    refresh_error   TEXT
+  );
+
+  -- Per-podcast overrides; NULL means "use the global setting".
+  CREATE TABLE podcast_settings (
+    podcast_id       INTEGER PRIMARY KEY REFERENCES podcast(id) ON DELETE CASCADE,
+    speed            REAL,
+    trim_silence     TEXT,
+    volume_boost     INTEGER,
+    skip_start_s     INTEGER,
+    skip_end_s       INTEGER,
+    auto_download_n  INTEGER,
+    notify           INTEGER,
+    ad_skip_enabled  INTEGER,
+    episode_sort     TEXT
+  );
+
+  CREATE TABLE episode (
+    id               INTEGER PRIMARY KEY,
+    podcast_id       INTEGER NOT NULL REFERENCES podcast(id) ON DELETE CASCADE,
+    guid             TEXT NOT NULL,
+    title            TEXT NOT NULL,
+    description      TEXT,
+    link             TEXT,
+    pub_date         INTEGER,
+    duration_s       INTEGER,
+    enclosure_url    TEXT NOT NULL,
+    mime             TEXT,
+    size_bytes       INTEGER,
+    media_type       TEXT NOT NULL DEFAULT 'audio',
+    artwork_url      TEXT,
+    transcript_url   TEXT,
+    transcript_type  TEXT,
+    chapters_url     TEXT,
+    season           INTEGER,
+    number           INTEGER,
+    episode_type     TEXT,
+    UNIQUE (podcast_id, guid)
+  );
+  CREATE INDEX episode_podcast_date ON episode (podcast_id, pub_date DESC);
+  CREATE INDEX episode_date ON episode (pub_date DESC);
+
+  -- Listening state lives apart from episode so a feed refresh can never overwrite it.
+  CREATE TABLE episode_state (
+    episode_id       INTEGER PRIMARY KEY REFERENCES episode(id) ON DELETE CASCADE,
+    position_s       REAL NOT NULL DEFAULT 0,
+    played           INTEGER NOT NULL DEFAULT 0,
+    played_at        INTEGER,
+    starred          INTEGER NOT NULL DEFAULT 0,
+    archived         INTEGER NOT NULL DEFAULT 0,
+    download_status  TEXT,
+    local_path       TEXT,
+    updated_at       INTEGER NOT NULL
+  );
+
+  CREATE TABLE queue_item (
+    episode_id  INTEGER PRIMARY KEY REFERENCES episode(id) ON DELETE CASCADE,
+    position    REAL NOT NULL
+  );
+
+  CREATE TABLE listen_event (
+    id               INTEGER PRIMARY KEY,
+    episode_id       INTEGER REFERENCES episode(id) ON DELETE SET NULL,
+    started_at       INTEGER NOT NULL,
+    listened_s       REAL NOT NULL DEFAULT 0,
+    saved_speed_s    REAL NOT NULL DEFAULT 0,
+    saved_silence_s  REAL NOT NULL DEFAULT 0,
+    saved_skip_s     REAL NOT NULL DEFAULT 0
+  );
+
+  CREATE TABLE setting (
+    key    TEXT PRIMARY KEY NOT NULL,
+    value  TEXT NOT NULL
+  );
+  `,
+];
+
+export async function migrateDbIfNeeded(db: SQLiteDatabase) {
+  // WAL lets the player save positions while a feed refresh writes episodes.
+  await db.execAsync(
+    'PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;',
+  );
+  const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  let version = row?.user_version ?? 0;
+  while (version < MIGRATIONS.length) {
+    const sql = MIGRATIONS[version];
+    version += 1;
+    await db.withTransactionAsync(async () => {
+      await db.execAsync(sql);
+      await db.execAsync(`PRAGMA user_version = ${version}`);
+    });
+  }
+}

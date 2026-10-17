@@ -1,0 +1,90 @@
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+
+import { Txt } from '@/components/text';
+import { clock } from '@/lib/format';
+import { useTheme } from '@/theme/theme-provider';
+
+type Props = {
+  positionMs: number;
+  durationMs: number | null;
+  bufferedMs: number;
+  onSeek: (ms: number) => void;
+};
+
+/** The position bar: drag or tap to seek; the thumb follows the finger until it lets go. */
+export function Scrubber({ positionMs, durationMs, bufferedMs, onSeek }: Props) {
+  const theme = useTheme();
+  const [width, setWidth] = useState(1);
+  const [dragMs, setDragMs] = useState<number | null>(null);
+  const toMs = (x: number) =>
+    durationMs ? Math.min(durationMs, Math.max(0, (x / width) * durationMs)) : 0;
+  // minDistance 0: a tap seeks too. Callbacks run on the JS thread (they only set state).
+  const pan = Gesture.Pan()
+    .enabled(!!durationMs)
+    .minDistance(0)
+    .runOnJS(true)
+    .onBegin((e) => setDragMs(toMs(e.x)))
+    .onUpdate((e) => setDragMs(toMs(e.x)))
+    .onEnd((e) => onSeek(toMs(e.x)))
+    .onFinalize(() => setDragMs(null));
+
+  const shown = dragMs ?? positionMs;
+  const fraction = durationMs ? Math.min(1, shown / durationMs) : 0;
+  const buffered = durationMs ? Math.min(1, bufferedMs / durationMs) : 0;
+
+  return (
+    <View>
+      <GestureDetector gesture={pan}>
+        <View
+          onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+          style={styles.hit}
+          accessible
+          accessibilityRole="adjustable"
+          accessibilityLabel="Position"
+          accessibilityValue={{ text: `${clock(shown)} of ${clock(durationMs)}` }}
+          accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+          onAccessibilityAction={(e) => {
+            const step = e.nativeEvent.actionName === 'increment' ? 30_000 : -30_000;
+            onSeek(Math.max(0, positionMs + step));
+          }}>
+          <View pointerEvents="none" style={[styles.track, { backgroundColor: theme.track }]}>
+            <View
+              style={[styles.fill, { width: `${buffered * 100}%`, backgroundColor: theme.track }]}
+            />
+            <View
+              style={[styles.fill, { width: `${fraction * 100}%`, backgroundColor: theme.accent }]}
+            />
+          </View>
+          <View
+            pointerEvents="none"
+            style={[
+              styles.thumb,
+              { left: fraction * width - (dragMs != null ? 11 : 8), backgroundColor: theme.accent },
+              dragMs != null && styles.thumbActive,
+            ]}
+          />
+        </View>
+      </GestureDetector>
+      <View style={styles.times}>
+        <Txt variant="small" secondary style={styles.tabular}>
+          {clock(shown)}
+        </Txt>
+        <Txt variant="small" secondary style={styles.tabular}>
+          {durationMs ? `−${clock(Math.max(0, durationMs - shown))}` : '--:--'}
+        </Txt>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  hit: { height: 32, justifyContent: 'center' },
+  track: { height: 5, borderRadius: 3, overflow: 'hidden' },
+  fill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
+  thumb: { position: 'absolute', width: 16, height: 16, borderRadius: 8, top: 8 },
+  thumbActive: { width: 22, height: 22, borderRadius: 11, top: 5 },
+  times: { flexDirection: 'row', justifyContent: 'space-between' },
+  tabular: { fontVariant: ['tabular-nums'] },
+});

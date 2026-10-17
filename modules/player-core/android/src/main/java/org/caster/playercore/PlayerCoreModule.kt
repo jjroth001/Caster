@@ -140,6 +140,9 @@ class PlayerCoreModule : Module() {
     }
       .runOnQueue(Queues.MAIN)
 
+    AsyncFunction("setSleepTimer") { ms: Double -> PlayerCore.setSleepTimer(ms.toLong()) }
+      .runOnQueue(Queues.MAIN)
+
     AsyncFunction("stop") { PlayerCore.stop() }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("getState") { PlayerCore.snapshot() }.runOnQueue(Queues.MAIN)

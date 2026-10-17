@@ -14,6 +14,8 @@ export type PlayerState = {
   speed: number;
   trimSilence: TrimSilence;
   volumeBoost: boolean;
+  /** Time until the sleep timer pauses playback, or null when it's off. */
+  sleepRemainingMs: number | null;
 };
 
 export type LoadItem = {
@@ -46,6 +48,8 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   setTrimSilence(level: TrimSilence): Promise<void>;
   setVolumeBoost(enabled: boolean): Promise<void>;
   setSkipIntervals(backSeconds: number, forwardSeconds: number): Promise<void>;
+  /** Pauses after `ms` (fading out over the last 10 s); 0 turns the timer off. */
+  setSleepTimer(ms: number): Promise<void>;
   stop(): Promise<void>;
   getState(): Promise<PlayerState>;
 }

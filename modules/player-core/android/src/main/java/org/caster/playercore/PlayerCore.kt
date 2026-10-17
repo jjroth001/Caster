@@ -7,6 +7,7 @@ import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -66,6 +67,10 @@ object PlayerCore {
     private set
   var volumeBoost = false
     private set
+
+  /** When the sleep timer pauses playback (elapsedRealtime ms), or 0 when it's off. */
+  private var sleepAt = 0L
+  private const val FADE_MS = 10_000L
 
   val isCreated: Boolean
     get() = exo != null
@@ -172,6 +177,33 @@ object PlayerCore {
     session?.setMediaButtonPreferences(mediaButtons())
   }
 
+  /** Pauses after `ms`, fading out over the last 10 seconds; 0 turns the timer off. */
+  fun setSleepTimer(ms: Long) {
+    handler.removeCallbacks(sleepTick)
+    exo?.volume = 1f
+    sleepAt = if (ms > 0) SystemClock.elapsedRealtime() + ms else 0L
+    if (sleepAt > 0) handler.post(sleepTick)
+    listener?.onStateChanged()
+  }
+
+  private val sleepTick =
+    object : Runnable {
+      override fun run() {
+        val player = exo ?: return
+        val left = sleepAt - SystemClock.elapsedRealtime()
+        if (left <= 0) {
+          player.pause()
+          player.volume = 1f
+          sleepAt = 0L
+          listener?.onStateChanged()
+          return
+        }
+        // Only fade while actually playing; a paused timer keeps counting down.
+        player.volume = if (left < FADE_MS) (left.toFloat() / FADE_MS).coerceIn(0f, 1f) else 1f
+        handler.postDelayed(this, if (left < FADE_MS) 100L else 1_000L)
+      }
+    }
+
   fun stop() {
     exo?.run {
       stop()
@@ -182,6 +214,7 @@ object PlayerCore {
   /** Called when the playback service goes away while nothing is playing. */
   fun release() {
     handler.removeCallbacksAndMessages(null)
+    sleepAt = 0L
     enhancer?.release()
     enhancer = null
     exo?.removeListener(events)
@@ -211,6 +244,9 @@ object PlayerCore {
       "speed" to (player?.playbackParameters?.speed ?: 1f).toDouble(),
       "trimSilence" to trimLevel.name.lowercase(),
       "volumeBoost" to volumeBoost,
+      "sleepRemainingMs" to
+        if (sleepAt > 0) (sleepAt - SystemClock.elapsedRealtime()).coerceAtLeast(0).toDouble()
+        else null,
     )
   }
 

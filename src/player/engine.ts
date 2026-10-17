@@ -28,7 +28,10 @@ export type PlayerEngine = {
   setTrimSilence(level: TrimSilence): Promise<void>;
   setVolumeBoost(enabled: boolean): Promise<void>;
   setSkipIntervals(backSeconds: number, forwardSeconds: number): Promise<void>;
+  /** Pauses after `ms`; 0 turns the timer off. */
+  setSleepTimer(ms: number): Promise<void>;
   stop(): Promise<void>;
+  getState(): Promise<PlayerState>;
   subscribe(listener: (event: PlayerEvent) => void): () => void;
 };
 
@@ -43,6 +46,7 @@ export const IDLE_STATE: PlayerState = {
   speed: 1,
   trimSilence: 'off',
   volumeBoost: false,
+  sleepRemainingMs: null,
 };
 
 function nativeEngine(core: NonNullable<typeof PlayerCore>): PlayerEngine {
@@ -58,7 +62,9 @@ function nativeEngine(core: NonNullable<typeof PlayerCore>): PlayerEngine {
     setTrimSilence: (level) => core.setTrimSilence(level),
     setVolumeBoost: (enabled) => core.setVolumeBoost(enabled),
     setSkipIntervals: (back, forward) => core.setSkipIntervals(back, forward),
+    setSleepTimer: (ms) => core.setSleepTimer(ms),
     stop: () => core.stop(),
+    getState: () => core.getState(),
     subscribe(listener) {
       const subs = [
         core.addListener('onState', (state) => listener({ type: 'state', state })),
@@ -80,6 +86,8 @@ function basicEngine(): PlayerEngine {
   let back = 10;
   let forward = 30;
   let endedFor: string | null = null;
+  let sleepAt = 0;
+  let sleepTimer: ReturnType<typeof setTimeout> | undefined;
   const listeners = new Set<(event: PlayerEvent) => void>();
   const emit = (event: PlayerEvent) => listeners.forEach((l) => l(event));
 
@@ -103,6 +111,7 @@ function basicEngine(): PlayerEngine {
       positionMs: player.currentTime * 1000,
       durationMs: duration,
       speed,
+      sleepRemainingMs: sleepAt ? Math.max(0, sleepAt - Date.now()) : null,
     };
   };
 
@@ -167,12 +176,24 @@ function basicEngine(): PlayerEngine {
       back = b;
       forward = f;
     },
+    async setSleepTimer(ms) {
+      clearTimeout(sleepTimer);
+      sleepAt = ms > 0 ? Date.now() + ms : 0;
+      if (ms > 0) {
+        sleepTimer = setTimeout(() => {
+          sleepAt = 0;
+          player?.pause();
+        }, ms);
+      }
+      emit({ type: 'state', state: state() });
+    },
     async stop() {
       player?.pause();
       player?.clearLockScreenControls();
       id = null;
       emit({ type: 'state', state: state() });
     },
+    getState: async () => state(),
     subscribe(listener) {
       listeners.add(listener);
       listener({ type: 'state', state: state() });

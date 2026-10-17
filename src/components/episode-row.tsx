@@ -1,0 +1,121 @@
+import { router } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+
+import { Artwork } from '@/components/artwork';
+import { PlayButton } from '@/components/controls';
+import { Icon } from '@/components/icons/icon';
+import { Txt } from '@/components/text';
+import type { EpisodeItem } from '@/db/library';
+import { duration, releaseDate, timeLeft } from '@/lib/format';
+import { engine } from '@/player/engine';
+import { playEpisode } from '@/player/controller';
+import { usePlayerState } from '@/player/use-player';
+import { useTheme } from '@/theme/theme-provider';
+import { Radius, Spacing } from '@/theme/themes';
+
+type Props = {
+  episode: EpisodeItem;
+  /** Show the podcast's cover and name (lists that mix podcasts). */
+  showPodcast?: boolean;
+  /** Draw as a card (Dusk, Midnight) or a plain row with a divider (Paper). */
+  cards: boolean;
+  /** Extra control on the right, e.g. remove from Up Next. */
+  trailing?: React.ReactNode;
+};
+
+export function EpisodeRow({ episode, showPodcast, cards, trailing }: Props) {
+  const db = useSQLiteContext();
+  const theme = useTheme();
+  const player = usePlayerState();
+  const [now] = useState(Date.now);
+  const current = player.id === String(episode.id);
+  const positionS = current ? player.positionMs / 1000 : episode.position_s;
+  const durationS =
+    (current && player.durationMs ? player.durationMs / 1000 : null) ?? episode.duration_s;
+  const played = !!episode.played && !current;
+  const inProgress = positionS > 5 && !played;
+  const isNew =
+    !episode.played && !inProgress && (episode.pub_date ?? 0) > now - 7 * 86_400_000;
+
+  const status = played
+    ? 'Played'
+    : inProgress
+      ? timeLeft(positionS, durationS)
+      : duration(durationS);
+  const meta = [releaseDate(episode.pub_date), duration(episode.duration_s)]
+    .filter(Boolean)
+    .join(' · ');
+
+  const onPlay = () => {
+    if (current) void (player.playWhenReady ? engine.pause() : engine.play());
+    else void playEpisode(db, episode.id);
+  };
+
+  return (
+    <Pressable
+      onPress={() => router.push(`/episode/${episode.id}`)}
+      accessibilityRole="button"
+      accessibilityHint="Shows the episode's details"
+      style={({ pressed }) => [
+        styles.row,
+        cards
+          ? [styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]
+          : [styles.flat, { borderBottomColor: theme.cardBorder }],
+        pressed && { opacity: 0.7 },
+      ]}>
+      {showPodcast && (
+        <Artwork
+          uri={episode.artwork_url ?? episode.podcast_artwork}
+          title={episode.podcast_title}
+          size={52}
+        />
+      )}
+      <View style={[styles.text, played && { opacity: 0.5 }]}>
+        <Txt variant="meta" color={isNew ? theme.accent : theme.textSecondary} numberOfLines={1}>
+          {showPodcast ? episode.podcast_title : meta}
+        </Txt>
+        <Txt
+          variant="bodyBold"
+          numberOfLines={2}
+          style={theme.serifTitles && !cards ? styles.serif : null}>
+          {episode.title}
+        </Txt>
+        <View style={styles.statusRow}>
+          {!!episode.starred && <Icon name="star-fill" size={12} color={theme.accent} />}
+          {played && <Icon name="check" size={13} color={theme.textSecondary} duotone={false} />}
+          <Txt variant="small" secondary numberOfLines={1}>
+            {showPodcast && meta ? `${releaseDate(episode.pub_date)} · ${status}` : status}
+          </Txt>
+        </View>
+      </View>
+      {trailing}
+      <PlayButton
+        playing={current && player.playWhenReady}
+        progress={durationS ? positionS / durationS : 0}
+        onPress={onPlay}
+        label={current && player.playWhenReady ? 'Pause' : `Play ${episode.title}`}
+      />
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  card: {
+    marginHorizontal: Spacing.three,
+    marginBottom: Spacing.two,
+    padding: Spacing.three,
+    borderRadius: Radius.medium,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  flat: {
+    marginHorizontal: Spacing.four,
+    paddingVertical: Spacing.three,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  text: { flex: 1, gap: 3 },
+  serif: { fontFamily: 'serif', fontWeight: '700' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+});

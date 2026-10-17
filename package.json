@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "buffer": "^6.0.3",
     "expo": "~57.0.30",
     "expo-asset": "~57.0.20",
     "expo-audio": "~57.0.5",

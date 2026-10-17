@@ -36,6 +36,15 @@ export type ParsedFeed = {
 
 export class FeedError extends Error {}
 
+export const NEEDS_LOGIN = 'This feed is private and needs a username and password.';
+
+/** The feed answered 401/403: it needs a sign-in (or the saved one is wrong). */
+export class FeedAuthError extends FeedError {
+  constructor() {
+    super(NEEDS_LOGIN);
+  }
+}
+
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: '@_',

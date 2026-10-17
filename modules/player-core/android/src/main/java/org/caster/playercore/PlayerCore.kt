@@ -22,6 +22,7 @@ import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
@@ -113,9 +114,15 @@ object PlayerCore {
         .setAllowCrossProtocolRedirects(true)
         .setConnectTimeoutMs(15_000)
         .setReadTimeoutMs(20_000)
+    // Private feeds: add the sign-in for hosts the app has one for.
+    val signedIn =
+      ResolvingDataSource.Factory(http) { spec ->
+        HostAuth.forUrl(spec.uri.toString())?.let { spec.withAdditionalHeaders(mapOf("Authorization" to it)) }
+          ?: spec
+      }
     val player =
       ExoPlayer.Builder(appContext, renderers)
-        .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(appContext, http)))
+        .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(appContext, signedIn)))
         .setAudioAttributes(
           AudioAttributes.Builder()
             .setUsage(C.USAGE_MEDIA)

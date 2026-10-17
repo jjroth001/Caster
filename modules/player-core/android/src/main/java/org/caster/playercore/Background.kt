@@ -123,6 +123,8 @@ class RefreshWorker(context: Context, params: WorkerParameters) : Worker(context
       val p = podcasts.getJSONObject(i)
       val id = p.getLong("id")
       val feedUrl = p.getString("feedUrl")
+      // Private feeds need the sign-in the app keeps encrypted; it checks them when it opens.
+      if (p.optBoolean("private", false)) continue
       val etag = prefs.getString("etag:$id", null) ?: p.optString("etag").ifEmpty { null }
       val lastModified = prefs.getString("lm:$id", null) ?: p.optString("lastModified").ifEmpty { null }
       // Episodes newer than this count as new (whichever is later: the app's view or our last run).

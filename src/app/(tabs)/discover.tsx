@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Artwork } from '@/components/artwork';
 import { Icon } from '@/components/icons/icon';
 import { ScreenHeader } from '@/components/screen-header';
+import { showSignIn } from '@/components/sign-in-sheet';
 import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import {
@@ -17,6 +18,9 @@ import {
   topPodcasts,
   type DirectoryPodcast,
 } from '@/feeds/apple';
+import { splitLogin } from '@/feeds/credentials';
+import { FeedAuthError } from '@/feeds/parse-feed';
+import { rememberFeedLogin } from '@/feeds/private';
 import { openFeed } from '@/feeds/sync';
 import { useTheme } from '@/theme/theme-provider';
 import { Radius, Spacing } from '@/theme/themes';
@@ -55,6 +59,15 @@ export default function DiscoverScreen() {
       const id = await openFeed(db, url);
       router.push(`/podcast/${id}`);
     } catch (e) {
+      if (e instanceof FeedAuthError && feedUrl) {
+        const { url: clean } = splitLogin(feedUrl);
+        // Ask for the sign-in, then try again with it.
+        showSignIn(
+          'Sign in to this podcast',
+          (login) => void rememberFeedLogin(db, clean, login).then(() => open(key, clean, appleId)),
+        );
+        return;
+      }
       setError(e instanceof Error ? e.message : 'Couldn’t open this podcast.');
     } finally {
       setOpening(null);

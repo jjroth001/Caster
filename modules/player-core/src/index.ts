@@ -53,6 +53,8 @@ export type DownloadRequest = {
   chargingOnly: boolean;
   /** Wait while the phone is low on storage. */
   storageNotLow?: boolean;
+  /** A private feed's sign-in, sent only to the episode's own host. */
+  authorization?: string | null;
 };
 
 export type InboxFeed = {
@@ -105,6 +107,8 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
 
   download(request: DownloadRequest): void;
   cancelDownload(key: string): void;
+  /** Signs in to a private feed's host for playback and downloads (kept in memory only). */
+  setHostAuthorization(host: string, authorization: string): void;
   deleteDownload(key: string): void;
   listDownloads(): { key: string; uri: string; bytes: number }[];
   activeDownloads(): Promise<DownloadEvent[]>;

@@ -76,6 +76,7 @@ const LOCAL_SETTINGS: (keyof Settings)[] = [
   'lastAutoBackupAt',
   'autoBackupError',
   'adDetectionVersion',
+  'privateFeeds',
 ];
 
 export async function createBackup(db: SQLiteDatabase): Promise<Backup> {

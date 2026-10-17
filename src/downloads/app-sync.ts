@@ -6,6 +6,7 @@ import { applyPendingState, writeAutoLibrary } from '@/auto/snapshot';
 import { runAutoTranscribe, startAutoTranscribe } from '@/transcripts/auto';
 import { pruneUnfollowed, queueListeners } from '@/db/library';
 import { getSettings } from '@/db/settings';
+import { syncPrivateLogins } from '@/feeds/private';
 import { refreshAll } from '@/feeds/sync';
 import { runAutoBackupIfDue } from '@/lib/auto-backup';
 import { redetectTranscriptAds } from '@/transcripts/transcripts';
@@ -19,12 +20,14 @@ const STALE_MS = 15 * 60_000;
 /** Everything the app does to catch up with the outside world when it opens or returns. */
 async function catchUp(db: SQLiteDatabase, { force }: { force: boolean }) {
   await applyPendingState(db);
+  await syncPrivateLogins(db);
   await processInbox(db);
   await reconcileDownloads(db);
   const settings = await getSettings(db);
   if (force || !settings.lastRefreshAt || Date.now() - settings.lastRefreshAt > STALE_MS) {
     await refreshAll(db);
   }
+  await syncPrivateLogins(db);
   await runAutoDownloads(db);
   await enforceStorageCap(db);
   await writeBackgroundConfig(db);

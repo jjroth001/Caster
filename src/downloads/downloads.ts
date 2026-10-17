@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { PlayerCore, type DownloadEvent } from '@modules/player-core/src';
 import { getSettings } from '@/db/settings';
+import { basicAuth, getFeedLogin } from '@/feeds/credentials';
 
 /**
  * Episode downloads. The native side (WorkManager) owns the files; this keeps the library's
@@ -76,6 +77,14 @@ export async function downloadEpisode(
   );
   if (!e) return;
   const settings = await getSettings(db);
+  const feed = await db.getFirstAsync<{ feed_url: string }>(
+    'SELECT feed_url FROM podcast WHERE id = ?',
+    e.podcast_id,
+  );
+  const login =
+    feed && settings.privateFeeds.includes(feed.feed_url)
+      ? await getFeedLogin(feed.feed_url)
+      : null;
   PlayerCore.download({
     key: keyFor(e),
     url: e.enclosure_url,
@@ -85,6 +94,7 @@ export async function downloadEpisode(
     wifiOnly: automatic && settings.downloadWifiOnly,
     chargingOnly: automatic && settings.downloadChargingOnly,
     storageNotLow: automatic && settings.downloadStorageNotLow,
+    authorization: login ? basicAuth(login) : null,
   });
   await setDownloadState(db, e.id, 'queued', null, automatic);
 }

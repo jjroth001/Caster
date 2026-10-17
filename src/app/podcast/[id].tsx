@@ -10,6 +10,7 @@ import { useArtworkTint } from '@/theme/artwork-tint';
 import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { Button, IconButton } from '@/components/controls';
 import { EpisodeRow } from '@/components/episode-row';
+import { showSignIn } from '@/components/sign-in-sheet';
 import { Icon } from '@/components/icons/icon';
 import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
@@ -23,6 +24,8 @@ import {
 import { useDbQuery } from '@/db/use-db-query';
 import { autoDownloadFollowed } from '@/downloads/auto-download';
 import { htmlToText } from '@/feeds/text';
+import { NEEDS_LOGIN } from '@/feeds/parse-feed';
+import { rememberFeedLogin } from '@/feeds/private';
 import { refreshPodcast } from '@/feeds/sync';
 import { podcastMenu } from '@/lib/library-actions';
 import { useTheme } from '@/theme/theme-provider';
@@ -122,10 +125,31 @@ export default function PodcastScreen() {
           </Txt>
         </Pressable>
       )}
-      {!!podcast.refresh_error && (
-        <Txt variant="small" color={theme.danger} style={styles.description}>
-          Last check failed: {podcast.refresh_error}
-        </Txt>
+      {podcast.refresh_error === NEEDS_LOGIN ? (
+        <View style={[styles.description, styles.signIn]}>
+          <Txt variant="small" color={theme.danger} style={styles.signInText}>
+            {NEEDS_LOGIN}
+          </Txt>
+          <Button
+            label="Sign in"
+            kind="secondary"
+            onPress={() =>
+              showSignIn(
+                podcast.title,
+                (login) =>
+                  void rememberFeedLogin(db, podcast.feed_url, login).then(() =>
+                    refreshPodcast(db, podcastId),
+                  ),
+              )
+            }
+          />
+        </View>
+      ) : (
+        !!podcast.refresh_error && (
+          <Txt variant="small" color={theme.danger} style={styles.description}>
+            Last check failed: {podcast.refresh_error}
+          </Txt>
+        )
       )}
       <View style={styles.listHeader}>
         <Txt variant="bodyBold">
@@ -196,6 +220,8 @@ const styles = StyleSheet.create({
   },
   follow: { marginTop: Spacing.two },
   description: { marginHorizontal: Spacing.four, marginTop: Spacing.three },
+  signIn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  signInText: { flex: 1 },
   listHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

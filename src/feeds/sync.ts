@@ -9,7 +9,9 @@ import {
 } from '@/db/library';
 import { setSetting } from '@/db/settings';
 
-import { FeedError, parseFeed, type ParsedFeed } from './parse-feed';
+import { basicAuth, getFeedLogin, splitLogin } from './credentials';
+import { FeedAuthError, FeedError, parseFeed, type ParsedFeed } from './parse-feed';
+import { rememberFeedLogin } from './private';
 
 const USER_AGENT = 'Caster/1.0 (Android; open-source podcast player)';
 
@@ -28,6 +30,8 @@ export async function fetchFeed(
   };
   if (cache?.etag) headers['If-None-Match'] = cache.etag;
   if (cache?.lastModified) headers['If-Modified-Since'] = cache.lastModified;
+  const login = await getFeedLogin(url);
+  if (login) headers.Authorization = basicAuth(login);
   let response: Response;
   try {
     response = await fetch(url, { headers });
@@ -35,9 +39,7 @@ export async function fetchFeed(
     throw new FeedError('Couldn’t reach this podcast. Check your connection.');
   }
   if (response.status === 304) return { status: 'unchanged' };
-  if (response.status === 401 || response.status === 403) {
-    throw new FeedError('This feed is private and needs a password.');
-  }
+  if (response.status === 401 || response.status === 403) throw new FeedAuthError();
   if (response.status === 404 || response.status === 410) {
     throw new FeedError('This podcast’s feed is gone (the address no longer works).');
   }
@@ -55,7 +57,10 @@ export async function fetchFeed(
  * Loads a podcast into the library without following it, so it can be browsed and played
  * before deciding. Returns its id (an existing one if it's already there).
  */
-export async function openFeed(db: SQLiteDatabase, url: string): Promise<number> {
+export async function openFeed(db: SQLiteDatabase, address: string): Promise<number> {
+  // A sign-in written into the address is kept encrypted, not in the saved address.
+  const { url, login } = splitLogin(address);
+  if (login) await rememberFeedLogin(db, url, login);
   const existing = await findPodcastByFeed(db, url);
   if (existing) return existing.id;
   const result = await fetchFeed(url);

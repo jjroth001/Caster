@@ -46,6 +46,7 @@ class DownloadRequest : Record {
   @Field val wifiOnly: Boolean = true
   @Field val chargingOnly: Boolean = false
   @Field val storageNotLow: Boolean = false
+  @Field val authorization: String? = null
 }
 
 class LoadItem : Record {
@@ -217,10 +218,16 @@ class PlayerCoreModule : Module() {
         request.wifiOnly,
         request.chargingOnly,
         request.storageNotLow,
+        request.authorization,
       )
     }
 
     Function("cancelDownload") { key: String -> Downloads.cancel(context, key) }
+
+    /** Signs in to a private feed's host for playback and downloads (memory only). */
+    Function("setHostAuthorization") { host: String, authorization: String ->
+      HostAuth.put(host, authorization)
+    }
 
     Function("deleteDownload") { key: String -> Downloads.delete(context, key) }
 

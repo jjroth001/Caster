@@ -70,12 +70,16 @@ internal object Downloads {
     wifiOnly: Boolean,
     chargingOnly: Boolean,
     storageNotLow: Boolean = false,
+    authorization: String? = null,
   ) {
     val ext = extension(url, mime)
     // A sidecar so a finished file can be traced back to its episode after a restart.
     meta(context, key).writeText(JSONObject().put("key", key).put("ext", ext).put("title", title).toString())
     val request = OneTimeWorkRequestBuilder<DownloadWorker>()
-      .setInputData(workDataOf("key" to key, "url" to url, "ext" to ext, "title" to title))
+      // A private feed's sign-in travels with the job, so it still works after a restart.
+      .setInputData(
+        workDataOf("key" to key, "url" to url, "ext" to ext, "title" to title, "auth" to authorization)
+      )
       .setConstraints(
         Constraints.Builder()
           .setRequiredNetworkType(if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED)
@@ -150,6 +154,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
     val url = inputData.getString("url") ?: return Result.failure()
     val ext = inputData.getString("ext") ?: "mp3"
     val title = inputData.getString("title") ?: "Episode"
+    inputData.getString("auth")?.let { auth ->
+      runCatching { java.net.URL(url).host }.getOrNull()?.let { HostAuth.put(it, auth) }
+    }
     val target = Downloads.file(applicationContext, key, ext)
     if (target.exists()) return Result.success(done(target))
     val part = File(target.path + ".part")

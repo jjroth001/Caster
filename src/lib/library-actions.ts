@@ -6,6 +6,7 @@ import { showPrompt, showSheet } from '@/components/sheet';
 import { createFolder, listFolders, movePodcastToFolder } from '@/db/folders';
 import { markAllPlayed, unsubscribe } from '@/db/library';
 import { addToPlaylist, createPlaylist, listPlaylists } from '@/db/playlists';
+import { forgetPrivateFeed } from '@/feeds/private';
 import { refreshPodcast } from '@/feeds/sync';
 import { sharePodcast } from '@/lib/share';
 
@@ -101,6 +102,8 @@ export function podcastMenu(
                       onPress: () => {
                         router.back();
                         void unsubscribe(db, podcast.id);
+                        // A private feed's saved sign-in goes with it.
+                        void forgetPrivateFeed(db, podcast.feed_url);
                       },
                     },
                   ],

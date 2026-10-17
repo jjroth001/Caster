@@ -82,6 +82,8 @@ export type Settings = {
   lastAutoBackupAt: number | null;
   /** Why the last automatic backup failed, if it did. */
   autoBackupError: string | null;
+  /** Feeds with a saved sign-in (the sign-ins themselves are in encrypted storage). */
+  privateFeeds: string[];
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -128,6 +130,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoBackupFolderName: null,
   lastAutoBackupAt: null,
   autoBackupError: null,
+  privateFeeds: [],
 };
 
 /** All settings, with defaults filled in for anything never set. Values are stored as JSON. */

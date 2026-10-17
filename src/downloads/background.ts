@@ -45,6 +45,7 @@ export async function writeBackgroundConfig(db: SQLiteDatabase) {
         lastModified: p.last_modified,
         latestPub: p.latest_pub ?? 0,
         notify: p.notify == null ? settings.notifyNewEpisodes : !!p.notify,
+        private: settings.privateFeeds.includes(p.feed_url),
         autoDownload: settings.autoDownloadNew && p.auto_n ? settings.autoDownloadLimit : 0,
       })),
     }),

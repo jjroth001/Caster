@@ -330,6 +330,15 @@ export function startPlayerSync(db: SQLiteDatabase): () => void {
     const state = event.state;
     lastState = state;
     if (!state.id || state.state === 'ended') return;
+    // Started from the car or the notification: show it as the episode in the player.
+    if (prev?.id !== state.id) {
+      void getSettings(db).then((s) =>
+        s.nowPlaying === Number(state.id)
+          ? undefined
+          : setSetting(db, 'nowPlaying', Number(state.id)),
+      );
+      if (rules?.id !== Number(state.id)) void refreshRules(db, Number(state.id));
+    }
     applyRules(db, state);
     const paused = prev?.playWhenReady && !state.playWhenReady;
     const moved = Math.abs(state.positionMs - lastSavedMs) >= 5000;

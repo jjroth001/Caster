@@ -10,13 +10,19 @@
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
   <application>
-    <!-- Exported so the system media controls, headsets and (later) Android Auto can connect. -->
+    <!-- Lets Android Auto list Caster as a media app (no Google libraries involved). -->
+    <meta-data
+      android:name="com.google.android.gms.car.application"
+      android:resource="@xml/automotive_app_desc" />
+    <!-- Exported so the system media controls, headsets and Android Auto can connect. -->
     <service
       android:name="org.caster.playercore.PlaybackService"
       android:exported="true"
       android:foregroundServiceType="mediaPlayback">
       <intent-filter>
+        <action android:name="androidx.media3.session.MediaLibraryService" />
         <action android:name="androidx.media3.session.MediaSessionService" />
+        <action android:name="android.media.browse.MediaBrowserService" />
       </intent-filter>
     </service>
     <!-- WorkManager's foreground service, declared with the type Android 14+ requires. -->

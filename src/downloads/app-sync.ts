@@ -1,7 +1,8 @@
-import type { SQLiteDatabase } from 'expo-sqlite';
+import { addDatabaseChangeListener, type SQLiteDatabase } from 'expo-sqlite';
 import { AppState } from 'react-native';
 
 import { PlayerCore } from '@modules/player-core/src';
+import { applyPendingState, writeAutoLibrary } from '@/auto/snapshot';
 import { pruneUnfollowed } from '@/db/library';
 import { getSettings } from '@/db/settings';
 import { refreshAll } from '@/feeds/sync';
@@ -18,6 +19,7 @@ const STALE_MS = 15 * 60_000;
 
 /** Everything the app does to catch up with the outside world when it opens or returns. */
 async function catchUp(db: SQLiteDatabase, { force }: { force: boolean }) {
+  await applyPendingState(db);
   await processInbox(db);
   await reconcileDownloads(db);
   const settings = await getSettings(db);
@@ -27,6 +29,7 @@ async function catchUp(db: SQLiteDatabase, { force }: { force: boolean }) {
   await autoDownloadNew(db);
   await enforceStorageCap(db);
   await writeBackgroundConfig(db);
+  await writeAutoLibrary(db);
 }
 
 /**
@@ -42,7 +45,18 @@ export function startAppSync(db: SQLiteDatabase): () => void {
   })();
   const appState = AppState.addEventListener('change', (state) => {
     if (state === 'active') void catchUp(db, { force: false });
-    if (state === 'background') void writeBackgroundConfig(db);
+    if (state === 'background') {
+      void writeBackgroundConfig(db);
+      void writeAutoLibrary(db);
+    }
+  });
+  // Keep Android Auto's lists current while the app is open (a burst of changes writes once).
+  let autoTimer: ReturnType<typeof setTimeout> | undefined;
+  const AUTO_TABLES = ['queue_item', 'episode_state', 'playlist', 'playlist_item', 'podcast'];
+  const changes = addDatabaseChangeListener(({ tableName }) => {
+    if (!AUTO_TABLES.includes(tableName)) return;
+    clearTimeout(autoTimer);
+    autoTimer = setTimeout(() => void writeAutoLibrary(db), 5000);
   });
   const downloads = PlayerCore?.addListener('onDownload', (event) => {
     void applyDownloadEvent(db, event).then(() =>
@@ -52,5 +66,7 @@ export function startAppSync(db: SQLiteDatabase): () => void {
   return () => {
     appState.remove();
     downloads?.remove();
+    changes.remove();
+    clearTimeout(autoTimer);
   };
 }

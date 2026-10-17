@@ -91,6 +91,7 @@ object PlayerCore {
   fun player(context: Context): CasterPlayer {
     forwarding?.let { return it }
     val appContext = context.applicationContext
+    this.appContext = appContext
     val trim = TrimSilenceChain()
     val renderers =
       object : DefaultRenderersFactory(appContext) {
@@ -223,6 +224,60 @@ object PlayerCore {
     }
   }
 
+  // --- Playback started outside the app (Android Auto, headsets) with the app's JS not running ---
+
+  private const val PENDING = "caster-pending"
+  private var appContext: Context? = null
+
+  /**
+   * With no app listening, remember the episode's position (and whether it finished) so the
+   * app can save it to its library the next time it runs.
+   */
+  fun savePendingPosition(context: Context, ended: Boolean = false) {
+    if (listener != null) return
+    val player = exo ?: return
+    val id = player.currentMediaItem?.mediaId ?: return
+    context.getSharedPreferences(PENDING, Context.MODE_PRIVATE).edit()
+      .putString("pos:$id", "${player.currentPosition}|${System.currentTimeMillis()}|${if (ended) 1 else 0}")
+      .putString("nowPlaying", id)
+      .apply()
+  }
+
+  fun bookmarkFromOutside(context: Context) {
+    val l = listener
+    if (l != null) {
+      l.onHeadsetAction("bookmark")
+      return
+    }
+    val player = exo ?: return
+    val id = player.currentMediaItem?.mediaId ?: return
+    val prefs = context.getSharedPreferences(PENDING, Context.MODE_PRIVATE)
+    val list = prefs.getString("bookmarks", "") ?: ""
+    prefs.edit().putString("bookmarks", "$list$id|${player.currentPosition}|${System.currentTimeMillis()};").apply()
+  }
+
+  /** Positions, finishes and bookmarks recorded while the app wasn't running; clears them. */
+  fun takePending(context: Context): Map<String, Any?> {
+    val prefs = context.getSharedPreferences(PENDING, Context.MODE_PRIVATE)
+    val positions = prefs.all.filterKeys { it.startsWith("pos:") }.mapNotNull { (key, value) ->
+      val parts = (value as? String)?.split('|') ?: return@mapNotNull null
+      if (parts.size < 3) return@mapNotNull null
+      mapOf(
+        "id" to key.removePrefix("pos:"),
+        "positionMs" to parts[0].toDouble(),
+        "at" to parts[1].toDouble(),
+        "ended" to (parts[2] == "1"),
+      )
+    }
+    val bookmarks = (prefs.getString("bookmarks", "") ?: "").split(';').filter { it.isNotBlank() }.mapNotNull { line ->
+      val parts = line.split('|')
+      if (parts.size < 3) null else mapOf("id" to parts[0], "positionMs" to parts[1].toDouble(), "at" to parts[2].toDouble())
+    }
+    val nowPlaying = prefs.getString("nowPlaying", null)
+    prefs.edit().clear().apply()
+    return mapOf("positions" to positions, "bookmarks" to bookmarks, "nowPlaying" to nowPlaying)
+  }
+
   /** Called when the playback service goes away while nothing is playing. */
   fun release() {
     handler.removeCallbacksAndMessages(null)
@@ -285,7 +340,7 @@ object PlayerCore {
 
   /** Notification and lock-screen buttons: skip back and forward by the user's intervals. */
   private fun mediaButtons(): List<CommandButton> =
-    listOf(
+    AutoLibrary.extraButtons() + listOf(
       CommandButton.Builder(skipBackIcon(skipBackMs))
         .setDisplayName("Skip back")
         .setPlayerCommand(Player.COMMAND_SEEK_BACK)
@@ -336,7 +391,13 @@ object PlayerCore {
       override fun onPlaybackStateChanged(playbackState: Int) {
         if (playbackState == Player.STATE_ENDED) {
           exo?.currentMediaItem?.mediaId?.let { listener?.onEnded(it) }
+          appContext?.let { savePendingPosition(it, ended = true) }
         }
+      }
+
+      override fun onIsPlayingChanged(isPlaying: Boolean) {
+        // Paused from the car or a headset with the app closed: keep the place.
+        if (!isPlaying) appContext?.let { savePendingPosition(it) }
       }
 
       override fun onPlayerError(error: PlaybackException) {

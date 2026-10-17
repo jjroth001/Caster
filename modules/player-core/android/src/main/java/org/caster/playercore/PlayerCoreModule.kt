@@ -209,6 +209,14 @@ class PlayerCoreModule : Module() {
         .mapNotNull { info -> downloadEvent(info) }
     }
 
+    // --- Android Auto ---
+
+    /** The lists Android Auto can browse (JSON; see src/auto/snapshot.ts). */
+    Function("setAutoLibrary") { json: String -> AutoLibrary.write(context, json) }
+
+    /** Positions, finishes and bookmarks from playback while the app wasn't running. */
+    Function("takePendingState") { PlayerCore.takePending(context) }
+
     // --- Background refresh ---
 
     /** The app's snapshot of followed podcasts and settings; also (re)schedules the check. */

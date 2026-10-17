@@ -3,33 +3,23 @@
 package org.caster.playercore
 
 import android.app.PendingIntent
-import android.content.Intent
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaSessionService
 
 /**
  * Keeps playback going with the screen off or the app closed, and owns the media session:
- * the notification, lock-screen and Bluetooth/headset controls. Media3 moves the service in and
- * out of the foreground as playback starts and stops; when the app is swiped away while paused,
- * Media3's default onTaskRemoved stops it.
+ * the notification, lock-screen and Bluetooth/headset controls, and the library Android Auto
+ * browses. Media3 moves the service in and out of the foreground as playback starts and stops;
+ * when the app is swiped away while paused, Media3's default onTaskRemoved stops it.
  */
-class PlaybackService : MediaSessionService() {
-  private var session: MediaSession? = null
+class PlaybackService : MediaLibraryService() {
+  private var session: MediaLibrarySession? = null
 
   override fun onCreate() {
     super.onCreate()
-    val builder = MediaSession.Builder(this, PlayerCore.player(this))
-      .setCallback(
-        object : MediaSession.Callback {
-          override fun onMediaButtonEvent(
-            session: MediaSession,
-            controllerInfo: MediaSession.ControllerInfo,
-            intent: Intent,
-          ): Boolean = HeadsetButtons.handle(intent)
-        }
-      )
+    val builder = MediaLibrarySession.Builder(this, PlayerCore.player(this), AutoLibrary.callback(this))
     packageManager.getLaunchIntentForPackage(packageName)?.let { launch ->
       builder.setSessionActivity(
         PendingIntent.getActivity(
@@ -43,9 +33,10 @@ class PlaybackService : MediaSessionService() {
     session = builder.build().also { PlayerCore.session = it }
   }
 
-  override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
+  override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
 
   override fun onDestroy() {
+    PlayerCore.savePendingPosition(this)
     PlayerCore.session = null
     session?.release()
     session = null

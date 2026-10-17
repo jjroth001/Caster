@@ -57,6 +57,12 @@ export type InboxFeed = {
   lastModified: string | null;
 };
 
+export type PendingState = {
+  positions: { id: string; positionMs: number; at: number; ended: boolean }[];
+  bookmarks: { id: string; positionMs: number; at: number }[];
+  nowPlaying: string | null;
+};
+
 type PlayerCoreEvents = {
   onState(state: PlayerState): void;
   onProgress(state: PlayerState): void;
@@ -95,6 +101,11 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   deleteDownload(key: string): void;
   listDownloads(): { key: string; uri: string; bytes: number }[];
   activeDownloads(): Promise<DownloadEvent[]>;
+
+  /** The lists Android Auto can browse (JSON from src/auto/snapshot.ts). */
+  setAutoLibrary(json: string): void;
+  /** Positions, finishes and bookmarks from playback while the app wasn't running; clears them. */
+  takePendingState(): PendingState;
 
   /** Snapshot of followed podcasts and settings for the background check (JSON). */
   configureBackground(json: string): void;

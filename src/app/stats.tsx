@@ -3,7 +3,8 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
-import { Card, Chip } from '@/components/controls';
+import { Card } from '@/components/controls';
+import { PickerRow } from '@/components/picker-row';
 import { SubScreen } from '@/components/sub-screen';
 import { Txt } from '@/components/text';
 import { useDbQuery } from '@/db/use-db-query';
@@ -40,16 +41,14 @@ export default function StatsScreen() {
   return (
     <SubScreen title="Listening stats">
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.six }}>
-        <View style={styles.ranges}>
-          {RANGES.map((r) => (
-            <Chip
-              key={r.label}
-              label={r.label}
-              selected={r === range}
-              onPress={() => setRange(r)}
-            />
-          ))}
-        </View>
+        <Card style={styles.rangeCard}>
+          <PickerRow
+            label="Showing"
+            options={RANGES.map((r) => ({ value: r.label, label: r.label }))}
+            value={range.label}
+            onChange={(label) => setRange(RANGES.find((r) => r.label === label) ?? RANGES[0])}
+          />
+        </Card>
 
         <Card style={styles.card}>
           <Txt variant="meta" secondary>
@@ -137,12 +136,7 @@ export default function StatsScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  ranges: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    marginBottom: Spacing.three,
-  },
+  rangeCard: { marginHorizontal: Spacing.three, marginBottom: Spacing.three, overflow: 'hidden' },
   card: {
     marginHorizontal: Spacing.three,
     marginBottom: Spacing.three,

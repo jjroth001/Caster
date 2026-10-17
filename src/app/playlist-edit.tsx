@@ -1,12 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
-import { Button, Card, Chip } from '@/components/controls';
+import { Button, Card } from '@/components/controls';
 import { Icon } from '@/components/icons/icon';
+import { PickerRow, RowDivider, SettingRow } from '@/components/picker-row';
 import { SubScreen } from '@/components/sub-screen';
 import { Txt } from '@/components/text';
 import { listLibrary } from '@/db/library';
@@ -22,15 +23,6 @@ import {
 import { useDbQuery } from '@/db/use-db-query';
 import { useTheme } from '@/theme/theme-provider';
 import { Radius, Spacing } from '@/theme/themes';
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <View style={styles.field}>
-      <Txt variant="bodyBold">{label}</Txt>
-      <View style={styles.chips}>{children}</View>
-    </View>
-  );
-}
 
 /** Create or edit a smart playlist; the count updates as the rules change. */
 export default function PlaylistEditScreen() {
@@ -75,6 +67,14 @@ export default function PlaylistEditScreen() {
   ).data;
 
   if (!draft) return <SubScreen title="Smart playlist">{null}</SubScreen>;
+  const toggle = (value: boolean, onChange: (v: boolean) => void) => (
+    <Switch
+      value={value}
+      onValueChange={onChange}
+      trackColor={{ true: theme.accent, false: theme.track }}
+      thumbColor={theme.dark ? '#ddd' : '#fff'}
+    />
+  );
   const r = draft.rules;
   const set = (patch: Partial<SmartRules>) => setDraft({ ...draft, rules: { ...r, ...patch } });
   const chosen = new Set(r.podcasts === 'all' ? [] : r.podcasts);
@@ -103,21 +103,34 @@ export default function PlaylistEditScreen() {
           style={[styles.name, { color: theme.text, backgroundColor: theme.element }]}
         />
         <Card style={styles.card}>
-          <Field label="Podcasts">
-            <Chip
-              label="All followed"
-              selected={r.podcasts === 'all'}
-              onPress={() => set({ podcasts: 'all' })}
-            />
-            <Chip
-              label={r.podcasts === 'all' ? 'Choose…' : `${chosen.size} chosen`}
-              selected={r.podcasts !== 'all'}
-              onPress={() => {
+          <PickerRow
+            label="Podcasts"
+            options={[
+              { value: 'all', label: 'All followed' },
+              { value: 'chosen', label: 'Only the ones I choose' },
+            ]}
+            value={r.podcasts === 'all' ? 'all' : 'chosen'}
+            valueLabel={r.podcasts === 'all' ? 'All followed' : `${chosen.size} chosen`}
+            onChange={(v) => {
+              if (v === 'all') {
+                set({ podcasts: 'all' });
+                setChoosing(false);
+              } else {
                 if (r.podcasts === 'all') set({ podcasts: [] });
                 setChoosing(true);
-              }}
-            />
-          </Field>
+              }
+            }}
+          />
+          {r.podcasts !== 'all' && !choosing && (
+            <Pressable
+              onPress={() => setChoosing(true)}
+              accessibilityRole="button"
+              style={styles.chooseLink}>
+              <Txt variant="smallBold" color={theme.accent}>
+                Change which podcasts
+              </Txt>
+            </Pressable>
+          )}
           {choosing && r.podcasts !== 'all' && (
             <View style={styles.podcastList}>
               {podcasts.map((p) => {
@@ -150,119 +163,80 @@ export default function PlaylistEditScreen() {
               })}
             </View>
           )}
-          <Field label="Status">
-            <Chip
-              label="Unplayed"
-              selected={r.unplayed}
-              onPress={() => set({ unplayed: !r.unplayed })}
-            />
-            <Chip
-              label="In progress"
-              selected={r.inProgress}
-              onPress={() => set({ inProgress: !r.inProgress })}
-            />
-            <Chip label="Played" selected={r.played} onPress={() => set({ played: !r.played })} />
-          </Field>
-          <Field label="Released">
-            {(
-              [
-                [null, 'Any time'],
-                [1, 'Last 24 h'],
-                [3, '3 days'],
-                [7, 'Week'],
-                [14, '2 weeks'],
-                [31, 'Month'],
-              ] as const
-            ).map(([v, label]) => (
-              <Chip
-                key={label}
-                label={label}
-                selected={r.releasedWithinDays === v}
-                onPress={() => set({ releasedWithinDays: v })}
-              />
-            ))}
-          </Field>
-          <Field label="Length">
-            {(
-              [
-                [null, null, 'Any'],
-                [null, 15, 'Under 15 min'],
-                [null, 25, 'Under 25 min'],
-                [null, 45, 'Under 45 min'],
-                [45, null, 'Over 45 min'],
-                [60, null, 'Over 1 h'],
-              ] as const
-            ).map(([min, max, label]) => (
-              <Chip
-                key={label}
-                label={label}
-                selected={r.minMinutes === min && r.maxMinutes === max}
-                onPress={() => set({ minMinutes: min, maxMinutes: max })}
-              />
-            ))}
-          </Field>
-          <Field label="Downloaded">
-            <Chip
-              label="Any"
-              selected={r.downloaded === 'any'}
-              onPress={() => set({ downloaded: 'any' })}
-            />
-            <Chip
-              label="Downloaded"
-              selected={r.downloaded === 'yes'}
-              onPress={() => set({ downloaded: 'yes' })}
-            />
-            <Chip
-              label="Not downloaded"
-              selected={r.downloaded === 'no'}
-              onPress={() => set({ downloaded: 'no' })}
-            />
-          </Field>
-          <Field label="Type">
-            <Chip
-              label="Any"
-              selected={r.mediaType === 'any'}
-              onPress={() => set({ mediaType: 'any' })}
-            />
-            <Chip
-              label="Audio"
-              selected={r.mediaType === 'audio'}
-              onPress={() => set({ mediaType: 'audio' })}
-            />
-            <Chip
-              label="Video"
-              selected={r.mediaType === 'video'}
-              onPress={() => set({ mediaType: 'video' })}
-            />
-          </Field>
-          <Field label="Order">
-            {(
-              [
-                ['newest', 'Newest'],
-                ['oldest', 'Oldest'],
-                ['shortest', 'Shortest'],
-                ['longest', 'Longest'],
-              ] as const
-            ).map(([v, label]) => (
-              <Chip
-                key={v}
-                label={label}
-                selected={r.sort === v}
-                onPress={() => set({ sort: v })}
-              />
-            ))}
-          </Field>
-          <View style={styles.switchRow}>
-            <Txt variant="bodyBold" style={styles.flex}>
-              Starred only
-            </Txt>
-            <Switch
-              value={r.starredOnly}
-              onValueChange={(starredOnly) => set({ starredOnly })}
-              trackColor={{ true: theme.accent, false: theme.track }}
-              thumbColor={theme.dark ? '#ddd' : '#fff'}
-            />
-          </View>
+          <RowDivider />
+          <SettingRow label="Unplayed">
+            {toggle(r.unplayed, (unplayed) => set({ unplayed }))}
+          </SettingRow>
+          <RowDivider />
+          <SettingRow label="In progress">
+            {toggle(r.inProgress, (inProgress) => set({ inProgress }))}
+          </SettingRow>
+          <RowDivider />
+          <SettingRow label="Played">{toggle(r.played, (played) => set({ played }))}</SettingRow>
+          <RowDivider />
+          <SettingRow label="Starred only">
+            {toggle(r.starredOnly, (starredOnly) => set({ starredOnly }))}
+          </SettingRow>
+          <RowDivider />
+          <PickerRow
+            label="Released"
+            options={[
+              { value: null as number | null, label: 'Any time' },
+              { value: 1, label: 'In the last 24 hours' },
+              { value: 3, label: 'In the last 3 days' },
+              { value: 7, label: 'In the last week' },
+              { value: 14, label: 'In the last 2 weeks' },
+              { value: 31, label: 'In the last month' },
+            ]}
+            value={r.releasedWithinDays}
+            onChange={(releasedWithinDays) => set({ releasedWithinDays })}
+          />
+          <RowDivider />
+          <PickerRow
+            label="Length"
+            options={LENGTHS.map((l) => ({ value: l.key, label: l.label }))}
+            value={
+              LENGTHS.find((l) => l.min === r.minMinutes && l.max === r.maxMinutes)?.key ?? 'any'
+            }
+            onChange={(key) => {
+              const l = LENGTHS.find((x) => x.key === key)!;
+              set({ minMinutes: l.min, maxMinutes: l.max });
+            }}
+          />
+          <RowDivider />
+          <PickerRow
+            label="Downloaded"
+            options={[
+              { value: 'any' as const, label: 'Either' },
+              { value: 'yes' as const, label: 'Downloaded only' },
+              { value: 'no' as const, label: 'Not downloaded' },
+            ]}
+            value={r.downloaded}
+            onChange={(downloaded) => set({ downloaded })}
+          />
+          <RowDivider />
+          <PickerRow
+            label="Type"
+            options={[
+              { value: 'any' as const, label: 'Audio and video' },
+              { value: 'audio' as const, label: 'Audio only' },
+              { value: 'video' as const, label: 'Video only' },
+            ]}
+            value={r.mediaType}
+            onChange={(mediaType) => set({ mediaType })}
+          />
+          <RowDivider />
+          <PickerRow
+            label="Order"
+            options={[
+              { value: 'newest' as const, label: 'Newest first' },
+              { value: 'oldest' as const, label: 'Oldest first' },
+              { value: 'shortest' as const, label: 'Shortest first' },
+              { value: 'longest' as const, label: 'Longest first' },
+            ]}
+            value={r.sort}
+            onChange={(sort) => set({ sort })}
+          />
         </Card>
         <Txt variant="small" secondary style={styles.count}>
           {count == null
@@ -275,6 +249,15 @@ export default function PlaylistEditScreen() {
   );
 }
 
+const LENGTHS = [
+  { key: 'any', min: null, max: null, label: 'Any length' },
+  { key: 'u15', min: null, max: 15, label: 'Under 15 minutes' },
+  { key: 'u25', min: null, max: 25, label: 'Under 25 minutes' },
+  { key: 'u45', min: null, max: 45, label: 'Under 45 minutes' },
+  { key: 'o45', min: 45, max: null, label: 'Over 45 minutes' },
+  { key: 'o60', min: 60, max: null, label: 'Over an hour' },
+] as const;
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   name: {
@@ -285,9 +268,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 17,
   },
-  card: { marginHorizontal: Spacing.three, paddingVertical: Spacing.two },
-  field: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, gap: 8 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  card: { marginHorizontal: Spacing.three, paddingVertical: Spacing.one, overflow: 'hidden' },
+  chooseLink: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two },
   podcastList: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two },
   podcastRow: {
     flexDirection: 'row',
@@ -302,12 +284,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
   },
   count: { textAlign: 'center', marginTop: Spacing.three },
   save: { marginHorizontal: Spacing.four, marginTop: Spacing.three },

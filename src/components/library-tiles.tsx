@@ -14,6 +14,17 @@ export type Layout = 'grid' | 'large' | 'list';
 
 const label = (title: string) => title;
 
+/** "3 new" as quiet text beside a list row (never a bubble on a cover). */
+function NewCount({ count }: { count: number }) {
+  const theme = useTheme();
+  if (!count) return null;
+  return (
+    <Txt variant="smallBold" color={theme.accent}>
+      {count > 99 ? '99+' : count} new
+    </Txt>
+  );
+}
+
 export function PodcastTile({
   item,
   layout,
@@ -45,6 +56,7 @@ export function PodcastTile({
             {[releaseDate(item.latest_pub), item.latest_title].filter(Boolean).join(' · ')}
           </Txt>
         </View>
+        <NewCount count={item.new_count} />
       </Pressable>
     );
   }
@@ -65,8 +77,11 @@ export function PodcastTile({
           <Txt variant="bodyBold" numberOfLines={1}>
             {item.title}
           </Txt>
-          <Txt variant="small" secondary numberOfLines={1}>
-            {item.latest_pub ? `Latest: ${releaseDate(item.latest_pub)}` : (item.author ?? ' ')}
+          <Txt
+            variant="small"
+            color={item.new_count ? theme.accent : theme.textSecondary}
+            numberOfLines={1}>
+            {item.new_count ? `${item.new_count} new` : 'Up to date'}
           </Txt>
         </View>
       )}
@@ -153,6 +168,7 @@ export function FolderTile({
             {summary}
           </Txt>
         </View>
+        <NewCount count={item.new_count} />
       </Pressable>
     );
   }

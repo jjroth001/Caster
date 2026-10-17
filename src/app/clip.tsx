@@ -4,7 +4,8 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PlayerCore } from '@modules/player-core/src';
-import { Button, Card, Chip } from '@/components/controls';
+import { Button, Card } from '@/components/controls';
+import { PickerRow } from '@/components/picker-row';
 import { SubScreen } from '@/components/sub-screen';
 import { Txt } from '@/components/text';
 import { clock } from '@/lib/format';
@@ -160,22 +161,22 @@ export default function ClipScreen() {
           />
         </Card>
 
-        <Txt variant="bodyBold" style={styles.formatLabel}>
-          Share as
-        </Txt>
-        <View style={styles.nudges}>
-          <Chip label="Audio" selected={format === 'audio'} onPress={() => setFormat('audio')} />
-          <Chip
-            label="Square video"
-            selected={format === 'square'}
-            onPress={() => setFormat('square')}
+        <Card style={styles.formatCard}>
+          <PickerRow
+            label="Share as"
+            options={[
+              { value: 'audio' as Format, label: 'Audio', hint: 'An M4A file' },
+              {
+                value: 'square' as Format,
+                label: 'Square video',
+                hint: 'Cover art with the audio',
+              },
+              { value: 'story' as Format, label: 'Story video', hint: 'Tall 9:16, for stories' },
+            ]}
+            value={format}
+            onChange={setFormat}
           />
-          <Chip
-            label="Story video"
-            selected={format === 'story'}
-            onPress={() => setFormat('story')}
-          />
-        </View>
+        </Card>
         {format !== 'audio' && (
           <Txt variant="small" secondary>
             The video shows the episode’s cover art while the clip plays.
@@ -212,6 +213,6 @@ const styles = StyleSheet.create({
   nudge: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.pill },
   endLabel: { marginTop: Spacing.two },
   preview: { marginTop: Spacing.two },
-  formatLabel: { marginTop: Spacing.three },
+  formatCard: { marginTop: Spacing.three, overflow: 'hidden' },
   create: { marginTop: Spacing.four },
 });

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, Share, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, Chip, IconButton } from '@/components/controls';
+import { Button, IconButton } from '@/components/controls';
 import { Icon } from '@/components/icons/icon';
 import { SubScreen } from '@/components/sub-screen';
 import { Txt } from '@/components/text';
@@ -188,7 +188,7 @@ export default function TranscriptScreen() {
                         ]}
                       />
                     </View>
-                    <Chip label="Stop" onPress={cancelTranscription} />
+                    <Button label="Stop" kind="secondary" onPress={cancelTranscription} />
                   </View>
                 ) : (
                   <Button
@@ -205,7 +205,7 @@ export default function TranscriptScreen() {
               </>
             )}
             {result.status !== 'loading' && (
-              <Chip label="Back to the player" onPress={() => router.back()} />
+              <Button label="Back to the player" kind="secondary" onPress={() => router.back()} />
             )}
           </View>
         }

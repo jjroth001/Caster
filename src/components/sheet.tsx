@@ -1,6 +1,14 @@
-import { useState, useSyncExternalStore } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import Reanimated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import {
+  Animated,
+  BackHandler,
+  KeyboardAvoidingView,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon, type IconName } from '@/components/icons/icon';
@@ -105,115 +113,138 @@ function PromptBody({ request }: { request: Extract<Request, { kind: 'prompt' }>
   );
 }
 
-/** Mount once near the root. */
+/**
+ * Mount once at the root, after the navigator. Drawn as a layer over the app rather than in a
+ * React Native Modal: on Android (New Architecture) taps inside a Modal could go nowhere.
+ */
 export function SheetHost() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const request = useRequest();
   const panel = theme.dark ? (theme.name === 'midnight' ? '#121212' : '#22305A') : '#FFFFFF';
+  // What's on screen: the open request, kept while the sheet slides away after closing.
+  const [shown, setShown] = useState<Request | null>(null);
+  const [progress] = useState(() => new Animated.Value(0));
+
+  if (request && request !== shown) setShown(request);
+
+  useEffect(() => {
+    if (request) {
+      Animated.timing(progress, { toValue: 1, duration: 240, useNativeDriver: true }).start();
+    } else {
+      Animated.timing(progress, { toValue: 0, duration: 180, useNativeDriver: true }).start(
+        ({ finished }) => finished && setShown(null),
+      );
+    }
+  }, [request, progress]);
+
+  // The back button closes the sheet instead of leaving the screen.
+  useEffect(() => {
+    if (!request) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      close();
+      return true;
+    });
+    return () => sub.remove();
+  }, [request]);
+
+  if (!shown) return null;
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [500, 0] });
 
   return (
-    <Modal
-      visible={!!request}
-      transparent
-      animationType="none"
-      onRequestClose={close}
-      statusBarTranslucent>
-      {request && (
-        <View style={styles.fill}>
-          <Reanimated.View
-            entering={FadeIn.duration(180)}
-            exiting={FadeOut.duration(150)}
-            style={StyleSheet.absoluteFill}>
-            <Pressable
-              style={[StyleSheet.absoluteFill, styles.scrim]}
-              onPress={close}
-              accessibilityLabel="Close"
-            />
-          </Reanimated.View>
-          <Reanimated.View
-            entering={SlideInDown.duration(240)}
-            exiting={SlideOutDown.duration(180)}
-            style={[
-              styles.panel,
-              { backgroundColor: panel, paddingBottom: insets.bottom + Spacing.three },
-            ]}>
-            <View style={[styles.handle, { backgroundColor: theme.textSecondary }]} />
-            {!!request.title && (
-              <Txt variant="heading" style={styles.title}>
-                {request.title}
-              </Txt>
-            )}
-            {!!request.message && (
-              <Txt variant="small" secondary style={styles.message}>
-                {request.message}
-              </Txt>
-            )}
-            {request.kind === 'prompt' ? (
-              <PromptBody request={request} />
-            ) : (
-              <ScrollView style={styles.list} bounces={false}>
-                {request.options.map((o) => (
-                  <Pressable
-                    key={o.label}
-                    onPress={() => {
-                      close();
-                      o.onPress();
-                    }}
-                    accessibilityRole={request.choice ? 'radio' : 'button'}
-                    accessibilityState={{ selected: o.selected }}
-                    style={({ pressed }) => [
-                      styles.option,
-                      pressed && { backgroundColor: theme.element },
+    <KeyboardAvoidingView
+      behavior="padding"
+      style={styles.fill}
+      pointerEvents={request ? 'auto' : 'none'}>
+      <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, { opacity: progress }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityLabel="Close" />
+      </Animated.View>
+      <Animated.View
+        style={[
+          styles.panel,
+          {
+            backgroundColor: panel,
+            paddingBottom: insets.bottom + Spacing.three,
+            transform: [{ translateY }],
+          },
+        ]}>
+        <View style={[styles.handle, { backgroundColor: theme.textSecondary }]} />
+        {!!shown.title && (
+          <Txt variant="heading" style={styles.title}>
+            {shown.title}
+          </Txt>
+        )}
+        {!!shown.message && (
+          <Txt variant="small" secondary style={styles.message}>
+            {shown.message}
+          </Txt>
+        )}
+        {shown.kind === 'prompt' ? (
+          <PromptBody request={shown} />
+        ) : (
+          <ScrollView style={styles.list} bounces={false} keyboardShouldPersistTaps="handled">
+            {shown.options.map((o) => (
+              <Pressable
+                key={o.label}
+                onPress={() => {
+                  close();
+                  o.onPress();
+                }}
+                accessibilityRole={shown.choice ? 'radio' : 'button'}
+                accessibilityState={{ selected: o.selected }}
+                style={({ pressed }) => [
+                  styles.option,
+                  pressed && { backgroundColor: theme.element },
+                ]}>
+                {shown.choice && (
+                  <View
+                    style={[
+                      styles.radio,
+                      { borderColor: o.selected ? theme.accent : theme.textSecondary },
                     ]}>
-                    {request.choice && (
-                      <View
-                        style={[
-                          styles.radio,
-                          { borderColor: o.selected ? theme.accent : theme.textSecondary },
-                        ]}>
-                        {o.selected && (
-                          <View style={[styles.radioDot, { backgroundColor: theme.accent }]} />
-                        )}
-                      </View>
+                    {o.selected && (
+                      <View style={[styles.radioDot, { backgroundColor: theme.accent }]} />
                     )}
-                    {o.icon && (
-                      <Icon
-                        name={o.icon}
-                        size={22}
-                        color={o.destructive ? theme.danger : theme.text}
-                      />
-                    )}
-                    <View style={styles.optionText}>
-                      <Txt
-                        variant="body"
-                        color={
-                          o.destructive ? theme.danger : o.selected ? theme.accent : theme.text
-                        }>
-                        {o.label}
-                      </Txt>
-                      {!!o.hint && (
-                        <Txt variant="small" secondary>
-                          {o.hint}
-                        </Txt>
-                      )}
-                    </View>
-                    {o.selected && !request.choice && (
-                      <Icon name="check" size={20} color={theme.accent} duotone={false} />
-                    )}
-                  </Pressable>
-                ))}
-              </ScrollView>
-            )}
-          </Reanimated.View>
-        </View>
-      )}
-    </Modal>
+                  </View>
+                )}
+                {o.icon && (
+                  <Icon name={o.icon} size={22} color={o.destructive ? theme.danger : theme.text} />
+                )}
+                <View style={styles.optionText}>
+                  <Txt
+                    variant="body"
+                    color={o.destructive ? theme.danger : o.selected ? theme.accent : theme.text}>
+                    {o.label}
+                  </Txt>
+                  {!!o.hint && (
+                    <Txt variant="small" secondary>
+                      {o.hint}
+                    </Txt>
+                  )}
+                </View>
+                {o.selected && !shown.choice && (
+                  <Icon name="check" size={20} color={theme.accent} duotone={false} />
+                )}
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+      </Animated.View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1, justifyContent: 'flex-end' },
+  fill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'flex-end',
+    zIndex: 100,
+    elevation: 100,
+  },
   scrim: { backgroundColor: 'rgba(0,0,0,0.45)' },
   panel: {
     borderTopLeftRadius: 24,

@@ -42,6 +42,11 @@ export default function FolderScreen() {
       title: folder?.name,
       options: [
         {
+          label: 'Choose podcasts',
+          icon: 'check-circle',
+          onPress: () => router.push(`/folder-edit?id=${folderId}`),
+        },
+        {
           label: 'Rename',
           icon: 'pencil-simple',
           onPress: () =>

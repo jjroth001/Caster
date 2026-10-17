@@ -26,8 +26,9 @@ need a second device or a car; skip those if you can't try them.
 ## Library
 
 - [ ] Grid, large grid and list views all look right; only large grid and list show "N new"
-- [ ] Sorting (name, date added, latest episode) works
-- [ ] Folders: create, colour, move podcasts in and out
+- [ ] Sorting from the ⋮ menu: date added, episode release date, recently played, name, drag & drop
+- [ ] Press and hold a podcast or folder, drag it somewhere else; the order sticks and the sort becomes drag & drop; dragging near the top or bottom scrolls
+- [ ] Folders: the folder button makes a new folder (name, colour, podcasts) and edits existing ones; a folder can sit between podcasts in your own order
 - [ ] Pull to refresh finds new episodes
 
 ## Playing
@@ -39,6 +40,7 @@ need a second device or a car; skip those if you can't try them.
 - [ ] Trim silence (mild and strong) and volume boost are audible
 - [ ] Swipe down closes the player smoothly; the player never scrolls
 - [ ] Tab bar and mini player stay on screen everywhere except the full player
+- [ ] The queue button on the mini player shows how many are in Up Next and opens it
 - [ ] Sleep timer: minutes, end of episode, end of chapter; fades out at the end
 - [ ] Leaving the app, locking the phone and coming back keeps playing and keeps the place
 - [ ] After closing Caster completely, it reopens at the same episode and position

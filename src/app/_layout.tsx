@@ -87,6 +87,7 @@ function Root() {
         <Stack.Screen name="folder/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="playlist/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="playlist-edit" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="folder-edit" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="podcast-settings/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen
           name="player"

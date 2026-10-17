@@ -1,5 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { inTransaction } from './library';
+
 export const FOLDER_COLORS = [
   '#E07A5F',
   '#F2B880',
@@ -65,6 +67,35 @@ export async function setFolderColor(db: SQLiteDatabase, id: number, color: stri
 /** Deleting a folder keeps its podcasts; they go back to the main list. */
 export async function deleteFolder(db: SQLiteDatabase, id: number) {
   await db.runAsync('DELETE FROM folder WHERE id = ?', id);
+}
+
+/**
+ * Saves your own library order (drag and drop): folders and podcasts share one sequence, so a
+ * folder can sit between two podcasts.
+ */
+export async function saveLibraryOrder(
+  db: SQLiteDatabase,
+  items: { kind: 'folder' | 'podcast'; id: number }[],
+) {
+  await inTransaction(db, async () => {
+    for (const [i, item] of items.entries()) {
+      await db.runAsync(
+        `UPDATE ${item.kind === 'folder' ? 'folder' : 'podcast'} SET sort_order = ? WHERE id = ?`,
+        i,
+        item.id,
+      );
+    }
+  });
+}
+
+/** Sets which podcasts are in a folder: these ones in, any others it had back out. */
+export async function setFolderPodcasts(db: SQLiteDatabase, folderId: number, podcastIds: number[]) {
+  await inTransaction(db, async () => {
+    await db.runAsync('UPDATE podcast SET folder_id = NULL WHERE folder_id = ?', folderId);
+    for (const id of podcastIds) {
+      await db.runAsync('UPDATE podcast SET folder_id = ? WHERE id = ?', folderId, id);
+    }
+  });
 }
 
 export async function movePodcastToFolder(

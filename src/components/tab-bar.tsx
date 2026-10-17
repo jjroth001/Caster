@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Artwork } from '@/components/artwork';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { Txt } from '@/components/text';
+import { useDbQuery } from '@/db/use-db-query';
 import { Motion } from '@/theme/motion';
 import { timeLeft } from '@/lib/format';
 import { togglePlay } from '@/player/controller';
@@ -48,6 +49,10 @@ function MiniPlayer() {
   const theme = useTheme();
   const episode = useNowPlaying();
   const player = usePlayerState();
+  const queued =
+    useDbQuery(['queue_item'], (d) =>
+      d.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM queue_item'),
+    ).data?.n ?? 0;
   if (!episode) return null;
   const current = player.id === String(episode.id);
   const positionS = current ? player.positionMs / 1000 : episode.position_s;
@@ -97,6 +102,21 @@ function MiniPlayer() {
             size={26}
             color={theme.miniPlayerText}
           />
+        </Pressable>
+        <Pressable
+          onPress={() => router.navigate('/up-next')}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={queued ? `Up Next, ${queued} episodes` : 'Up Next'}
+          style={styles.queueButton}>
+          {queued > 0 && (
+            <View style={[styles.queueCount, { backgroundColor: theme.miniPlayerText }]}>
+              <Txt variant="smallBold" color={theme.miniPlayer} style={styles.queueCountText}>
+                {queued > 99 ? '99+' : queued}
+              </Txt>
+            </View>
+          )}
+          <Icon name="queue" size={24} color={theme.miniPlayerText} duotone={false} />
         </Pressable>
         <View style={[styles.miniTrack, { backgroundColor: theme.miniPlayerText }]} />
         <View
@@ -263,6 +283,16 @@ const styles = StyleSheet.create({
   },
   miniText: { flex: 1 },
   miniButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  queueButton: { flexDirection: 'row', alignItems: 'center', gap: 2, height: 40, paddingLeft: 2 },
+  queueCount: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  queueCountText: { fontSize: 12, lineHeight: 15 },
   miniTrack: {
     position: 'absolute',
     left: '4%',

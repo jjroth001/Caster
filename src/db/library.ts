@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { ParsedEpisode, ParsedFeed } from '@/feeds/parse-feed';
+import type { LibrarySort } from './settings';
 
 export type PodcastRow = {
   id: number;
@@ -12,6 +13,8 @@ export type PodcastRow = {
   website: string | null;
   folder_id: number | null;
   subscribed: number;
+  /** Position in your own (drag and drop) order. */
+  sort_order: number;
   added_at: number;
   new_since: number;
   etag: string | null;
@@ -78,7 +81,7 @@ const NEW_COUNT = `
  */
 export async function listLibrary(
   db: SQLiteDatabase,
-  sort: 'latest' | 'title' | 'added' = 'latest',
+  sort: LibrarySort = 'latest',
   folder?: number | null,
 ): Promise<LibraryPodcast[]> {
   const inFolder =
@@ -88,7 +91,13 @@ export async function listLibrary(
       ? 'p.title COLLATE NOCASE'
       : sort === 'added'
         ? 'p.added_at DESC'
-        : 'latest_pub DESC NULLS LAST, p.title COLLATE NOCASE';
+        : sort === 'manual'
+          ? 'p.sort_order, p.title COLLATE NOCASE'
+          : sort === 'played'
+            ? `(SELECT MAX(s.updated_at) FROM episode e JOIN episode_state s ON s.episode_id = e.id
+                WHERE e.podcast_id = p.id AND (s.position_s > 0 OR s.played = 1)) DESC NULLS LAST,
+               p.title COLLATE NOCASE`
+            : 'latest_pub DESC NULLS LAST, p.title COLLATE NOCASE';
   return db.getAllAsync<LibraryPodcast>(
     `SELECT p.*, ${NEW_COUNT} AS new_count,
       (SELECT MAX(pub_date) FROM episode WHERE podcast_id = p.id) AS latest_pub,

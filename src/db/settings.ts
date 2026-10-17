@@ -3,6 +3,16 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { HeadsetAction } from '@modules/player-core/src';
 import type { TrimSilence } from '@/player/engine';
 
+export type LibrarySort = 'latest' | 'title' | 'added' | 'played' | 'manual';
+
+export const LIBRARY_SORTS: { value: LibrarySort; label: string }[] = [
+  { value: 'added', label: 'Date added' },
+  { value: 'latest', label: 'Episode release date' },
+  { value: 'played', label: 'Recently played' },
+  { value: 'title', label: 'Name' },
+  { value: 'manual', label: 'Drag & drop' },
+];
+
 export type ThemeChoice = 'auto' | 'paper' | 'dusk' | 'midnight';
 
 export type Settings = {
@@ -11,7 +21,8 @@ export type Settings = {
   autoDark: 'dusk' | 'midnight';
   /** The Podcasts tab: covers in a grid, big covers, or a list with each show's newest episode. */
   libraryLayout: 'grid' | 'large' | 'list';
-  librarySort: 'latest' | 'title' | 'added';
+  /** Library order: newest episode, name, date added, recently played or your own (drag). */
+  librarySort: LibrarySort;
   /** Player and podcast pages take their colour from the cover art. */
   tintFromArtwork: boolean;
   skipBackS: number;

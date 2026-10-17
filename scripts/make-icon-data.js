@@ -36,6 +36,7 @@ const DUOTONE = [
   'export',
   'file-text',
   'folder',
+  'folder-plus',
   'gear',
   'grid-four',
   'headphones',

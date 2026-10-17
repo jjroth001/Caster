@@ -13,7 +13,7 @@ import { ScreenHeader } from '@/components/screen-header';
 import { SpeechModels } from '@/components/speech-models';
 import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
-import { DEFAULT_SETTINGS, type Settings } from '@/db/settings';
+import { DEFAULT_SETTINGS, LIBRARY_SORTS, type Settings } from '@/db/settings';
 import { useSetSetting, useSettings } from '@/db/use-settings';
 import { requestNotificationPermission, writeBackgroundConfig } from '@/downloads/background';
 import { downloadsAvailable, enforceStorageCap } from '@/downloads/downloads';
@@ -257,11 +257,7 @@ export default function SettingsScreen() {
         <RowDivider />
         <PickerRow
           label="Sort podcasts by"
-          options={[
-            { value: 'latest', label: 'Latest episode' },
-            { value: 'title', label: 'Name' },
-            { value: 'added', label: 'Date added' },
-          ]}
+          options={LIBRARY_SORTS}
           value={s.librarySort}
           onChange={set('librarySort')}
         />

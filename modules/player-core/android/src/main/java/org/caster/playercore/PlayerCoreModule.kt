@@ -15,12 +15,21 @@ import androidx.lifecycle.Observer
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.google.common.util.concurrent.ListenableFuture
+import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.kotlin.records.Field
 import expo.modules.kotlin.records.Record
+
+class ClipRequest : Record {
+  @Field val source: String = ""
+  @Field val startMs: Double = 0.0
+  @Field val endMs: Double = 0.0
+  @Field val artworkUrl: String? = null
+  @Field val format: String = "audio"
+}
 
 class DownloadRequest : Record {
   @Field val key: String = ""
@@ -208,6 +217,23 @@ class PlayerCoreModule : Module() {
         .filter { !it.state.isFinished }
         .mapNotNull { info -> downloadEvent(info) }
     }
+
+    // --- Clips ---
+
+    /** Cuts startMs..endMs of `source` to a file; format "audio", "square" or "story". */
+    AsyncFunction("makeClip") { request: ClipRequest, promise: Promise ->
+      Clips.make(
+        context,
+        request.source,
+        request.startMs.toLong(),
+        request.endMs.toLong(),
+        request.artworkUrl,
+        request.format,
+        onDone = { uri -> promise.resolve(uri) },
+        onError = { code -> promise.reject("ERR_CLIP", code, null) },
+      )
+    }
+      .runOnQueue(Queues.MAIN)
 
     // --- Android Auto ---
 

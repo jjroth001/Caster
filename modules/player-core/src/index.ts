@@ -102,6 +102,15 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   listDownloads(): { key: string; uri: string; bytes: number }[];
   activeDownloads(): Promise<DownloadEvent[]>;
 
+  /** Cuts part of an episode to a file; resolves with its file:// URI. */
+  makeClip(request: {
+    source: string;
+    startMs: number;
+    endMs: number;
+    artworkUrl?: string | null;
+    format: 'audio' | 'square' | 'story';
+  }): Promise<string>;
+
   /** The lists Android Auto can browse (JSON from src/auto/snapshot.ts). */
   setAutoLibrary(json: string): void;
   /** Positions, finishes and bookmarks from playback while the app wasn't running; clears them. */

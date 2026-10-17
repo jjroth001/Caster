@@ -55,6 +55,10 @@ export type Settings = {
   adSkip: boolean;
   /** Chapters whose title contains one of these are skipped as ads. */
   adKeywords: string[];
+  /** Brands found in ad reads on this phone, recognised in later episodes. */
+  adBrands: string[];
+  /** The ad detection that last checked the transcripts already saved. */
+  adDetectionVersion: number;
   headsetDouble: HeadsetAction;
   headsetTriple: HeadsetAction;
   /** Up Next picks a random episode each time one ends, instead of the next in line. */
@@ -102,6 +106,8 @@ export const DEFAULT_SETTINGS: Settings = {
   deletePlayedDownloads: false,
   adSkip: true,
   adKeywords: ['sponsor', 'advertisement', 'ad break', 'promo'],
+  adBrands: [],
+  adDetectionVersion: 0,
   headsetDouble: 'skipForward',
   headsetTriple: 'skipBack',
   upNextShuffle: false,

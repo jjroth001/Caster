@@ -7,6 +7,7 @@ import { runAutoTranscribe, startAutoTranscribe } from '@/transcripts/auto';
 import { pruneUnfollowed, queueListeners } from '@/db/library';
 import { getSettings } from '@/db/settings';
 import { refreshAll } from '@/feeds/sync';
+import { redetectTranscriptAds } from '@/transcripts/transcripts';
 
 import { processInbox, writeBackgroundConfig } from './background';
 import { autoDownloadQueued, runAutoDownloads } from './auto-download';
@@ -39,6 +40,7 @@ export function startAppSync(db: SQLiteDatabase): () => void {
     const settings = await getSettings(db);
     await pruneUnfollowed(db, settings.nowPlaying);
     await catchUp(db, { force: true });
+    await redetectTranscriptAds(db);
   })();
   const appState = AppState.addEventListener('change', (state) => {
     if (state === 'active') {

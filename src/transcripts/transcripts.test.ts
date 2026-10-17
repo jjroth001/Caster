@@ -1,4 +1,4 @@
-import { findAdSegments, scoreSentence } from './ads';
+import { brandsIn, findAdSegments, scoreSentence } from './ads';
 import { parseJsonTranscript, parseTimedText, parseTranscript } from './parse';
 
 const VTT = `WEBVTT
@@ -103,5 +103,76 @@ describe('transcript ad detection', () => {
     expect(
       findAdSegments([{ start: -1, end: -1, text: 'Sponsored by Example, use code X.' }]),
     ).toEqual([]);
+  });
+
+  // A made-up show with a made-up sponsor, shaped like real reads: the product talk comes first
+  // and the web address and code only at the end.
+  const talk = (start: number, end: number) => ({
+    start,
+    end,
+    text: 'And that is why the old harbour lights still matter to the town.',
+  });
+  const brewlessRead = [
+    { start: 600, end: 605, text: 'But I won’t keep you waiting, let me tell you about Brewless.' },
+    {
+      start: 605,
+      end: 612,
+      text: 'Brewless is a calm morning drink with a fraction of the caffeine.',
+    },
+    { start: 612, end: 620, text: 'It tastes like a spiced cocoa and it is easy to make.' },
+    { start: 620, end: 630, text: 'We keep a tin of brew less in the cupboard all the time.' },
+    { start: 630, end: 640, text: 'The starter kit comes with a frother and a few extras.' },
+    { start: 640, end: 646, text: 'Go to brewless.com/harbour and use code HARBOUR for 30% off.' },
+  ];
+
+  it('skips the whole read, not just the part with the web address', () => {
+    const ads = findAdSegments([talk(0, 590), ...brewlessRead, talk(650, 900)]);
+    expect(ads).toHaveLength(1);
+    expect(ads[0]).toMatchObject({ start: 600, end: 646 });
+  });
+
+  it('joins two sponsors back to back, including a short stretch between them', () => {
+    const second = [
+      {
+        start: 670,
+        end: 680,
+        text: 'Now, a word about Lanternly, the reading lamp I use every night.',
+      },
+      {
+        start: 680,
+        end: 690,
+        text: 'Visit lanternly.com/harbour to get yours with free shipping.',
+      },
+    ];
+    const ads = findAdSegments([talk(0, 590), ...brewlessRead, talk(646, 670), ...second]);
+    expect(ads).toHaveLength(1);
+    expect(ads[0]).toMatchObject({ start: 600, end: 690 });
+  });
+
+  it('recognises a known sponsor named again and again, even with no web address', () => {
+    const read = [
+      { start: 300, end: 310, text: 'This part of the show is thanks to Kettlewise.' },
+      { start: 310, end: 320, text: 'Kettlewise has made my evenings so much calmer.' },
+      { start: 320, end: 330, text: 'Give Kettlewise a try, you won’t regret it.' },
+    ];
+    expect(findAdSegments([talk(0, 290), ...read, talk(340, 600)], ['kettlewise'])).toEqual([
+      expect.objectContaining({ start: 300, end: 330 }),
+    ]);
+    // Named once in ordinary talk, it's not an ad.
+    expect(
+      findAdSegments(
+        [talk(0, 290), { start: 300, end: 310, text: 'I saw a Kettlewise van today.' }],
+        ['kettlewise'],
+      ),
+    ).toEqual([]);
+  });
+
+  it('finds the brand an ad names', () => {
+    expect(brandsIn('Again, that is brewless.com/harbour for 30% off.')).toEqual(['brewless']);
+    expect(brandsIn('This video is sponsored by my friends over at Lanternly.')).toEqual([
+      'lanternly',
+    ]);
+    expect(brandsIn('That is Moss T M O S S and Co.com/harbour.')).toEqual(['moss']);
+    expect(brandsIn('Just visit HCU.edu to learn more.')).toEqual(['hcu']);
   });
 });

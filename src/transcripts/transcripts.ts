@@ -1,9 +1,9 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { inTransaction } from '@/db/library';
-import { getSettings } from '@/db/settings';
+import { getSettings, setSetting } from '@/db/settings';
 
-import { findAdSegments } from './ads';
+import { AD_DETECTION_VERSION, brandsInSegments, COMMON_SPONSORS, findAdSegments } from './ads';
 import { parseTranscript } from './parse';
 import type { Cue } from './passages';
 
@@ -22,7 +22,15 @@ export async function getTranscript(db: SQLiteDatabase, episodeId: number): Prom
 
 /** Marks ad reads found in the transcript (layer 4); the user's own verdicts are kept. */
 export async function detectTranscriptAds(db: SQLiteDatabase, episodeId: number, cues: Cue[]) {
-  const segments = findAdSegments(cues);
+  const settings = await getSettings(db);
+  const segments = findAdSegments(cues, [...COMMON_SPONSORS, ...settings.adBrands]);
+  // Remember the brands found, so their reads are recognised even without a web address.
+  const learned = brandsInSegments(cues, segments).filter(
+    (b) => !settings.adBrands.includes(b) && !COMMON_SPONSORS.includes(b),
+  );
+  if (learned.length > 0) {
+    await setSetting(db, 'adBrands', [...settings.adBrands, ...learned].slice(-300));
+  }
   await inTransaction(db, async () => {
     await db.runAsync(
       'DELETE FROM ad_segment WHERE episode_id = ? AND layer = 4 AND user_verdict IS NULL',
@@ -42,6 +50,28 @@ export async function detectTranscriptAds(db: SQLiteDatabase, episodeId: number,
       );
     }
   });
+}
+
+/**
+ * Checks transcripts already on the phone again after ad detection improves (once per
+ * version), keeping any ad you marked yourself.
+ */
+export async function redetectTranscriptAds(db: SQLiteDatabase) {
+  const settings = await getSettings(db);
+  if (settings.adDetectionVersion >= AD_DETECTION_VERSION) return;
+  if (settings.adSkip) {
+    const rows = await db.getAllAsync<{ episode_id: number; cues_json: string }>(
+      'SELECT episode_id, cues_json FROM transcript',
+    );
+    for (const row of rows) {
+      try {
+        await detectTranscriptAds(db, row.episode_id, JSON.parse(row.cues_json) as Cue[]);
+      } catch {
+        // a damaged transcript is skipped
+      }
+    }
+  }
+  await setSetting(db, 'adDetectionVersion', AD_DETECTION_VERSION);
 }
 
 /** Fetches the publisher's transcript once and keeps it; returns the cues, or null if none. */

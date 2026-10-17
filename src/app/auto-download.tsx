@@ -106,9 +106,7 @@ export default function AutoDownloadScreen() {
             onChange={set('autoDownloadLimit')}
           />
           <RowDivider />
-          <SettingRow
-            label="When you follow a podcast"
-            hint="Download its latest two episodes.">
+          <SettingRow label="When you follow a podcast" hint="Download its latest two episodes.">
             {toggle(s.autoDownloadOnFollow, set('autoDownloadOnFollow'))}
           </SettingRow>
         </Section>

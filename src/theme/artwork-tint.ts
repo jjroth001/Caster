@@ -31,19 +31,17 @@ export function useArtworkTint(url: string | null | undefined): string | null {
   const theme = useTheme();
   const settings = useSettings().data ?? DEFAULT_SETTINGS;
   const enabled = theme.name === 'midnight' || settings.tintFromArtwork;
-  const [color, setColor] = useState<string | null>(url ? (cache.get(url) ?? null) : null);
+  // Bumped when a colour arrives, so the cached value is read again.
+  const [, setLoaded] = useState(0);
+  const color = url ? (cache.get(url) ?? null) : null;
 
   useEffect(() => {
-    if (!enabled || !url || !PlayerCore) return;
-    if (cache.has(url)) {
-      setColor(cache.get(url) ?? null);
-      return;
-    }
+    if (!enabled || !url || !PlayerCore || cache.has(url)) return;
     let live = true;
     PlayerCore.artworkColor(url).then(
       (c) => {
         cache.set(url, c);
-        if (live) setColor(c);
+        if (live) setLoaded((n) => n + 1);
       },
       () => cache.set(url, null),
     );

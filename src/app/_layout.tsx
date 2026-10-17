@@ -86,7 +86,11 @@ function Root() {
         <Stack.Screen name="podcast-settings/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen
           name="player"
-          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+          options={{
+            presentation: 'transparentModal',
+            animation: 'slide_from_bottom',
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
         />
         <Stack.Screen
           name="episode/[id]"

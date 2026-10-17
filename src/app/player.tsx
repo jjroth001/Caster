@@ -1,7 +1,15 @@
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Reanimated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
@@ -11,7 +19,8 @@ import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { IconButton } from '@/components/controls';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { Scrubber } from '@/components/scrubber';
-import { showSheet } from '@/components/sheet';
+import { showCustomSheet, showSheet } from '@/components/sheet';
+import { SpeedSlider } from '@/components/speed-slider';
 import { SkipButton } from '@/components/skip-button';
 import { Txt } from '@/components/text';
 import { DEFAULT_SETTINGS } from '@/db/settings';
@@ -34,9 +43,21 @@ import { usePlayerState } from '@/player/use-player';
 import { useTheme } from '@/theme/theme-provider';
 import { Radius, Spacing } from '@/theme/themes';
 
-const SPEEDS = [0.8, 1, 1.1, 1.2, 1.3, 1.5, 1.7, 2, 2.5, 3];
 const TRIM_LABELS: Record<TrimSilence, string> = { off: 'Off', mild: 'Mild', aggressive: 'Strong' };
 const SLEEP_MINUTES = [5, 10, 15, 30, 45, 60];
+
+/** The speed slider in its sheet; follows the player, saves for this podcast or everywhere. */
+function SpeedSheet({ podcastId, max }: { podcastId: number; max: number }) {
+  const db = useSQLiteContext();
+  const player = usePlayerState();
+  return (
+    <SpeedSlider
+      value={player.speed}
+      max={max}
+      onChange={(speed) => void setPlaybackOption(db, podcastId, 'speed', speed)}
+    />
+  );
+}
 
 function Control({
   icon,
@@ -82,6 +103,23 @@ export default function PlayerScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
+  // Swipe down anywhere to minimise the player (the scrubber and buttons keep their own touches).
+  const drag = useSharedValue(0);
+  const close = () => router.back();
+  const swipeDown = Gesture.Pan()
+    .activeOffsetY(14)
+    .failOffsetX([-24, 24])
+    .onUpdate((e) => {
+      drag.value = Math.max(0, e.translationY);
+    })
+    .onEnd((e) => {
+      if (e.translationY > height * 0.18 || e.velocityY > 900) {
+        drag.value = withTiming(height, { duration: 200 }, () => scheduleOnRN(close));
+      } else {
+        drag.value = withSpring(0, { damping: 22, stiffness: 220 });
+      }
+    });
+  const dragStyle = useAnimatedStyle(() => ({ transform: [{ translateY: drag.value }] }));
   const episode = useNowPlaying();
   const tint = useArtworkTint(episode?.artwork_url ?? episode?.podcast_artwork);
   const player = usePlayerState();
@@ -122,7 +160,7 @@ export default function PlayerScreen() {
   const durationMs =
     (current ? player.durationMs : null) ?? (episode.duration_s ? episode.duration_s * 1000 : null);
   const basic = engine.kind === 'basic';
-  const art = Math.min(width - Spacing.five * 2, height * 0.4);
+  const art = Math.min(width - Spacing.five * 2, height * 0.36);
   const sleepLeft = player.sleepRemainingMs;
   const currentChapter = chapterAt(chapters, positionMs / 1000);
 
@@ -158,14 +196,10 @@ export default function PlayerScreen() {
     });
 
   const chooseSpeed = () =>
-    showSheet({
+    showCustomSheet({
       title: 'Playback speed',
       message: basic ? 'Up to 2× in Expo Go.' : undefined,
-      options: SPEEDS.filter((s) => !basic || s <= 2).map((s) => ({
-        label: speedLabel(s),
-        selected: Math.abs(player.speed - s) < 0.01,
-        onPress: () => void setPlaybackOption(db, episode.podcast_id, 'speed', s),
-      })),
+      content: <SpeedSheet podcastId={episode.podcast_id} max={basic ? 2 : 3} />,
     });
 
   const cycleTrim = () => {
@@ -218,154 +252,167 @@ export default function PlayerScreen() {
   };
 
   return (
-    <View style={styles.flex}>
-      <Background tint={tint} />
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + Spacing.two, paddingBottom: insets.bottom + Spacing.four },
-        ]}>
-        <View style={styles.topBar}>
-          <IconButton icon="caret-down" label="Close player" onPress={() => router.back()} />
-          <Txt variant="meta" secondary style={styles.topTitle}>
-            Now playing
-          </Txt>
-          <IconButton icon="dots-three-vertical" label="More" onPress={openMenu} />
-        </View>
-
-        <Artwork
-          uri={currentChapter?.chapter.image_url ?? episode.artwork_url ?? episode.podcast_artwork}
-          title={episode.podcast_title}
-          size={art}
-          radius={22}
-          style={styles.art}
-        />
-
-        {currentChapter && (
-          <Pressable
-            onPress={() => router.push('/chapters')}
-            accessibilityRole="button"
-            accessibilityHint="Shows all chapters"
-            style={[styles.chapterChip, { backgroundColor: theme.element }]}>
-            <Txt variant="smallBold" numberOfLines={1}>
-              {`Chapter ${currentChapter.index + 1} of ${chapters.length}`}
-              {currentChapter.chapter.title ? ` · ${currentChapter.chapter.title}` : ''}
+    <GestureDetector gesture={swipeDown}>
+      <Reanimated.View style={[styles.flex, dragStyle]}>
+        <Background tint={tint} />
+        <View
+          style={[
+            styles.content,
+            { paddingTop: insets.top + Spacing.two, paddingBottom: insets.bottom + Spacing.three },
+          ]}>
+          <View style={styles.topBar}>
+            <IconButton icon="caret-down" label="Close player" onPress={() => router.back()} />
+            <Txt variant="meta" secondary style={styles.topTitle}>
+              Now playing
             </Txt>
-          </Pressable>
-        )}
+            <IconButton icon="dots-three-vertical" label="More" onPress={openMenu} />
+          </View>
 
-        <View style={styles.titles}>
-          <Txt variant="heading" style={styles.center} numberOfLines={2}>
-            {episode.title}
-          </Txt>
-          <Pressable
-            onPress={() => router.push(`/podcast/${episode.podcast_id}`)}
-            accessibilityRole="link">
-            <Txt secondary style={styles.center} numberOfLines={1}>
-              {episode.podcast_title}
+          <Artwork
+            uri={
+              currentChapter?.chapter.image_url ?? episode.artwork_url ?? episode.podcast_artwork
+            }
+            title={episode.podcast_title}
+            size={art}
+            radius={22}
+            style={styles.art}
+          />
+
+          {currentChapter && (
+            <Pressable
+              onPress={() => router.push('/chapters')}
+              accessibilityRole="button"
+              accessibilityHint="Shows all chapters"
+              style={[styles.chapterChip, { backgroundColor: theme.element }]}>
+              <Txt variant="smallBold" numberOfLines={1}>
+                {`Chapter ${currentChapter.index + 1} of ${chapters.length}`}
+                {currentChapter.chapter.title ? ` · ${currentChapter.chapter.title}` : ''}
+              </Txt>
+            </Pressable>
+          )}
+
+          <View style={styles.titles}>
+            <Txt variant="heading" style={styles.center} numberOfLines={2}>
+              {episode.title}
             </Txt>
-          </Pressable>
-        </View>
+            <Pressable
+              onPress={() => router.push(`/podcast/${episode.podcast_id}`)}
+              accessibilityRole="link">
+              <Txt secondary style={styles.center} numberOfLines={1}>
+                {episode.podcast_title}
+              </Txt>
+            </Pressable>
+          </View>
 
-        <Scrubber
-          positionMs={positionMs}
-          durationMs={durationMs}
-          bufferedMs={current ? player.bufferedMs : 0}
-          marks={chapters.map((c) => c.start_s * 1000)}
-          bands={[
-            ...chapters
-              .filter((c) => !c.selected && c.end_s != null)
-              .map((c) => ({ startMs: c.start_s * 1000, endMs: c.end_s! * 1000 })),
-            ...ads.map((a) => ({ startMs: a.start_s * 1000, endMs: a.end_s * 1000 })),
-          ]}
-          onSeek={(ms) => void engine.seekTo(ms)}
-        />
+          <Scrubber
+            positionMs={positionMs}
+            durationMs={durationMs}
+            bufferedMs={current ? player.bufferedMs : 0}
+            marks={chapters.map((c) => c.start_s * 1000)}
+            bands={[
+              ...chapters
+                .filter((c) => !c.selected && c.end_s != null)
+                .map((c) => ({ startMs: c.start_s * 1000, endMs: c.end_s! * 1000 })),
+              ...ads.map((a) => ({ startMs: a.start_s * 1000, endMs: a.end_s * 1000 })),
+            ]}
+            onSeek={(ms) => void engine.seekTo(ms)}
+          />
 
-        <View style={styles.transport}>
-          <SkipButton seconds={settings.skipBackS} onPress={() => void engine.skipBack()} />
+          <View style={styles.transport}>
+            <SkipButton seconds={settings.skipBackS} onPress={() => void engine.skipBack()} />
+            <Pressable
+              onPress={() => void togglePlay(db)}
+              accessibilityRole="button"
+              accessibilityLabel={playing ? 'Pause' : 'Play'}
+              style={({ pressed }) => [
+                styles.play,
+                { backgroundColor: theme.accent },
+                pressed && { opacity: 0.8 },
+              ]}>
+              <View style={!playing && { marginLeft: 4 }}>
+                <Icon
+                  name={playing ? 'pause-fill' : 'play-fill'}
+                  size={36}
+                  color={theme.onAccent}
+                />
+              </View>
+            </Pressable>
+            <SkipButton
+              seconds={settings.skipForwardS}
+              forward
+              onPress={() => void engine.skipForward()}
+            />
+          </View>
+          {current && player.playWhenReady && player.state === 'buffering' && (
+            <Txt variant="small" secondary style={styles.center}>
+              Loading…
+            </Txt>
+          )}
+
+          <View style={styles.controls}>
+            <Control
+              label="Speed"
+              text={speedLabel(player.speed)}
+              active={player.speed !== 1}
+              onPress={chooseSpeed}
+            />
+            {!basic && (
+              <Control
+                icon="waveform"
+                label="Trim silence"
+                value={
+                  player.trimSilence === 'off'
+                    ? 'Trim silence'
+                    : `Trim: ${TRIM_LABELS[player.trimSilence]}`
+                }
+                active={player.trimSilence !== 'off'}
+                onPress={cycleTrim}
+              />
+            )}
+            {!basic && (
+              <Control
+                icon="speaker-high"
+                label="Volume boost"
+                value={player.volumeBoost ? 'Boost on' : 'Boost'}
+                active={player.volumeBoost}
+                onPress={toggleBoost}
+              />
+            )}
+            <Control
+              icon="moon"
+              label="Sleep timer"
+              value={stopAtEnd ? 'End of ep.' : sleepLeft != null ? clock(sleepLeft) : 'Sleep'}
+              active={stopAtEnd || sleepLeft != null}
+              onPress={chooseSleep}
+            />
+            <Control icon="bookmark-simple" label="Bookmark" onPress={() => void bookmarkNow(db)} />
+          </View>
+
           <Pressable
-            onPress={() => void togglePlay(db)}
+            onPress={() => {
+              router.back();
+              router.navigate('/up-next');
+            }}
             accessibilityRole="button"
-            accessibilityLabel={playing ? 'Pause' : 'Play'}
-            style={({ pressed }) => [
-              styles.play,
-              { backgroundColor: theme.accent },
-              pressed && { opacity: 0.8 },
-            ]}>
-            <View style={!playing && { marginLeft: 4 }}>
-              <Icon name={playing ? 'pause-fill' : 'play-fill'} size={36} color={theme.onAccent} />
-            </View>
+            style={[styles.upNext, { backgroundColor: theme.element }]}>
+            <Icon name="queue" size={18} color={theme.text} />
+            <Txt variant="smallBold">Up Next</Txt>
           </Pressable>
-          <SkipButton
-            seconds={settings.skipForwardS}
-            forward
-            onPress={() => void engine.skipForward()}
-          />
         </View>
-        {current && player.state === 'buffering' && (
-          <Txt variant="small" secondary style={styles.center}>
-            Loading…
-          </Txt>
-        )}
-
-        <View style={styles.controls}>
-          <Control
-            label="Speed"
-            text={speedLabel(player.speed)}
-            active={player.speed !== 1}
-            onPress={chooseSpeed}
-          />
-          {!basic && (
-            <Control
-              icon="waveform"
-              label="Trim silence"
-              value={
-                player.trimSilence === 'off'
-                  ? 'Trim silence'
-                  : `Trim: ${TRIM_LABELS[player.trimSilence]}`
-              }
-              active={player.trimSilence !== 'off'}
-              onPress={cycleTrim}
-            />
-          )}
-          {!basic && (
-            <Control
-              icon="speaker-high"
-              label="Volume boost"
-              value={player.volumeBoost ? 'Boost on' : 'Boost'}
-              active={player.volumeBoost}
-              onPress={toggleBoost}
-            />
-          )}
-          <Control
-            icon="moon"
-            label="Sleep timer"
-            value={stopAtEnd ? 'End of ep.' : sleepLeft != null ? clock(sleepLeft) : 'Sleep'}
-            active={stopAtEnd || sleepLeft != null}
-            onPress={chooseSleep}
-          />
-          <Control icon="bookmark-simple" label="Bookmark" onPress={() => void bookmarkNow(db)} />
-        </View>
-
-        <Pressable
-          onPress={() => {
-            router.back();
-            router.navigate('/up-next');
-          }}
-          accessibilityRole="button"
-          style={[styles.upNext, { backgroundColor: theme.element }]}>
-          <Icon name="queue" size={18} color={theme.text} />
-          <Txt variant="smallBold">Up Next</Txt>
-        </Pressable>
-      </ScrollView>
-      <StatusBarScrim />
-    </View>
+        <StatusBarScrim />
+      </Reanimated.View>
+    </GestureDetector>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { paddingHorizontal: Spacing.four, gap: Spacing.three },
+  content: {
+    flex: 1,
+    paddingHorizontal: Spacing.four,
+    gap: Spacing.three,
+    justifyContent: 'space-between',
+  },
   topBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: -Spacing.three },
   topTitle: { flex: 1, textAlign: 'center' },
   art: { alignSelf: 'center', marginTop: Spacing.two },

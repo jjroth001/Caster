@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import {
   Animated,
   BackHandler,
@@ -42,6 +42,7 @@ type Request =
       /** A single choice: radio buttons on the left instead of a check on the right. */
       choice?: boolean;
     }
+  | { kind: 'custom'; title?: string; message?: string; content: ReactNode }
   | {
       kind: 'prompt';
       title: string;
@@ -61,6 +62,10 @@ const set = (r: Request | null) => {
 
 export const showSheet = (r: Omit<Extract<Request, { kind: 'sheet' }>, 'kind'>) =>
   set({ kind: 'sheet', ...r });
+/** A sheet with your own content (e.g. the speed slider). */
+export const showCustomSheet = (r: Omit<Extract<Request, { kind: 'custom' }>, 'kind'>) =>
+  set({ kind: 'custom', ...r });
+export const closeSheet = () => set(null);
 export const showPrompt = (r: Omit<Extract<Request, { kind: 'prompt' }>, 'kind'>) =>
   set({ kind: 'prompt', ...r });
 const close = () => set(null);
@@ -179,7 +184,9 @@ export function SheetHost() {
             {shown.message}
           </Txt>
         )}
-        {shown.kind === 'prompt' ? (
+        {shown.kind === 'custom' ? (
+          shown.content
+        ) : shown.kind === 'prompt' ? (
           <PromptBody request={shown} />
         ) : (
           <ScrollView style={styles.list} bounces={false} keyboardShouldPersistTaps="handled">

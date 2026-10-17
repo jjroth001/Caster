@@ -238,6 +238,16 @@ export default function SettingsScreen() {
             />
           </>
         )}
+        <Row
+          label="Tint from cover art"
+          hint="Colour the player and podcast pages to match the artwork (always on in Midnight)">
+          <Switch
+            value={s.tintFromArtwork}
+            onValueChange={set('tintFromArtwork')}
+            trackColor={{ true: theme.accent, false: theme.track }}
+            thumbColor={theme.dark ? '#ddd' : '#fff'}
+          />
+        </Row>
         <Row label="Podcasts tab" />
         <Choices
           options={[

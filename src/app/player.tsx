@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
 import { Background } from '@/components/background';
+import { useArtworkTint } from '@/theme/artwork-tint';
 import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { IconButton } from '@/components/controls';
 import { Icon, type IconName } from '@/components/icons/icon';
@@ -82,6 +83,7 @@ export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const episode = useNowPlaying();
+  const tint = useArtworkTint(episode?.artwork_url ?? episode?.podcast_artwork);
   const player = usePlayerState();
   const settingsQuery = useSettings();
   const settings = settingsQuery.data ?? DEFAULT_SETTINGS;
@@ -217,7 +219,7 @@ export default function PlayerScreen() {
 
   return (
     <View style={styles.flex}>
-      <Background />
+      <Background tint={tint} />
       <ScrollView
         contentContainerStyle={[
           styles.content,

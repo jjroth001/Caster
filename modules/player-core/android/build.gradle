@@ -26,4 +26,6 @@ dependencies {
   implementation "androidx.media3:media3-effect:$media3Version"
   // Downloads and background feed checks that keep going with the app closed.
   implementation "androidx.work:work-runtime:2.11.2"
+  // Picking a colour from cover art (AndroidX, Apache-2.0).
+  implementation "androidx.palette:palette:1.0.0"
 }

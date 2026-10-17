@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 
 import { engine, IDLE_STATE, type PlayerState } from './engine';
 
@@ -44,4 +44,42 @@ export function usePlayerState(): PlayerState {
 /** The last playback error message, cleared once something plays again. */
 export function usePlayerError(): string | null {
   return useSyncExternalStore(subscribe, errorSnapshot, errorSnapshot);
+}
+
+export type EpisodePlayback = {
+  current: boolean;
+  playWhenReady: boolean;
+  positionMs: number;
+  durationMs: number | null;
+};
+
+const IDLE = 'idle';
+
+/**
+ * One episode's view of the player, for list rows. Rows for other episodes never re-render on
+ * player updates, and the playing row only every few seconds (enough for its progress ring).
+ */
+export function useEpisodePlayback(episodeId: number): EpisodePlayback {
+  const key = String(episodeId);
+  const snapshot = useSyncExternalStore(
+    subscribe,
+    () => {
+      const s = current;
+      if (s.id !== key) return IDLE;
+      const pos = Math.floor(s.positionMs / 5000) * 5000;
+      return `${s.playWhenReady ? 1 : 0}|${pos}|${s.durationMs ?? ''}`;
+    },
+    () => IDLE,
+  );
+  return useMemo(() => {
+    if (snapshot === IDLE)
+      return { current: false, playWhenReady: false, positionMs: 0, durationMs: null };
+    const [play, pos, dur] = snapshot.split('|');
+    return {
+      current: true,
+      playWhenReady: play === '1',
+      positionMs: Number(pos),
+      durationMs: dur ? Number(dur) : null,
+    };
+  }, [snapshot]);
 }

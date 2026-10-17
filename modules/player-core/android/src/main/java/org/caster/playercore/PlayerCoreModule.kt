@@ -249,6 +249,9 @@ class PlayerCoreModule : Module() {
       }
     }
 
+    /** "#RRGGBB" picked from a cover image, or null. */
+    AsyncFunction("artworkColor") { url: String -> runCatching { ArtworkColor.of(url) }.getOrNull() }
+
     // --- Android Auto ---
 
     /** The lists Android Auto can browse (JSON; see src/auto/snapshot.ts). */

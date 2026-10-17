@@ -115,6 +115,9 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   /** Converts a downloaded episode to 16 kHz mono WAV for speech recognition; resolves with its path. */
   decodeForSpeech(source: string): Promise<string>;
 
+  /** "#RRGGBB" picked from a cover image, or null. */
+  artworkColor(url: string): Promise<string | null>;
+
   /** The lists Android Auto can browse (JSON from src/auto/snapshot.ts). */
   setAutoLibrary(json: string): void;
   /** Positions, finishes and bookmarks from playback while the app wasn't running; clears them. */

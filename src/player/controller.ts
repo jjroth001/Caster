@@ -368,7 +368,7 @@ export function startPlayerSync(db: SQLiteDatabase): () => void {
     trackState(state);
     const paused = prev?.playWhenReady && !state.playWhenReady;
     void flushStats(db, !!paused);
-    const moved = Math.abs(state.positionMs - lastSavedMs) >= 5000;
+    const moved = Math.abs(state.positionMs - lastSavedMs) >= 15_000;
     // (Not on load: the first updates can report 0 before the resume position is applied.)
     if (paused || (state.playing && moved)) {
       lastSavedMs = state.positionMs;

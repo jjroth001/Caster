@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
 import { Background } from '@/components/background';
+import { useArtworkTint } from '@/theme/artwork-tint';
 import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { Button, IconButton } from '@/components/controls';
 import { EpisodeRow } from '@/components/episode-row';
@@ -47,6 +48,8 @@ export default function PodcastScreen() {
     (d) => listEpisodes(d, podcastId, order),
     [podcastId, order],
   ).data;
+
+  const tint = useArtworkTint(podcast?.artwork_url);
 
   if (!podcast) {
     return <Background />;
@@ -144,7 +147,7 @@ export default function PodcastScreen() {
 
   return (
     <View style={styles.flex}>
-      <Background />
+      <Background tint={tint} />
       <FlatList
         data={episodes ?? []}
         keyExtractor={(e) => String(e.id)}

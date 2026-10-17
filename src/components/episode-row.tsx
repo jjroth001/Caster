@@ -13,7 +13,7 @@ import { useDownloadProgress } from '@/downloads/progress';
 import { duration, releaseDate, timeLeft } from '@/lib/format';
 import { engine } from '@/player/engine';
 import { playEpisode } from '@/player/controller';
-import { usePlayerState } from '@/player/use-player';
+import { useEpisodePlayback } from '@/player/use-player';
 import { useTheme } from '@/theme/theme-provider';
 import { Radius, Spacing } from '@/theme/themes';
 
@@ -30,12 +30,12 @@ type Props = {
 export function EpisodeRow({ episode, showPodcast, cards, trailing }: Props) {
   const db = useSQLiteContext();
   const theme = useTheme();
-  const player = usePlayerState();
+  const player = useEpisodePlayback(episode.id);
   const [now] = useState(Date.now);
   const downloading = useDownloadProgress(
     episode.download_status === 'downloading' ? keyFor(episode) : null,
   );
-  const current = player.id === String(episode.id);
+  const current = player.current;
   const positionS = current ? player.positionMs / 1000 : episode.position_s;
   const durationS =
     (current && player.durationMs ? player.durationMs / 1000 : null) ?? episode.duration_s;

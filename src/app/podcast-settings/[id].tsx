@@ -1,10 +1,11 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import type { ReactNode } from 'react';
+import { Children, Fragment, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Card, Chip } from '@/components/controls';
+import { Card } from '@/components/controls';
+import { PickerRow, RowDivider } from '@/components/picker-row';
 import { SubScreen } from '@/components/sub-screen';
 import { Txt } from '@/components/text';
 import {
@@ -24,6 +25,7 @@ import { Spacing } from '@/theme/themes';
 
 type Option<T> = { value: T; label: string };
 
+/** One per-podcast setting: a row showing the current choice; tapping opens the choices. */
 function Setting<T extends string | number | null>({
   label,
   hint,
@@ -38,34 +40,26 @@ function Setting<T extends string | number | null>({
   onChange: (v: T) => void;
 }) {
   return (
-    <View style={styles.setting}>
-      <Txt variant="bodyBold">{label}</Txt>
-      {!!hint && (
-        <Txt variant="small" secondary>
-          {hint}
-        </Txt>
-      )}
-      <View style={styles.chips}>
-        {options.map((o) => (
-          <Chip
-            key={String(o.value)}
-            label={o.label}
-            selected={o.value === value}
-            onPress={() => onChange(o.value)}
-          />
-        ))}
-      </View>
-    </View>
+    <PickerRow label={label} hint={hint} options={options} value={value} onChange={onChange} />
   );
 }
 
+/** A card of settings with a thin line between each. */
 function Group({ title, children }: { title: string; children: ReactNode }) {
+  const rows = Children.toArray(children).filter(Boolean);
   return (
     <View style={styles.group}>
       <Txt variant="meta" secondary style={styles.groupTitle}>
         {title}
       </Txt>
-      <Card style={styles.card}>{children}</Card>
+      <Card style={styles.card}>
+        {rows.map((row, i) => (
+          <Fragment key={i}>
+            {i > 0 && <RowDivider />}
+            {row}
+          </Fragment>
+        ))}
+      </Card>
     </View>
   );
 }
@@ -146,14 +140,14 @@ export default function PodcastSettingsScreen() {
           <Setting
             label="Skip intro"
             hint="Start every episode this far in"
-            options={SECONDS.map((v) => ({ value: v, label: v ? `${v} s` : 'Off' }))}
+            options={SECONDS.map((v) => ({ value: v, label: v ? `${v} seconds` : 'Off' }))}
             value={own.skip_start_s ?? 0}
             onChange={(v) => void set('skip_start_s')(v || null)}
           />
           <Setting
             label="Skip outro"
             hint="Finish this long before the end"
-            options={SECONDS.map((v) => ({ value: v, label: v ? `${v} s` : 'Off' }))}
+            options={SECONDS.map((v) => ({ value: v, label: v ? `${v} seconds` : 'Off' }))}
             value={own.skip_end_s ?? 0}
             onChange={(v) => void set('skip_end_s')(v || null)}
           />
@@ -177,13 +171,19 @@ export default function PodcastSettingsScreen() {
               options={[
                 {
                   value: null,
-                  label: def(global.autoDownload ? `Newest ${global.autoDownload}` : 'Off'),
+                  label: def(
+                    global.autoDownload === 1
+                      ? 'newest episode'
+                      : global.autoDownload
+                        ? `newest ${global.autoDownload}`
+                        : 'off',
+                  ),
                 },
                 { value: 0, label: 'Off' },
-                { value: 1, label: 'Newest 1' },
-                { value: 2, label: '2' },
-                { value: 3, label: '3' },
-                { value: 5, label: '5' },
+                { value: 1, label: 'Newest episode' },
+                { value: 2, label: 'Newest 2' },
+                { value: 3, label: 'Newest 3' },
+                { value: 5, label: 'Newest 5' },
               ]}
               value={own.auto_download_n}
               onChange={set('auto_download_n')}
@@ -217,7 +217,5 @@ export default function PodcastSettingsScreen() {
 const styles = StyleSheet.create({
   group: { marginHorizontal: Spacing.three, marginBottom: Spacing.four },
   groupTitle: { marginLeft: Spacing.two, marginBottom: Spacing.two },
-  card: { paddingVertical: Spacing.two },
-  setting: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, gap: 4 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginTop: 6 },
+  card: { paddingVertical: Spacing.one, overflow: 'hidden' },
 });

@@ -8,23 +8,11 @@ import type { LibraryFolder } from '@/db/folders';
 import type { LibraryPodcast } from '@/db/library';
 import { releaseDate } from '@/lib/format';
 import { useTheme } from '@/theme/theme-provider';
-import { Radius, Spacing } from '@/theme/themes';
+import { Spacing } from '@/theme/themes';
 
 export type Layout = 'grid' | 'large' | 'list';
 
-export function Badge({ count }: { count: number }) {
-  const theme = useTheme();
-  if (!count) return null;
-  return (
-    <View style={[styles.badge, { backgroundColor: theme.accent }]}>
-      <Txt variant="smallBold" color={theme.onAccent} style={styles.badgeText}>
-        {count > 99 ? '99+' : count}
-      </Txt>
-    </View>
-  );
-}
-
-const label = (title: string, count: number) => `${title}${count ? `, ${count} new` : ''}`;
+const label = (title: string) => title;
 
 export function PodcastTile({
   item,
@@ -42,7 +30,7 @@ export function PodcastTile({
       <Pressable
         onPress={open}
         accessibilityRole="button"
-        accessibilityLabel={label(item.title, item.new_count)}
+        accessibilityLabel={label(item.title)}
         style={({ pressed }) => [
           styles.listRow,
           { borderBottomColor: theme.cardBorder },
@@ -57,7 +45,6 @@ export function PodcastTile({
             {[releaseDate(item.latest_pub), item.latest_title].filter(Boolean).join(' · ')}
           </Txt>
         </View>
-        <Badge count={item.new_count} />
       </Pressable>
     );
   }
@@ -65,7 +52,7 @@ export function PodcastTile({
     <Pressable
       onPress={open}
       accessibilityRole="button"
-      accessibilityLabel={label(item.title, item.new_count)}
+      accessibilityLabel={label(item.title)}
       style={({ pressed }) => [{ width: size }, pressed && styles.pressed]}>
       <Artwork
         uri={item.artwork_url}
@@ -73,20 +60,13 @@ export function PodcastTile({
         size={size}
         radius={layout === 'large' ? 20 : 14}
       />
-      {layout === 'grid' ? (
-        <View style={styles.gridBadge}>
-          <Badge count={item.new_count} />
-        </View>
-      ) : (
+      {layout === 'grid' ? null : (
         <View style={styles.largeText}>
           <Txt variant="bodyBold" numberOfLines={1}>
             {item.title}
           </Txt>
-          <Txt
-            variant="small"
-            color={item.new_count ? theme.accent : theme.textSecondary}
-            numberOfLines={1}>
-            {item.new_count ? `${item.new_count} new` : 'Up to date'}
+          <Txt variant="small" secondary numberOfLines={1}>
+            {item.latest_pub ? `Latest: ${releaseDate(item.latest_pub)}` : (item.author ?? ' ')}
           </Txt>
         </View>
       )}
@@ -152,7 +132,7 @@ export function FolderTile({
       <Pressable
         onPress={open}
         accessibilityRole="button"
-        accessibilityLabel={`Folder ${label(item.name, item.new_count)}`}
+        accessibilityLabel={`Folder ${label(item.name)}`}
         style={({ pressed }) => [
           styles.listRow,
           { borderBottomColor: theme.cardBorder },
@@ -173,7 +153,6 @@ export function FolderTile({
             {summary}
           </Txt>
         </View>
-        <Badge count={item.new_count} />
       </Pressable>
     );
   }
@@ -181,18 +160,13 @@ export function FolderTile({
     <Pressable
       onPress={open}
       accessibilityRole="button"
-      accessibilityLabel={`Folder ${label(item.name, item.new_count)}`}
+      accessibilityLabel={`Folder ${label(item.name)}`}
       style={({ pressed }) => [{ width: size }, pressed && styles.pressed]}>
       {covers(size)}
       {layout === 'grid' ? (
-        <>
-          <View style={styles.gridBadge}>
-            <Badge count={item.new_count} />
-          </View>
-          <Txt variant="smallBold" numberOfLines={1} style={styles.gridName}>
-            {item.name}
-          </Txt>
-        </>
+        <Txt variant="smallBold" numberOfLines={1} style={styles.gridName}>
+          {item.name}
+        </Txt>
       ) : (
         <View style={styles.largeText}>
           <Txt variant="bodyBold" numberOfLines={1}>
@@ -219,18 +193,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   listText: { flex: 1, gap: 2 },
-  gridBadge: { position: 'absolute', top: 6, right: 6 },
   gridName: { marginTop: 6, paddingHorizontal: 2 },
   largeText: { paddingTop: 8, paddingHorizontal: 2 },
   folder: { flexDirection: 'row', flexWrap: 'wrap' },
   folderName: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  badge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: Radius.pill,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: { fontSize: 12, lineHeight: 16, fontWeight: '700' },
 });

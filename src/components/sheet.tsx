@@ -26,7 +26,14 @@ export type SheetOption = {
 };
 
 type Request =
-  | { kind: 'sheet'; title?: string; message?: string; options: SheetOption[] }
+  | {
+      kind: 'sheet';
+      title?: string;
+      message?: string;
+      options: SheetOption[];
+      /** A single choice: radio buttons on the left instead of a check on the right. */
+      choice?: boolean;
+    }
   | {
       kind: 'prompt';
       title: string;
@@ -153,12 +160,23 @@ export function SheetHost() {
                       close();
                       o.onPress();
                     }}
-                    accessibilityRole="button"
+                    accessibilityRole={request.choice ? 'radio' : 'button'}
                     accessibilityState={{ selected: o.selected }}
                     style={({ pressed }) => [
                       styles.option,
                       pressed && { backgroundColor: theme.element },
                     ]}>
+                    {request.choice && (
+                      <View
+                        style={[
+                          styles.radio,
+                          { borderColor: o.selected ? theme.accent : theme.textSecondary },
+                        ]}>
+                        {o.selected && (
+                          <View style={[styles.radioDot, { backgroundColor: theme.accent }]} />
+                        )}
+                      </View>
+                    )}
                     {o.icon && (
                       <Icon
                         name={o.icon}
@@ -180,7 +198,7 @@ export function SheetHost() {
                         </Txt>
                       )}
                     </View>
-                    {o.selected && (
+                    {o.selected && !request.choice && (
                       <Icon name="check" size={20} color={theme.accent} duotone={false} />
                     )}
                   </Pressable>
@@ -222,6 +240,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   optionText: { flex: 1, gap: 2 },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioDot: { width: 10, height: 10, borderRadius: 5 },
   promptBody: { paddingHorizontal: Spacing.four, gap: Spacing.three },
   input: {
     borderRadius: Radius.medium,

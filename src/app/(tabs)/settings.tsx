@@ -6,7 +6,8 @@ import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { HeadsetAction } from '@modules/player-core/src';
-import { Card, Chip } from '@/components/controls';
+import { Card } from '@/components/controls';
+import { PickerRow, RowDivider } from '@/components/picker-row';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { ScreenHeader } from '@/components/screen-header';
 import { SpeechModels } from '@/components/speech-models';
@@ -54,29 +55,6 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
         )}
       </View>
       {children}
-    </View>
-  );
-}
-
-function Choices<T extends string | number>({
-  options,
-  value,
-  onChange,
-}: {
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <View style={styles.chips} accessibilityRole="radiogroup">
-      {options.map((o) => (
-        <Chip
-          key={String(o.value)}
-          label={o.label}
-          selected={o.value === value}
-          onPress={() => onChange(o.value)}
-        />
-      ))}
     </View>
   );
 }
@@ -206,60 +184,71 @@ export default function SettingsScreen() {
     }
   };
 
+  const toggle = (value: boolean, onChange: (v: boolean) => void) => (
+    <Switch
+      value={value}
+      onValueChange={onChange}
+      trackColor={{ true: theme.accent, false: theme.track }}
+      thumbColor={theme.dark ? '#ddd' : '#fff'}
+    />
+  );
+  const seconds = (values: number[]) => values.map((v) => ({ value: v, label: `${v} seconds` }));
+
   return (
     <ScrollView contentContainerStyle={{ paddingTop: insets.top, paddingBottom: bottom }}>
       <ScreenHeader title="Settings" />
 
       <Section title="Appearance">
-        <Row
+        <PickerRow
           label="Theme"
           hint={s.theme === 'auto' ? 'Follows your phone’s light and dark mode' : undefined}
-        />
-        <Choices
           options={[
-            { value: 'auto', label: 'Automatic' },
-            { value: 'paper', label: 'Paper' },
-            { value: 'dusk', label: 'Dusk' },
-            { value: 'midnight', label: 'Midnight' },
+            {
+              value: 'auto',
+              label: 'Automatic',
+              hint: 'Paper by day, your night theme in dark mode',
+            },
+            { value: 'paper', label: 'Paper', hint: 'Warm and light' },
+            { value: 'dusk', label: 'Dusk', hint: 'Night blue with frosted glass' },
+            { value: 'midnight', label: 'Midnight', hint: 'True black, easiest on battery' },
           ]}
           value={s.theme}
           onChange={set('theme')}
         />
         {s.theme === 'auto' && (
           <>
-            <Row label="At night" hint="Midnight is true black, easiest on battery" />
-            <Choices
+            <RowDivider />
+            <PickerRow
+              label="At night"
               options={[
                 { value: 'dusk', label: 'Dusk' },
-                { value: 'midnight', label: 'Midnight' },
+                { value: 'midnight', label: 'Midnight', hint: 'True black, easiest on battery' },
               ]}
               value={s.autoDark}
               onChange={set('autoDark')}
             />
           </>
         )}
+        <RowDivider />
         <Row
           label="Tint from cover art"
           hint="Colour the player and podcast pages to match the artwork (always on in Midnight)">
-          <Switch
-            value={s.tintFromArtwork}
-            onValueChange={set('tintFromArtwork')}
-            trackColor={{ true: theme.accent, false: theme.track }}
-            thumbColor={theme.dark ? '#ddd' : '#fff'}
-          />
+          {toggle(s.tintFromArtwork, set('tintFromArtwork'))}
         </Row>
-        <Row label="Podcasts tab" />
-        <Choices
+        <RowDivider />
+        <PickerRow
+          label="Podcasts tab"
           options={[
             { value: 'grid', label: 'Grid' },
             { value: 'large', label: 'Large grid' },
-            { value: 'list', label: 'List' },
+            { value: 'list', label: 'List', hint: 'With each show’s newest episode' },
           ]}
           value={s.libraryLayout}
           onChange={set('libraryLayout')}
         />
-        <Row label="Sort podcasts by" />
-        <Choices
+        <RowDivider />
+        <PickerRow
+          label="Sort podcasts by"
           options={[
             { value: 'latest', label: 'Latest episode' },
             { value: 'title', label: 'Name' },
@@ -271,76 +260,67 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title="Playback">
-        <Row label="Skip back" />
-        <Choices
-          options={[5, 10, 15, 30].map((v) => ({ value: v, label: `${v} s` }))}
+        <PickerRow
+          label="Skip back"
+          options={seconds([5, 10, 15, 30])}
           value={s.skipBackS}
           onChange={setPlayback('skipBackS')}
         />
-        <Row label="Skip forward" />
-        <Choices
-          options={[10, 15, 30, 45, 60].map((v) => ({ value: v, label: `${v} s` }))}
+        <RowDivider />
+        <PickerRow
+          label="Skip forward"
+          options={seconds([10, 15, 30, 45, 60])}
           value={s.skipForwardS}
           onChange={setPlayback('skipForwardS')}
         />
+        <RowDivider />
         <Row label="Play Up Next automatically" hint="When an episode ends, start the next one">
-          <Switch
-            value={s.autoPlayNext}
-            onValueChange={set('autoPlayNext')}
-            trackColor={{ true: theme.accent, false: theme.track }}
-            thumbColor={theme.dark ? '#ddd' : '#fff'}
-          />
+          {toggle(s.autoPlayNext, set('autoPlayNext'))}
         </Row>
         {engine.kind === 'native' && (
           <>
-            <Row label="Headphone double-press" hint="One press always plays or pauses" />
-            <Choices
+            <RowDivider />
+            <PickerRow
+              label="Headphone double-press"
+              hint="One press always plays or pauses"
               options={HEADSET_OPTIONS}
               value={s.headsetDouble}
               onChange={setPlayback('headsetDouble')}
             />
-            <Row label="Headphone triple-press" />
-            <Choices
+            <RowDivider />
+            <PickerRow
+              label="Headphone triple-press"
               options={HEADSET_OPTIONS}
               value={s.headsetTriple}
               onChange={setPlayback('headsetTriple')}
             />
           </>
         )}
+        <RowDivider />
         <Row
           label="Skip ads"
           hint="Chapters titled like ads (sponsor, promo…) and ad reads found in transcripts">
-          <Switch
-            value={s.adSkip}
-            onValueChange={set('adSkip')}
-            trackColor={{ true: theme.accent, false: theme.track }}
-            thumbColor={theme.dark ? '#ddd' : '#fff'}
-          />
+          {toggle(s.adSkip, set('adSkip'))}
         </Row>
         {s.adSkip && (
           <>
-            <Row
+            <RowDivider />
+            <PickerRow
               label="Ad detection"
-              hint="How sure Caster must be before skipping an ad read from a transcript"
-            />
-            <Choices
+              hint="How sure Caster must be before skipping an ad read"
               options={[
-                { value: 'cautious', label: 'Cautious' },
+                { value: 'cautious', label: 'Cautious', hint: 'Only clear-cut ad reads' },
                 { value: 'balanced', label: 'Balanced' },
-                { value: 'eager', label: 'Eager' },
+                { value: 'eager', label: 'Eager', hint: 'Skips more, sometimes wrongly' },
               ]}
               value={s.adSensitivity}
               onChange={set('adSensitivity')}
             />
           </>
         )}
+        <RowDivider />
         <Row label="Smart bookmarks" hint="With a transcript, bookmarks keep what was just said">
-          <Switch
-            value={s.smartBookmarks}
-            onValueChange={set('smartBookmarks')}
-            trackColor={{ true: theme.accent, false: theme.track }}
-            thumbColor={theme.dark ? '#ddd' : '#fff'}
-          />
+          {toggle(s.smartBookmarks, set('smartBookmarks'))}
         </Row>
         {engine.kind === 'basic' && (
           <Txt variant="small" secondary style={styles.note}>
@@ -358,76 +338,64 @@ export default function SettingsScreen() {
             hint="See and remove downloaded episodes"
             onPress={() => router.push('/downloads')}
           />
-          <Row
+          <RowDivider />
+          <PickerRow
             label="Check for new episodes"
             hint="In the background, even when Caster is closed"
-          />
-          <Choices
             options={[
               { value: 0, label: 'Only when open' },
-              { value: 1, label: 'Hourly' },
-              { value: 4, label: 'Every 4 h' },
-              { value: 12, label: 'Every 12 h' },
+              { value: 1, label: 'Every hour' },
+              { value: 4, label: 'Every 4 hours' },
+              { value: 12, label: 'Every 12 hours' },
             ]}
             value={s.refreshHours}
             onChange={setBackground('refreshHours')}
           />
+          <RowDivider />
           <Row
             label="New-episode notifications"
             hint="One alert per podcast when something new comes out">
-            <Switch
-              value={s.notifyNewEpisodes}
-              onValueChange={async (on) => {
-                if (on && !(await requestNotificationPermission())) {
-                  Alert.alert(
-                    'Notifications are off',
-                    'Allow notifications for Caster in Android’s settings to get new-episode alerts.',
-                  );
-                  return;
-                }
-                await setBackground('notifyNewEpisodes')(on);
-              }}
-              trackColor={{ true: theme.accent, false: theme.track }}
-              thumbColor={theme.dark ? '#ddd' : '#fff'}
-            />
+            {toggle(s.notifyNewEpisodes, async (on) => {
+              if (on && !(await requestNotificationPermission())) {
+                Alert.alert(
+                  'Notifications are off',
+                  'Allow notifications for Caster in Android’s settings to get new-episode alerts.',
+                );
+                return;
+              }
+              await setBackground('notifyNewEpisodes')(on);
+            })}
           </Row>
-          <Row label="Auto-download" hint="The newest new episodes of every podcast" />
-          <Choices
+          <RowDivider />
+          <PickerRow
+            label="Auto-download"
+            hint="The newest new episodes of every podcast"
             options={[
               { value: 0, label: 'Off' },
-              { value: 1, label: 'Newest 1' },
-              { value: 2, label: '2' },
-              { value: 3, label: '3' },
-              { value: 5, label: '5' },
+              { value: 1, label: 'Newest episode' },
+              { value: 2, label: 'Newest 2' },
+              { value: 3, label: 'Newest 3' },
+              { value: 5, label: 'Newest 5' },
             ]}
             value={s.autoDownload}
             onChange={setBackground('autoDownload')}
           />
           {s.autoDownload > 0 && (
             <>
+              <RowDivider />
               <Row label="Only on Wi-Fi">
-                <Switch
-                  value={s.downloadWifiOnly}
-                  onValueChange={setBackground('downloadWifiOnly')}
-                  trackColor={{ true: theme.accent, false: theme.track }}
-                  thumbColor={theme.dark ? '#ddd' : '#fff'}
-                />
+                {toggle(s.downloadWifiOnly, setBackground('downloadWifiOnly'))}
               </Row>
+              <RowDivider />
               <Row label="Only while charging">
-                <Switch
-                  value={s.downloadChargingOnly}
-                  onValueChange={setBackground('downloadChargingOnly')}
-                  trackColor={{ true: theme.accent, false: theme.track }}
-                  thumbColor={theme.dark ? '#ddd' : '#fff'}
-                />
+                {toggle(s.downloadChargingOnly, setBackground('downloadChargingOnly'))}
               </Row>
             </>
           )}
-          <Row
+          <RowDivider />
+          <PickerRow
             label="Storage limit"
             hint="Removes played downloads, oldest first, to stay under it"
-          />
-          <Choices
             options={[
               { value: 0, label: 'No limit' },
               { value: 1, label: '1 GB' },
@@ -441,13 +409,9 @@ export default function SettingsScreen() {
               await enforceStorageCap(db);
             }}
           />
+          <RowDivider />
           <Row label="Delete after playing" hint="Remove a download once you finish the episode">
-            <Switch
-              value={s.deletePlayedDownloads}
-              onValueChange={set('deletePlayedDownloads')}
-              trackColor={{ true: theme.accent, false: theme.track }}
-              thumbColor={theme.dark ? '#ddd' : '#fff'}
-            />
+            {toggle(s.deletePlayedDownloads, set('deletePlayedDownloads'))}
           </Row>
         </Section>
       )}
@@ -473,30 +437,35 @@ export default function SettingsScreen() {
           }
           onPress={runRefresh}
         />
+        <RowDivider />
         <LinkRow
           icon="export"
           label="Back up now"
           hint="Everything: podcasts, progress, playlists, bookmarks, settings"
           onPress={() => void shareBackup(db)}
         />
+        <RowDivider />
         <LinkRow
           icon="arrow-counter-clockwise"
           label="Restore from a backup"
           hint="Merges in a Caster backup; nothing here is lost"
           onPress={runRestore}
         />
+        <RowDivider />
         <LinkRow
           icon="chart-bar"
           label="Listening stats"
           hint="Time listened and time saved"
           onPress={() => router.push('/stats')}
         />
+        <RowDivider />
         <LinkRow
           icon="download-simple"
           label="Import subscriptions"
           hint="From an OPML file exported by another podcast app"
           onPress={runImport}
         />
+        <RowDivider />
         <LinkRow
           icon="upload-simple"
           label="Export subscriptions"
@@ -515,6 +484,7 @@ export default function SettingsScreen() {
           label={`Caster ${Constants.expoConfig?.version ?? ''}`}
           hint="Free and open source (GPL-3.0). No account, no ads, no tracking: your podcasts and listening history stay on this phone. The app talks only to podcast hosts and, for search, Apple’s public directory."
         />
+        <RowDivider />
         <LinkRow
           icon="info"
           label="Source code"
@@ -529,21 +499,15 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   section: { marginHorizontal: Spacing.three, marginBottom: Spacing.four },
   sectionTitle: { marginLeft: Spacing.two, marginBottom: Spacing.two },
-  card: { paddingVertical: Spacing.two },
+  card: { paddingVertical: Spacing.one, overflow: 'hidden' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
     paddingHorizontal: Spacing.three,
-    paddingVertical: 10,
+    paddingVertical: 14,
+    minHeight: 56,
   },
   rowText: { flex: 1, gap: 2 },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.two,
-  },
   note: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two },
 });

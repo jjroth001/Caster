@@ -6,11 +6,9 @@ import * as SystemUI from 'expo-system-ui';
 import { Suspense, useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { pruneUnfollowed } from '@/db/library';
 import { migrateDbIfNeeded } from '@/db/migrations';
-import { getSettings } from '@/db/settings';
 import { useSettings } from '@/db/use-settings';
-import { refreshAll } from '@/feeds/sync';
+import { startAppSync } from '@/downloads/app-sync';
 import { startPlayerSync } from '@/player/controller';
 import { ThemeProvider, useTheme } from '@/theme/theme-provider';
 
@@ -35,17 +33,11 @@ export default function RootLayout() {
   );
 }
 
-/** Starts the player glue and checks feeds for new episodes when the app opens. */
+/** Starts the player glue and the app's catch-up work (feeds, downloads, background check). */
 function useAppStart() {
   const db = useSQLiteContext();
   useEffect(() => startPlayerSync(db), [db]);
-  useEffect(() => {
-    void (async () => {
-      const settings = await getSettings(db);
-      await pruneUnfollowed(db, settings.nowPlaying);
-      await refreshAll(db);
-    })();
-  }, [db]);
+  useEffect(() => startAppSync(db), [db]);
 }
 
 function Root() {
@@ -79,6 +71,7 @@ function Root() {
         screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.background } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="podcast/[id]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="downloads" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen
           name="player"
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}

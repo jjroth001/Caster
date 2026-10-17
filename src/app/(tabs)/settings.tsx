@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState, type ReactNode } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
@@ -11,6 +12,8 @@ import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import { DEFAULT_SETTINGS, type Settings } from '@/db/settings';
 import { useSetSetting, useSettings } from '@/db/use-settings';
+import { requestNotificationPermission, writeBackgroundConfig } from '@/downloads/background';
+import { autoDownloadNew, downloadsAvailable, enforceStorageCap } from '@/downloads/downloads';
 import { refreshAll } from '@/feeds/sync';
 import { importOpml, shareOpml, type ImportProgress } from '@/lib/data-transfer';
 import { releaseDate } from '@/lib/format';
@@ -117,6 +120,15 @@ export default function SettingsScreen() {
     async (value: Settings[K]) => {
       await setSetting(key, value);
       await applyPlayerSettings(db);
+    };
+
+  // Settings the background check reads: save, then hand it a fresh snapshot.
+  const setBackground =
+    <K extends keyof Settings>(key: K) =>
+    async (value: Settings[K]) => {
+      await setSetting(key, value);
+      await writeBackgroundConfig(db);
+      if (key === 'autoDownload') await autoDownloadNew(db);
     };
 
   const runImport = async () => {
@@ -237,6 +249,108 @@ export default function SettingsScreen() {
           </Txt>
         )}
       </Section>
+
+      {downloadsAvailable && (
+        <Section title="Downloads and updates">
+          <LinkRow
+            icon="download-simple"
+            label="Downloads"
+            hint="See and remove downloaded episodes"
+            onPress={() => router.push('/downloads')}
+          />
+          <Row
+            label="Check for new episodes"
+            hint="In the background, even when Caster is closed"
+          />
+          <Choices
+            options={[
+              { value: 0, label: 'Only when open' },
+              { value: 1, label: 'Hourly' },
+              { value: 4, label: 'Every 4 h' },
+              { value: 12, label: 'Every 12 h' },
+            ]}
+            value={s.refreshHours}
+            onChange={setBackground('refreshHours')}
+          />
+          <Row
+            label="New-episode notifications"
+            hint="One alert per podcast when something new comes out">
+            <Switch
+              value={s.notifyNewEpisodes}
+              onValueChange={async (on) => {
+                if (on && !(await requestNotificationPermission())) {
+                  Alert.alert(
+                    'Notifications are off',
+                    'Allow notifications for Caster in Android’s settings to get new-episode alerts.',
+                  );
+                  return;
+                }
+                await setBackground('notifyNewEpisodes')(on);
+              }}
+              trackColor={{ true: theme.accent, false: theme.track }}
+              thumbColor={theme.dark ? '#ddd' : '#fff'}
+            />
+          </Row>
+          <Row label="Auto-download" hint="The newest new episodes of every podcast" />
+          <Choices
+            options={[
+              { value: 0, label: 'Off' },
+              { value: 1, label: 'Newest 1' },
+              { value: 2, label: '2' },
+              { value: 3, label: '3' },
+              { value: 5, label: '5' },
+            ]}
+            value={s.autoDownload}
+            onChange={setBackground('autoDownload')}
+          />
+          {s.autoDownload > 0 && (
+            <>
+              <Row label="Only on Wi-Fi">
+                <Switch
+                  value={s.downloadWifiOnly}
+                  onValueChange={setBackground('downloadWifiOnly')}
+                  trackColor={{ true: theme.accent, false: theme.track }}
+                  thumbColor={theme.dark ? '#ddd' : '#fff'}
+                />
+              </Row>
+              <Row label="Only while charging">
+                <Switch
+                  value={s.downloadChargingOnly}
+                  onValueChange={setBackground('downloadChargingOnly')}
+                  trackColor={{ true: theme.accent, false: theme.track }}
+                  thumbColor={theme.dark ? '#ddd' : '#fff'}
+                />
+              </Row>
+            </>
+          )}
+          <Row
+            label="Storage limit"
+            hint="Removes played downloads, oldest first, to stay under it"
+          />
+          <Choices
+            options={[
+              { value: 0, label: 'No limit' },
+              { value: 1, label: '1 GB' },
+              { value: 2, label: '2 GB' },
+              { value: 5, label: '5 GB' },
+              { value: 10, label: '10 GB' },
+            ]}
+            value={s.storageCapGb}
+            onChange={async (v) => {
+              await setSetting('storageCapGb', v);
+              await enforceStorageCap(db);
+            }}
+          />
+          <Row label="Delete after playing" hint="Remove a download once you finish the episode">
+            <Switch
+              value={s.deletePlayedDownloads}
+              onValueChange={set('deletePlayedDownloads')}
+              trackColor={{ true: theme.accent, false: theme.track }}
+              thumbColor={theme.dark ? '#ddd' : '#fff'}
+            />
+          </Row>
+        </Section>
+      )}
 
       <Section title="Your podcasts">
         <LinkRow

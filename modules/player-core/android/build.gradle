@@ -21,4 +21,6 @@ dependencies {
   // lock screen, headset buttons and (later) Android Auto. No Google Play services.
   implementation "androidx.media3:media3-exoplayer:$media3Version"
   implementation "androidx.media3:media3-session:$media3Version"
+  // Downloads and background feed checks that keep going with the app closed.
+  implementation "androidx.work:work-runtime:2.11.2"
 }

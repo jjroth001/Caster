@@ -29,11 +29,40 @@ export type LoadItem = {
   playWhenReady?: boolean;
 };
 
+export type DownloadState = 'queued' | 'downloading' | 'done' | 'failed' | 'cancelled';
+
+export type DownloadEvent = {
+  /** "<podcastId>:<guid>" */
+  key: string;
+  state: DownloadState;
+  progress: number;
+  uri: string | null;
+  bytes: number;
+  error: string | null;
+};
+
+export type DownloadRequest = {
+  key: string;
+  url: string;
+  mime?: string | null;
+  title: string;
+  wifiOnly: boolean;
+  chargingOnly: boolean;
+};
+
+export type InboxFeed = {
+  podcastId: number;
+  xml: string;
+  etag: string | null;
+  lastModified: string | null;
+};
+
 type PlayerCoreEvents = {
   onState(state: PlayerState): void;
   onProgress(state: PlayerState): void;
   onEnded(event: { id: string }): void;
   onError(event: { id: string | null; code: string; message: string }): void;
+  onDownload(event: DownloadEvent): void;
 };
 
 declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
@@ -52,6 +81,17 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   setSleepTimer(ms: number): Promise<void>;
   stop(): Promise<void>;
   getState(): Promise<PlayerState>;
+
+  download(request: DownloadRequest): void;
+  cancelDownload(key: string): void;
+  deleteDownload(key: string): void;
+  listDownloads(): { key: string; uri: string; bytes: number }[];
+  activeDownloads(): Promise<DownloadEvent[]>;
+
+  /** Snapshot of followed podcasts and settings for the background check (JSON). */
+  configureBackground(json: string): void;
+  readInbox(): InboxFeed[];
+  clearInbox(podcastId: number): void;
 }
 
 /**

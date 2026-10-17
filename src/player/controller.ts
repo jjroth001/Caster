@@ -3,6 +3,7 @@ import { useSyncExternalStore } from 'react';
 
 import { getEpisode, popQueue, dequeue, savePosition, setPlayed } from '@/db/library';
 import { getSettings, setSetting } from '@/db/settings';
+import { removeDownload } from '@/downloads/downloads';
 
 import { engine, type PlayerState } from './engine';
 
@@ -101,6 +102,7 @@ export async function togglePlay(db: SQLiteDatabase) {
 async function onEnded(db: SQLiteDatabase, id: string) {
   await setPlayed(db, Number(id), true);
   const settings = await getSettings(db);
+  if (settings.deletePlayedDownloads) await removeDownload(db, Number(id));
   if (stopAtEnd) {
     setStopAtEndOfEpisode(false);
     return;

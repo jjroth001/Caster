@@ -10,6 +10,10 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.google.common.util.concurrent.ListenableFuture
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.functions.Queues
@@ -17,6 +21,15 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.kotlin.records.Field
 import expo.modules.kotlin.records.Record
+
+class DownloadRequest : Record {
+  @Field val key: String = ""
+  @Field val url: String = ""
+  @Field val mime: String? = null
+  @Field val title: String = ""
+  @Field val wifiOnly: Boolean = true
+  @Field val chargingOnly: Boolean = false
+}
 
 class LoadItem : Record {
   @Field val id: String = ""
@@ -66,9 +79,16 @@ class PlayerCoreModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("PlayerCore")
 
-    Events("onState", "onProgress", "onEnded", "onError")
+    Events("onState", "onProgress", "onEnded", "onError", "onDownload")
 
-    OnCreate { handler.post { PlayerCore.listener = listener } }
+    OnCreate {
+      handler.post {
+        PlayerCore.listener = listener
+        downloads = WorkManager.getInstance(context).getWorkInfosByTagLiveData(Downloads.TAG).also {
+          it.observeForever(downloadObserver)
+        }
+      }
+    }
 
     OnDestroy {
       handler.post {
@@ -76,6 +96,8 @@ class PlayerCoreModule : Module() {
         if (PlayerCore.listener === listener) PlayerCore.listener = null
         controller?.let { MediaController.releaseFuture(it) }
         controller = null
+        downloads?.removeObserver(downloadObserver)
+        downloads = null
       }
     }
 
@@ -146,6 +168,77 @@ class PlayerCoreModule : Module() {
     AsyncFunction("stop") { PlayerCore.stop() }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("getState") { PlayerCore.snapshot() }.runOnQueue(Queues.MAIN)
+
+    // --- Downloads ---
+
+    Function("download") { request: DownloadRequest ->
+      Downloads.enqueue(
+        context,
+        request.key,
+        request.url,
+        request.mime,
+        request.title,
+        request.wifiOnly,
+        request.chargingOnly,
+      )
+    }
+
+    Function("cancelDownload") { key: String -> Downloads.cancel(context, key) }
+
+    Function("deleteDownload") { key: String -> Downloads.delete(context, key) }
+
+    /** Finished downloads (key, file URI, bytes). */
+    Function("listDownloads") { Downloads.finished(context) }
+
+    /** Downloads waiting or in progress. */
+    AsyncFunction("activeDownloads") {
+      WorkManager.getInstance(context).getWorkInfosByTag(Downloads.TAG).get()
+        .filter { !it.state.isFinished }
+        .mapNotNull { info -> downloadEvent(info) }
+    }
+
+    // --- Background refresh ---
+
+    /** The app's snapshot of followed podcasts and settings; also (re)schedules the check. */
+    Function("configureBackground") { json: String -> Background.configure(context, json) }
+
+    /** Feeds fetched in the background, for the app to parse and save. */
+    Function("readInbox") { Background.readInbox(context) }
+
+    Function("clearInbox") { podcastId: Double -> Background.clearInbox(context, podcastId.toLong()) }
+  }
+
+  private var downloads: LiveData<List<WorkInfo>>? = null
+  private val lastSent = HashMap<String, String>()
+
+  private val downloadObserver = Observer<List<WorkInfo>> { infos ->
+    for (info in infos) {
+      val event = downloadEvent(info) ?: continue
+      val signature = "${event["state"]}:${event["progress"]}"
+      val key = event["key"] as String
+      if (lastSent[key] == signature) continue
+      lastSent[key] = signature
+      sendEvent("onDownload", event)
+    }
+  }
+
+  private fun downloadEvent(info: WorkInfo): Map<String, Any?>? {
+    val key = info.tags.firstOrNull { it.startsWith("key:") }?.removePrefix("key:") ?: return null
+    val state = when (info.state) {
+      WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> "queued"
+      WorkInfo.State.RUNNING -> "downloading"
+      WorkInfo.State.SUCCEEDED -> "done"
+      WorkInfo.State.FAILED -> "failed"
+      WorkInfo.State.CANCELLED -> "cancelled"
+    }
+    return mapOf(
+      "key" to key,
+      "state" to state,
+      "progress" to info.progress.getDouble("progress", 0.0),
+      "uri" to info.outputData.getString("uri"),
+      "bytes" to info.outputData.getLong("bytes", 0).toDouble(),
+      "error" to info.outputData.getString("error"),
+    )
   }
 
   private fun connectService() {

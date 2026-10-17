@@ -23,6 +23,16 @@ export type Settings = {
   /** The episode in the player (kept so it's still there after the app restarts). */
   nowPlaying: number | null;
   lastRefreshAt: number | null;
+  /** Check for new episodes in the background every N hours (0: only when the app opens). */
+  refreshHours: number;
+  notifyNewEpisodes: boolean;
+  /** Download the newest N new episodes of each podcast automatically (0: off). */
+  autoDownload: number;
+  downloadWifiOnly: boolean;
+  downloadChargingOnly: boolean;
+  /** Keep downloads under this many GB by removing played ones, oldest first (0: no limit). */
+  storageCapGb: number;
+  deletePlayedDownloads: boolean;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -39,6 +49,13 @@ export const DEFAULT_SETTINGS: Settings = {
   autoPlayNext: true,
   nowPlaying: null,
   lastRefreshAt: null,
+  refreshHours: 4,
+  notifyNewEpisodes: false,
+  autoDownload: 0,
+  downloadWifiOnly: true,
+  downloadChargingOnly: false,
+  storageCapGb: 0,
+  deletePlayedDownloads: false,
 };
 
 /** All settings, with defaults filled in for anything never set. Values are stored as JSON. */

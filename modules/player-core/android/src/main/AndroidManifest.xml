@@ -1,8 +1,13 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools">
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
   <!-- Keeps the CPU and Wi-Fi awake while streaming with the screen off. -->
   <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <!-- Long episode downloads run as a data-sync foreground service (WorkManager). -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+  <!-- New-episode alerts (asked for only when the user turns them on). -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
   <application>
     <!-- Exported so the system media controls, headsets and (later) Android Auto can connect. -->
@@ -14,5 +19,10 @@
         <action android:name="androidx.media3.session.MediaSessionService" />
       </intent-filter>
     </service>
+    <!-- WorkManager's foreground service, declared with the type Android 14+ requires. -->
+    <service
+      android:name="androidx.work.impl.foreground.SystemForegroundService"
+      android:foregroundServiceType="dataSync"
+      tools:node="merge" />
   </application>
 </manifest>

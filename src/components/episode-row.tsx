@@ -8,6 +8,8 @@ import { PlayButton } from '@/components/controls';
 import { Icon } from '@/components/icons/icon';
 import { Txt } from '@/components/text';
 import type { EpisodeItem } from '@/db/library';
+import { keyFor } from '@/downloads/downloads';
+import { useDownloadProgress } from '@/downloads/progress';
 import { duration, releaseDate, timeLeft } from '@/lib/format';
 import { engine } from '@/player/engine';
 import { playEpisode } from '@/player/controller';
@@ -30,6 +32,9 @@ export function EpisodeRow({ episode, showPodcast, cards, trailing }: Props) {
   const theme = useTheme();
   const player = usePlayerState();
   const [now] = useState(Date.now);
+  const downloading = useDownloadProgress(
+    episode.download_status === 'downloading' ? keyFor(episode) : null,
+  );
   const current = player.id === String(episode.id);
   const positionS = current ? player.positionMs / 1000 : episode.position_s;
   const durationS =
@@ -84,6 +89,14 @@ export function EpisodeRow({ episode, showPodcast, cards, trailing }: Props) {
         <View style={styles.statusRow}>
           {!!episode.starred && <Icon name="star-fill" size={12} color={theme.accent} />}
           {played && <Icon name="check" size={13} color={theme.textSecondary} duotone={false} />}
+          {episode.download_status === 'done' && (
+            <Icon name="download-simple" size={13} color={theme.accent} duotone={false} />
+          )}
+          {(episode.download_status === 'downloading' || episode.download_status === 'queued') && (
+            <Txt variant="small" color={theme.accent}>
+              {downloading != null ? `${Math.round(downloading * 100)}%` : 'Queued'}
+            </Txt>
+          )}
           <Txt variant="small" secondary numberOfLines={1}>
             {showPodcast && meta ? `${releaseDate(episode.pub_date)} · ${status}` : status}
           </Txt>

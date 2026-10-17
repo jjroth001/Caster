@@ -11,6 +11,8 @@ import { Icon, type IconName } from '@/components/icons/icon';
 import { Txt } from '@/components/text';
 import { dequeue, getEpisode, queueEpisode, setPlayed, setStarred } from '@/db/library';
 import { useDbQuery } from '@/db/use-db-query';
+import { downloadEpisode, downloadsAvailable, keyFor, removeDownload } from '@/downloads/downloads';
+import { useDownloadProgress } from '@/downloads/progress';
 import { htmlToText } from '@/feeds/text';
 import { duration, releaseDate, timeLeft } from '@/lib/format';
 import { playEpisode } from '@/player/controller';
@@ -55,6 +57,8 @@ export default function EpisodeScreen() {
     [episodeId],
   ).data;
 
+  const downloadProgress = useDownloadProgress(episode ? keyFor(episode) : null);
+
   if (!episode) return <Background />;
   const current = player.id === String(episode.id);
   const playing = current && player.playWhenReady;
@@ -66,6 +70,17 @@ export default function EpisodeScreen() {
     !episode.played && episode.position_s > 5
       ? timeLeft(episode.position_s, episode.duration_s)
       : '';
+
+  const downloadLabel =
+    episode.download_status === 'done'
+      ? 'Remove download'
+      : episode.download_status === 'downloading'
+        ? `Downloading ${Math.round((downloadProgress ?? 0) * 100)}% · Cancel`
+        : episode.download_status === 'queued'
+          ? 'Waiting to download · Cancel'
+          : episode.download_status === 'failed'
+            ? 'Download failed · Retry'
+            : 'Download';
 
   const share = () => {
     const url = episode.link ?? episode.enclosure_url;
@@ -148,6 +163,19 @@ export default function EpisodeScreen() {
             label={episode.starred ? 'Starred' : 'Star'}
             onPress={() => void setStarred(db, episode.id, !episode.starred)}
           />
+          {downloadsAvailable && (
+            <Action
+              icon={episode.download_status === 'done' ? 'trash' : 'download-simple'}
+              label={downloadLabel}
+              onPress={() =>
+                void (episode.download_status === 'done' ||
+                episode.download_status === 'queued' ||
+                episode.download_status === 'downloading'
+                  ? removeDownload(db, episode.id)
+                  : downloadEpisode(db, episode.id))
+              }
+            />
+          )}
           <Action icon="share-network" label="Share" onPress={share} />
         </View>
 

@@ -144,6 +144,21 @@ export async function listInProgress(db: SQLiteDatabase, limit = 50) {
   );
 }
 
+/** Downloaded and downloading episodes, newest first. */
+export async function listDownloads(db: SQLiteDatabase) {
+  return db.getAllAsync<EpisodeItem>(
+    `${EPISODE_SELECT} WHERE s.local_path IS NOT NULL OR s.download_status IN ('queued', 'downloading', 'failed')
+     ORDER BY e.pub_date DESC`,
+  );
+}
+
+/** Starred episodes, newest first. */
+export async function listStarred(db: SQLiteDatabase) {
+  return db.getAllAsync<EpisodeItem>(
+    `${EPISODE_SELECT} WHERE s.starred = 1 ORDER BY e.pub_date DESC`,
+  );
+}
+
 // --- Writes -------------------------------------------------------------------
 
 let writeQueue: Promise<unknown> = Promise.resolve();

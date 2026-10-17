@@ -41,6 +41,7 @@
         }
       ],
       "./plugins/with-release-signing",
+      "./plugins/with-picture-in-picture",
       [
         "expo-audio",
         {

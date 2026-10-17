@@ -107,6 +107,12 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
 
   download(request: DownloadRequest): void;
   cancelDownload(key: string): void;
+  /** The full-screen video screen opened or closed: rotation and picture-in-picture. */
+  setVideoScreenOpen(open: boolean): Promise<void>;
+  /** Hides or shows the system bars. */
+  setImmersive(on: boolean): Promise<void>;
+  /** Shrinks Caster to a floating video window; false where that isn't possible. */
+  enterPictureInPicture(): Promise<boolean>;
   /** Signs in to a private feed's host for playback and downloads (kept in memory only). */
   setHostAuthorization(host: string, authorization: string): void;
   deleteDownload(key: string): void;

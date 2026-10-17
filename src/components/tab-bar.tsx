@@ -156,7 +156,7 @@ export function TabsBridge({ state, navigation, position }: TabBarProps) {
 }
 
 /** Screens that cover the bar: the full player slides up over it, as in Pocket Casts. */
-const COVERING = ['/player'];
+const COVERING = ['/player', '/video'];
 const TAB_PATHS = ['/', '/up-next', '/playlists', '/discover', '/settings'];
 
 /**

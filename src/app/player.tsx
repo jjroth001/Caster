@@ -12,6 +12,7 @@ import Reanimated, {
 import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { VideoSurface } from '@modules/player-core/src/VideoSurface';
 import { Artwork } from '@/components/artwork';
 import { Background } from '@/components/background';
 import { useArtworkTint } from '@/theme/artwork-tint';
@@ -163,6 +164,8 @@ export default function PlayerScreen() {
   const art = Math.min(width - Spacing.five * 2, height * 0.36);
   const sleepLeft = player.sleepRemainingMs;
   const currentChapter = chapterAt(chapters, positionMs / 1000);
+  // A video episode shows its picture instead of the cover; tap it for full screen.
+  const showVideo = current && episode.media_type === 'video' && !!VideoSurface;
 
   const openMenu = () =>
     showSheet({
@@ -268,15 +271,28 @@ export default function PlayerScreen() {
             <IconButton icon="dots-three-vertical" label="More" onPress={openMenu} />
           </View>
 
-          <Artwork
-            uri={
-              currentChapter?.chapter.image_url ?? episode.artwork_url ?? episode.podcast_artwork
-            }
-            title={episode.podcast_title}
-            size={art}
-            radius={22}
-            style={styles.art}
-          />
+          {showVideo && VideoSurface ? (
+            <Pressable
+              onPress={() => router.push('/video')}
+              accessibilityRole="button"
+              accessibilityLabel="Watch full screen"
+              style={[styles.art, styles.video, { width: art, height: (art * 9) / 16 }]}>
+              <VideoSurface style={StyleSheet.absoluteFill} />
+              <View style={styles.videoBadge}>
+                <Icon name="corners-out" size={18} color="#fff" duotone={false} />
+              </View>
+            </Pressable>
+          ) : (
+            <Artwork
+              uri={
+                currentChapter?.chapter.image_url ?? episode.artwork_url ?? episode.podcast_artwork
+              }
+              title={episode.podcast_title}
+              size={art}
+              radius={22}
+              style={styles.art}
+            />
+          )}
 
           {currentChapter && (
             <Pressable
@@ -416,6 +432,15 @@ const styles = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: -Spacing.three },
   topTitle: { flex: 1, textAlign: 'center' },
   art: { alignSelf: 'center', marginTop: Spacing.two },
+  video: { borderRadius: Radius.large, overflow: 'hidden', backgroundColor: '#000' },
+  videoBadge: {
+    position: 'absolute',
+    right: Spacing.two,
+    bottom: Spacing.two,
+    padding: 6,
+    borderRadius: Radius.small,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
   titles: { gap: 4, marginTop: Spacing.two },
   center: { textAlign: 'center' },
   transport: {

@@ -21,6 +21,7 @@ dependencies {
   // lock screen, headset buttons and (later) Android Auto. No Google Play services.
   implementation "androidx.media3:media3-exoplayer:$media3Version"
   implementation "androidx.media3:media3-session:$media3Version"
+  implementation "androidx.media3:media3-ui:$media3Version"
   // Clips: trim to M4A, or MP4 with the cover art.
   implementation "androidx.media3:media3-transformer:$media3Version"
   implementation "androidx.media3:media3-effect:$media3Version"

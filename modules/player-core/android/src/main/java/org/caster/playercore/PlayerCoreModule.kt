@@ -224,6 +224,26 @@ class PlayerCoreModule : Module() {
 
     Function("cancelDownload") { key: String -> Downloads.cancel(context, key) }
 
+    // --- Video ---
+
+    /** The playing episode's video (see VideoSurfaceView). */
+    View(VideoSurfaceView::class) {}
+
+    /** The full-screen video screen opened or closed: rotation and picture-in-picture. */
+    AsyncFunction("setVideoScreenOpen") { open: Boolean ->
+      VideoScreen.setOpen(appContext.currentActivity, open)
+    }.runOnQueue(Queues.MAIN)
+
+    /** Hides or shows the status and navigation bars (full-screen video, sideways). */
+    AsyncFunction("setImmersive") { on: Boolean ->
+      VideoScreen.setImmersive(appContext.currentActivity, on)
+    }.runOnQueue(Queues.MAIN)
+
+    /** Shrinks Caster to a floating video window. Resolves false where that isn't possible. */
+    AsyncFunction("enterPictureInPicture") {
+      VideoScreen.enterPictureInPicture(appContext.currentActivity)
+    }.runOnQueue(Queues.MAIN)
+
     /** Signs in to a private feed's host for playback and downloads (memory only). */
     Function("setHostAuthorization") { host: String, authorization: String ->
       HostAuth.put(host, authorization)

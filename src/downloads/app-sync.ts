@@ -7,6 +7,7 @@ import { runAutoTranscribe, startAutoTranscribe } from '@/transcripts/auto';
 import { pruneUnfollowed, queueListeners } from '@/db/library';
 import { getSettings } from '@/db/settings';
 import { refreshAll } from '@/feeds/sync';
+import { runAutoBackupIfDue } from '@/lib/auto-backup';
 import { redetectTranscriptAds } from '@/transcripts/transcripts';
 
 import { processInbox, writeBackgroundConfig } from './background';
@@ -28,6 +29,7 @@ async function catchUp(db: SQLiteDatabase, { force }: { force: boolean }) {
   await enforceStorageCap(db);
   await writeBackgroundConfig(db);
   await writeAutoLibrary(db);
+  await runAutoBackupIfDue(db);
 }
 
 /**
@@ -47,6 +49,7 @@ export function startAppSync(db: SQLiteDatabase): () => void {
       void catchUp(db, { force: false }).then(() => runAutoTranscribe(db));
     }
     if (state === 'background') {
+      void runAutoBackupIfDue(db);
       void writeBackgroundConfig(db);
       void writeAutoLibrary(db);
     }

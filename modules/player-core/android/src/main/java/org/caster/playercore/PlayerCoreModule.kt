@@ -6,7 +6,10 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.os.BatteryManager
+import android.os.PowerManager
+import android.provider.Settings
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -261,6 +264,26 @@ class PlayerCoreModule : Module() {
     /** Whether the phone is charging (or full while plugged in). */
     Function("isCharging") {
       context.getSystemService(BatteryManager::class.java)?.isCharging ?: false
+    }
+
+    /** Whether Android's battery saving leaves Caster's background work alone. */
+    Function("isIgnoringBatteryOptimizations") {
+      context.getSystemService(PowerManager::class.java)
+        ?.isIgnoringBatteryOptimizations(context.packageName) ?: true
+    }
+
+    /**
+     * Asks Android to let Caster run in the background (a system dialog with Allow / Deny);
+     * falls back to the battery optimisation list where that dialog isn't available.
+     */
+    Function("requestIgnoreBatteryOptimizations") {
+      val ask = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+        .setData(Uri.parse("package:${context.packageName}"))
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      val list = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      runCatching { context.startActivity(ask) }.recoverCatching { context.startActivity(list) }
+      Unit
     }
 
     /** Converts a downloaded episode to 16 kHz mono WAV for whisper.cpp; resolves with its path. */

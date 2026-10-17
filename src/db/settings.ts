@@ -74,6 +74,14 @@ export type Settings = {
    * or playing, or any time (Android wakes Caster to do it while it's closed).
    */
   autoTranscribe: 'off' | 'open' | 'always';
+  /** Back up into a chosen folder automatically: never, daily or weekly. */
+  autoBackup: 'off' | 'daily' | 'weekly';
+  /** The folder automatic backups go to (an Android content:// address), and its name. */
+  autoBackupFolder: string | null;
+  autoBackupFolderName: string | null;
+  lastAutoBackupAt: number | null;
+  /** Why the last automatic backup failed, if it did. */
+  autoBackupError: string | null;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -115,6 +123,11 @@ export const DEFAULT_SETTINGS: Settings = {
   adSensitivity: 'balanced',
   speechModel: null,
   autoTranscribe: 'off',
+  autoBackup: 'off',
+  autoBackupFolder: null,
+  autoBackupFolderName: null,
+  lastAutoBackupAt: null,
+  autoBackupError: null,
 };
 
 /** All settings, with defaults filled in for anything never set. Values are stored as JSON. */

@@ -8,6 +8,9 @@
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
   <!-- New-episode alerts (asked for only when the user turns them on). -->
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <!-- Lets Caster ask (with the system's own dialog) to be left out of battery saving, so
+       background checks, downloads and transcription run on phones that stop them. -->
+  <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
   <application>
     <!-- Lets Android Auto list Caster as a media app (no Google libraries involved). -->

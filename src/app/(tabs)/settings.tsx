@@ -6,7 +6,7 @@ import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { HeadsetAction } from '@modules/player-core/src';
-import { Card } from '@/components/controls';
+import { Button, Card } from '@/components/controls';
 import { NavRow, PickerRow, RowDivider } from '@/components/picker-row';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { ScreenHeader } from '@/components/screen-header';
@@ -25,6 +25,13 @@ import {
   shareOpml,
   type ImportProgress,
 } from '@/lib/data-transfer';
+import {
+  BACKUPS_KEPT,
+  chooseBackupFolder,
+  runAutoBackupIfDue,
+  writeAutoBackup,
+} from '@/lib/auto-backup';
+import { askToRunInBackground, useBackgroundAllowed } from '@/lib/battery';
 import { releaseDate } from '@/lib/format';
 import { applyPlayerSettings } from '@/player/controller';
 import { engine } from '@/player/engine';
@@ -106,6 +113,7 @@ export default function SettingsScreen() {
   const s = useSettings().data ?? DEFAULT_SETTINGS;
   const setSetting = useSetSetting();
   const [busy, setBusy] = useState<string | null>(null);
+  const backgroundAllowed = useBackgroundAllowed();
 
   const set =
     <K extends keyof Settings>(key: K) =>
@@ -332,6 +340,16 @@ export default function SettingsScreen() {
 
       {downloadsAvailable && (
         <Section title="Downloads and updates">
+          {!backgroundAllowed && (
+            <>
+              <Row
+                label="Let Caster work in the background"
+                hint="Android’s battery saving may stop new-episode checks, downloads and transcripts while Caster is closed.">
+                <Button label="Allow" kind="secondary" onPress={askToRunInBackground} />
+              </Row>
+              <RowDivider />
+            </>
+          )}
           <LinkRow
             icon="download-simple"
             label="Downloads"
@@ -464,6 +482,42 @@ export default function SettingsScreen() {
           hint="Everything: podcasts, progress, playlists, bookmarks, settings"
           onPress={() => void shareBackup(db)}
         />
+        <RowDivider />
+        <PickerRow
+          label="Automatic backup"
+          hint={
+            s.autoBackup === 'off'
+              ? 'Into a folder you choose, such as one Nextcloud or Syncthing keeps in sync'
+              : s.autoBackupError
+                ? s.autoBackupError
+                : s.lastAutoBackupAt
+                  ? `Last backup ${releaseDate(s.lastAutoBackupAt).toLowerCase()} · keeps the newest ${BACKUPS_KEPT}`
+                  : `Keeps the newest ${BACKUPS_KEPT}`
+          }
+          options={[
+            { value: 'off' as const, label: 'Off' },
+            { value: 'daily' as const, label: 'Daily' },
+            { value: 'weekly' as const, label: 'Weekly' },
+          ]}
+          value={s.autoBackup}
+          onChange={async (v) => {
+            if (v !== 'off' && !s.autoBackupFolder && !(await chooseBackupFolder(db))) return;
+            await setSetting('autoBackup', v);
+            if (v !== 'off') await runAutoBackupIfDue(db);
+          }}
+        />
+        {s.autoBackup !== 'off' && (
+          <>
+            <RowDivider />
+            <NavRow
+              label="Backup folder"
+              value={s.autoBackupFolderName ?? 'Choose'}
+              onPress={async () => {
+                if (await chooseBackupFolder(db)) await writeAutoBackup(db);
+              }}
+            />
+          </>
+        )}
         <RowDivider />
         <LinkRow
           icon="arrow-counter-clockwise"

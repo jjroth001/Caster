@@ -67,7 +67,16 @@ export type Backup = {
 };
 
 /** Settings that describe this phone's moment, not a preference. */
-const LOCAL_SETTINGS: (keyof Settings)[] = ['nowPlaying', 'lastRefreshAt'];
+/** Settings that only mean something on this phone, so backups leave them out. */
+const LOCAL_SETTINGS: (keyof Settings)[] = [
+  'nowPlaying',
+  'lastRefreshAt',
+  'autoBackupFolder',
+  'autoBackupFolderName',
+  'lastAutoBackupAt',
+  'autoBackupError',
+  'adDetectionVersion',
+];
 
 export async function createBackup(db: SQLiteDatabase): Promise<Backup> {
   const ref = `p.feed_url AS feedUrl, e.guid AS guid`;

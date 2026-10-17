@@ -124,6 +124,10 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   setTranscribePending(count: number): void;
   /** Whether the phone is charging. */
   isCharging(): boolean;
+  /** Whether Android's battery saving leaves Caster's background work alone. */
+  isIgnoringBatteryOptimizations(): boolean;
+  /** Opens Android's "let this app run in the background?" dialog. */
+  requestIgnoreBatteryOptimizations(): void;
   /** Converts a downloaded episode to 16 kHz mono WAV for speech recognition; resolves with its path. */
   decodeForSpeech(source: string): Promise<string>;
 

@@ -91,7 +91,10 @@ export async function togglePlay(db: SQLiteDatabase) {
     else await engine.play();
     return;
   }
-  const next = await popQueue(db);
+  // Resume the episode in the player; after one has finished, move on to Up Next first.
+  const { nowPlaying } = await getSettings(db);
+  const ended = lastState?.state === 'ended';
+  const next = (ended ? null : nowPlaying) ?? (await popQueue(db)) ?? nowPlaying;
   if (next) await playEpisode(db, next);
 }
 

@@ -19,6 +19,9 @@ need a second device or a car; skip those if you can't try them.
 - [ ] Discover shows top charts; changing country or category changes them
 - [ ] OPML import from another app brings everything in; failures say why
 - [ ] OPML export opens the share sheet with a file
+- [ ] A private feed (username and password) asks to sign in, then loads; its episodes play
+      and download; a wrong password shows "Sign in" on the podcast page; unfollowing it
+      and following again asks again
 
 ## Library
 
@@ -39,6 +42,17 @@ need a second device or a car; skip those if you can't try them.
 - [ ] Sleep timer: minutes, end of episode, end of chapter; fades out at the end
 - [ ] Leaving the app, locking the phone and coming back keeps playing and keeps the place
 - [ ] After closing Caster completely, it reopens at the same episode and position
+
+## Video
+
+- [ ] A video episode shows its picture in the player instead of the cover
+- [ ] Tapping it opens full screen; turning the phone sideways fills the screen and hides
+      the bars; the rest of Caster stays upright afterwards
+- [ ] Tap shows and hides the controls; play, pause and skip work
+- [ ] The floating-window button, and pressing Home while it plays, shrink it to a small
+      window; tapping that window brings Caster back
+- [ ] Closing full screen keeps it playing; leaving Caster from the normal player keeps the
+      sound going
 
 ## Chapters, transcripts and bookmarks
 
@@ -89,6 +103,8 @@ need a second device or a car; skip those if you can't try them.
 - [ ] New-episode check runs with the app closed (leave it a few hours)
 - [ ] New-episode notifications, one per podcast
 - [ ] After restarting the phone, background checks and downloads still happen
+- [ ] Settings shows "Let Caster work in the background" until you tap Allow in Android's
+      dialog, then hides it
 
 ## Android Auto (needs a car or the desktop head unit)
 
@@ -105,6 +121,8 @@ need a second device or a car; skip those if you can't try them.
 ## Your data
 
 - [ ] Backup to a file; restore it on a fresh install; positions and bookmarks come back
+- [ ] Automatic backup: choose a folder, a backup appears there; Settings shows when; after
+      more than seven, the oldest are removed
 - [ ] Stats show listening time and time saved
 
 ## Expo Go (developer check only)

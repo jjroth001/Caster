@@ -7,6 +7,7 @@ import { createFolder, listFolders, movePodcastToFolder } from '@/db/folders';
 import { markAllPlayed, unsubscribe } from '@/db/library';
 import { addToPlaylist, createPlaylist, listPlaylists } from '@/db/playlists';
 import { refreshPodcast } from '@/feeds/sync';
+import { sharePodcast } from '@/lib/share';
 
 /** Menus shared by several screens, built on the bottom sheet. */
 
@@ -54,7 +55,14 @@ export async function chooseFolder(
 
 export function podcastMenu(
   db: SQLiteDatabase,
-  podcast: { id: number; title: string; subscribed: number; folder_id: number | null },
+  podcast: {
+    id: number;
+    title: string;
+    subscribed: number;
+    folder_id: number | null;
+    website: string | null;
+    feed_url: string;
+  },
 ) {
   showSheet({
     title: podcast.title,
@@ -69,6 +77,7 @@ export function podcastMenu(
         icon: 'arrows-clockwise',
         onPress: () => void refreshPodcast(db, podcast.id),
       },
+      { label: 'Share podcast', icon: 'share-network', onPress: () => sharePodcast(podcast) },
       ...(podcast.subscribed
         ? [
             {

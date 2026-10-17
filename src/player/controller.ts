@@ -14,9 +14,11 @@ import { getSettings, setSetting } from '@/db/settings';
 import { addBookmark, deleteBookmark } from '@/db/bookmarks';
 import { removeDownload } from '@/downloads/downloads';
 import { passageBefore } from '@/transcripts/passages';
+import { ensureTranscript } from '@/transcripts/transcripts';
 
 import { ensureChapters, saveEmbeddedChapters } from './chapters';
 import { engine, type PlayerState, type TrimSilence } from './engine';
+import { flushStats, trackSkip, trackState } from './stats';
 
 /**
  * Glue between the library and the player engine: what to load, from where, with which
@@ -70,6 +72,7 @@ type Options = {
   volumeBoost: boolean;
   skipStartS: number;
   skipEndS: number;
+  adSkip: boolean;
 };
 
 export async function optionsFor(db: SQLiteDatabase, podcastId: number): Promise<Options> {
@@ -80,6 +83,7 @@ export async function optionsFor(db: SQLiteDatabase, podcastId: number): Promise
     volumeBoost: p.volume_boost == null ? s.volumeBoost : !!p.volume_boost,
     skipStartS: p.skip_start_s ?? 0,
     skipEndS: p.skip_end_s ?? 0,
+    adSkip: p.ad_skip_enabled == null ? s.adSkip : !!p.ad_skip_enabled,
   };
 }
 
@@ -120,7 +124,7 @@ export async function applyPlayerSettings(db: SQLiteDatabase) {
 
 // --- Skip rules for the episode in the player ----------------------------------------------
 
-type Skip = { start: number; end: number; label: string; key: string };
+type Skip = { start: number; end: number; label: string; key: string; adId?: number };
 let rules: { id: number; skipEndS: number; skips: Skip[] } | null = null;
 /** Ranges the user chose to hear after all (Undo), for this listening session. */
 const heard = new Set<string>();
@@ -134,11 +138,17 @@ async function refreshRules(db: SQLiteDatabase, episodeId: number) {
     end_s: number | null;
     title: string | null;
   }>('SELECT start_s, end_s, title FROM chapter WHERE episode_id = ? AND selected = 0', episodeId);
-  const ads = await db.getAllAsync<{ start_s: number; end_s: number }>(
-    `SELECT start_s, end_s FROM ad_segment WHERE episode_id = ?
-       AND COALESCE(user_verdict, CASE WHEN confidence >= 0.8 THEN 'ad' END) = 'ad'`,
-    episodeId,
-  );
+  const settings = await getSettings(db);
+  const threshold = { cautious: 0.95, balanced: 0.8, eager: 0.6 }[settings.adSensitivity];
+  const adsOn = options.adSkip;
+  const ads = adsOn
+    ? await db.getAllAsync<{ id: number; start_s: number; end_s: number }>(
+        `SELECT id, start_s, end_s FROM ad_segment WHERE episode_id = ?
+           AND COALESCE(user_verdict, CASE WHEN confidence >= ? THEN 'ad' END) = 'ad'`,
+        episodeId,
+        threshold,
+      )
+    : [];
   const skips: Skip[] = [
     ...chapters
       .filter((c) => c.end_s != null)
@@ -153,6 +163,7 @@ async function refreshRules(db: SQLiteDatabase, episodeId: number) {
       end: a.end_s,
       label: 'Skipped ad',
       key: `a:${a.start_s}`,
+      adId: a.id,
     })),
   ];
   rules = { id: episodeId, skipEndS: options.skipEndS, skips };
@@ -185,7 +196,10 @@ export async function playEpisode(
   // Starting within the last few seconds would end it at once; start over instead.
   if (episode.duration_s && startS > episode.duration_s - 10) startS = 0;
   // Skip the intro: never start before the podcast's "skip first N seconds".
-  if (startS < options.skipStartS) startS = options.skipStartS;
+  if (startS < options.skipStartS) {
+    trackSkip(episodeId, options.skipStartS - startS);
+    startS = options.skipStartS;
+  }
   if (startAtS != null) startS = startAtS;
   if (episode.played) await setPlayed(db, episodeId, false);
   await dequeue(db, episodeId);
@@ -210,6 +224,9 @@ export async function playEpisode(
     engine.setVolumeBoost(options.volumeBoost),
   ]);
   void ensureChapters(db, episodeId).then(() => refreshRules(db, episodeId));
+  void ensureTranscript(db, episodeId).then((cues) =>
+    cues ? refreshRules(db, episodeId) : undefined,
+  );
 }
 
 /** Plays an episode from a given moment (bookmarks, transcript lines). */
@@ -289,6 +306,7 @@ function applyRules(db: SQLiteDatabase, state: PlayerState) {
   const pos = state.positionMs / 1000;
   const duration = state.durationMs ? state.durationMs / 1000 : null;
   if (duration && rules.skipEndS > 0 && pos >= duration - rules.skipEndS) {
+    if (endedFor !== state.id) trackSkip(rules.id, duration - pos);
     void onEnded(db, state.id);
     return;
   }
@@ -296,11 +314,18 @@ function applyRules(db: SQLiteDatabase, state: PlayerState) {
   if (!skip) return;
   heard.add(skip.key); // once per range, so seeking back into it on purpose works
   const target = duration ? Math.min(skip.end, duration) : skip.end;
+  trackSkip(rules.id, target - pos);
   void engine.seekTo(target * 1000);
   skipNotice.set({
     id: Date.now(),
     label: skip.label,
-    undo: () => void engine.seekTo(skip.start * 1000),
+    undo: () => {
+      void engine.seekTo(skip.start * 1000);
+      // "That wasn't an ad": remember it, so it isn't skipped next time either.
+      if (skip.adId != null) {
+        void db.runAsync("UPDATE ad_segment SET user_verdict = 'not_ad' WHERE id = ?", skip.adId);
+      }
+    },
   });
 }
 
@@ -340,7 +365,9 @@ export function startPlayerSync(db: SQLiteDatabase): () => void {
       if (rules?.id !== Number(state.id)) void refreshRules(db, Number(state.id));
     }
     applyRules(db, state);
+    trackState(state);
     const paused = prev?.playWhenReady && !state.playWhenReady;
+    void flushStats(db, !!paused);
     const moved = Math.abs(state.positionMs - lastSavedMs) >= 5000;
     // (Not on load: the first updates can report 0 before the resume position is applied.)
     if (paused || (state.playing && moved)) {

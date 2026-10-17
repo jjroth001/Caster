@@ -76,6 +76,9 @@ function Root() {
         <Stack.Screen name="downloads" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="chapters" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="bookmarks" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="transcript" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="stats" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="clip" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="folder/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="playlist/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="playlist-edit" options={{ animation: 'slide_from_right' }} />

@@ -51,3 +51,13 @@ export function releaseDate(ms: number | null | undefined, now = Date.now()): st
 export function speedLabel(speed: number): string {
   return `${Number(speed.toFixed(2))}×`;
 }
+
+/** "3 h 12 min", "45 min", "2 days 4 h". */
+export function span(seconds: number): string {
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 1) return '0 min';
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours} h ${minutes % 60} min`;
+  return `${Math.floor(hours / 24)} days ${hours % 24} h`;
+}

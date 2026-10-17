@@ -5,7 +5,8 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { feedList } from '@/db/library';
 import { parseOpml, toOpml } from '@/feeds/opml';
-import { subscribeToFeed } from '@/feeds/sync';
+import { createBackup, parseBackup, restoreBackup, type RestoreProgress } from '@/db/backup';
+import { openFeed, subscribeToFeed } from '@/feeds/sync';
 
 /** Writes `contents` to a cache file and opens Android's share sheet (Drive, email, Files…). */
 async function shareFile(name: string, contents: string, mimeType: string, dialogTitle: string) {
@@ -74,4 +75,29 @@ export async function importOpml(
   };
   await Promise.all(Array.from({ length: Math.min(4, feeds.length) }, worker));
   return progress;
+}
+
+export async function shareBackup(db: SQLiteDatabase) {
+  const backup = await createBackup(db);
+  const date = new Date().toISOString().slice(0, 10);
+  await shareFile(
+    `caster-backup-${date}.json`,
+    JSON.stringify(backup),
+    'application/json',
+    'Save Caster backup',
+  );
+}
+
+/** Lets the user pick a Caster backup and merges it in. Returns null if they cancel. */
+export async function restoreFromFile(
+  db: SQLiteDatabase,
+  onProgress: (p: RestoreProgress) => void,
+) {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: ['application/json', 'text/plain', 'application/octet-stream'],
+    copyToCacheDirectory: true,
+  });
+  if (result.canceled) return null;
+  const backup = parseBackup(await readPickedFile(result.assets[0].uri));
+  return restoreBackup(db, backup, (url) => openFeed(db, url), onProgress);
 }

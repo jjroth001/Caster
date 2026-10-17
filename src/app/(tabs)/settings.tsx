@@ -16,7 +16,13 @@ import { useSetSetting, useSettings } from '@/db/use-settings';
 import { requestNotificationPermission, writeBackgroundConfig } from '@/downloads/background';
 import { autoDownloadNew, downloadsAvailable, enforceStorageCap } from '@/downloads/downloads';
 import { refreshAll } from '@/feeds/sync';
-import { importOpml, shareOpml, type ImportProgress } from '@/lib/data-transfer';
+import {
+  importOpml,
+  restoreFromFile,
+  shareBackup,
+  shareOpml,
+  type ImportProgress,
+} from '@/lib/data-transfer';
 import { releaseDate } from '@/lib/format';
 import { applyPlayerSettings } from '@/player/controller';
 import { engine } from '@/player/engine';
@@ -165,6 +171,28 @@ export default function SettingsScreen() {
     }
   };
 
+  const runRestore = async () => {
+    setBusy('Restoring…');
+    try {
+      const result = await restoreFromFile(db, (p) =>
+        setBusy(`${p.step}: ${p.done} of ${p.total}…`),
+      );
+      if (result) {
+        Alert.alert(
+          'Restore finished',
+          `${result.podcasts} podcast${result.podcasts === 1 ? '' : 's'} restored.` +
+            (result.failed.length
+              ? `\n\nCouldn’t load: ${result.failed.slice(0, 6).join(', ')}`
+              : ''),
+        );
+      }
+    } catch (e) {
+      Alert.alert('Restore failed', e instanceof Error ? e.message : 'Something went wrong.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const runRefresh = async () => {
     setBusy('Checking for new episodes…');
     try {
@@ -277,6 +305,23 @@ export default function SettingsScreen() {
             thumbColor={theme.dark ? '#ddd' : '#fff'}
           />
         </Row>
+        {s.adSkip && (
+          <>
+            <Row
+              label="Ad detection"
+              hint="How sure Caster must be before skipping an ad read from a transcript"
+            />
+            <Choices
+              options={[
+                { value: 'cautious', label: 'Cautious' },
+                { value: 'balanced', label: 'Balanced' },
+                { value: 'eager', label: 'Eager' },
+              ]}
+              value={s.adSensitivity}
+              onChange={set('adSensitivity')}
+            />
+          </>
+        )}
         <Row label="Smart bookmarks" hint="With a transcript, bookmarks keep what was just said">
           <Switch
             value={s.smartBookmarks}
@@ -405,6 +450,24 @@ export default function SettingsScreen() {
               : undefined
           }
           onPress={runRefresh}
+        />
+        <LinkRow
+          icon="export"
+          label="Back up now"
+          hint="Everything: podcasts, progress, playlists, bookmarks, settings"
+          onPress={() => void shareBackup(db)}
+        />
+        <LinkRow
+          icon="arrow-counter-clockwise"
+          label="Restore from a backup"
+          hint="Merges in a Caster backup; nothing here is lost"
+          onPress={runRestore}
+        />
+        <LinkRow
+          icon="chart-bar"
+          label="Listening stats"
+          hint="Time listened and time saved"
+          onPress={() => router.push('/stats')}
         />
         <LinkRow
           icon="download-simple"

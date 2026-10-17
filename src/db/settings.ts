@@ -44,6 +44,8 @@ export type Settings = {
   upNextShuffle: boolean;
   /** Bookmarks keep the transcript passage before them and take a title from it. */
   smartBookmarks: boolean;
+  /** How sure transcript ad detection must be before skipping: cautious, balanced or eager. */
+  adSensitivity: 'cautious' | 'balanced' | 'eager';
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -73,6 +75,7 @@ export const DEFAULT_SETTINGS: Settings = {
   headsetTriple: 'skipBack',
   upNextShuffle: false,
   smartBookmarks: true,
+  adSensitivity: 'balanced',
 };
 
 /** All settings, with defaults filled in for anything never set. Values are stored as JSON. */

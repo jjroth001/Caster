@@ -17,6 +17,8 @@ import { DEFAULT_SETTINGS } from '@/db/settings';
 import { useDbQuery } from '@/db/use-db-query';
 import { useSettings } from '@/db/use-settings';
 import { clock, speedLabel } from '@/lib/format';
+import { chooseManualPlaylist } from '@/lib/library-actions';
+import { shareEpisode, shareEpisodeAt } from '@/lib/share';
 import { chapterAt, listChapters } from '@/player/chapters';
 import {
   bookmarkNow,
@@ -96,6 +98,20 @@ export default function PlayerScreen() {
       episode?.id,
     ]).data ?? [];
 
+  const ads =
+    useDbQuery(
+      ['ad_segment'],
+      async (d) =>
+        episode
+          ? d.getAllAsync<{ start_s: number; end_s: number }>(
+              `SELECT start_s, end_s FROM ad_segment WHERE episode_id = ?
+                 AND COALESCE(user_verdict, 'ad') = 'ad'`,
+              episode.id,
+            )
+          : [],
+      [episode?.id],
+    ).data ?? [];
+
   if (!episode) return <Background />;
 
   const current = player.id === String(episode.id);
@@ -107,6 +123,37 @@ export default function PlayerScreen() {
   const art = Math.min(width - Spacing.five * 2, height * 0.4);
   const sleepLeft = player.sleepRemainingMs;
   const currentChapter = chapterAt(chapters, positionMs / 1000);
+
+  const openMenu = () =>
+    showSheet({
+      title: episode.title,
+      options: [
+        {
+          label: 'Episode details',
+          icon: 'info',
+          onPress: () => router.push(`/episode/${episode.id}`),
+        },
+        { label: 'Chapters', icon: 'list', onPress: () => router.push('/chapters') },
+        { label: 'Transcript', icon: 'file-text', onPress: () => router.push('/transcript') },
+        { label: 'Share episode', icon: 'share-network', onPress: () => shareEpisode(episode) },
+        {
+          label: `Share from ${clock(positionMs)}`,
+          icon: 'link',
+          onPress: () => shareEpisodeAt(episode, positionMs / 1000, clock(positionMs)),
+        },
+        { label: 'Make a clip', icon: 'scissors', onPress: () => router.push('/clip') },
+        {
+          label: 'Add to playlist',
+          icon: 'playlist',
+          onPress: () => void chooseManualPlaylist(db, episode.id),
+        },
+        {
+          label: 'Go to podcast',
+          icon: 'squares-four',
+          onPress: () => router.push(`/podcast/${episode.podcast_id}`),
+        },
+      ],
+    });
 
   const chooseSpeed = () =>
     showSheet({
@@ -181,11 +228,7 @@ export default function PlayerScreen() {
           <Txt variant="meta" secondary style={styles.topTitle}>
             Now playing
           </Txt>
-          <IconButton
-            icon="dots-three-vertical"
-            label="Episode details"
-            onPress={() => router.push(`/episode/${episode.id}`)}
-          />
+          <IconButton icon="dots-three-vertical" label="More" onPress={openMenu} />
         </View>
 
         <Artwork
@@ -227,9 +270,12 @@ export default function PlayerScreen() {
           durationMs={durationMs}
           bufferedMs={current ? player.bufferedMs : 0}
           marks={chapters.map((c) => c.start_s * 1000)}
-          bands={chapters
-            .filter((c) => !c.selected && c.end_s != null)
-            .map((c) => ({ startMs: c.start_s * 1000, endMs: c.end_s! * 1000 }))}
+          bands={[
+            ...chapters
+              .filter((c) => !c.selected && c.end_s != null)
+              .map((c) => ({ startMs: c.start_s * 1000, endMs: c.end_s! * 1000 })),
+            ...ads.map((a) => ({ startMs: a.start_s * 1000, endMs: a.end_s * 1000 })),
+          ]}
           onSeek={(ms) => void engine.seekTo(ms)}
         />
 

@@ -11,7 +11,7 @@
       "package": "org.caster.app",
       "versionCode": 2,
       "adaptiveIcon": {
-        "backgroundColor": "#1F2B52",
+        "backgroundColor": "#5B5EF1",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -35,7 +35,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#1F2B52",
+          "backgroundColor": "#5B5EF1",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200
         }

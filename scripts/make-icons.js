@@ -1,6 +1,7 @@
 /**
  * Generates Caster's app icon, adaptive-icon layers, monochrome (themed) icon, splash image
- * and favicon from one SVG drawing: a "C" sending out sound waves.
+ * and favicon from one SVG drawing: a white wizard hat with a star cut out of it, on a
+ * blue-to-purple gradient.
  *
  *   npm install --no-save @resvg/resvg-js@2.6.2
  *   node scripts/make-icons.js assets/images [--preview]
@@ -11,41 +12,47 @@ const { Resvg } = require('@resvg/resvg-js');
 const fs = require('fs');
 const path = require('path');
 
-const NIGHT = '#1F2B52';
-const APRICOT = '#F2B880';
-const CREAM = '#F4F1EC';
+const BLUE = '#3B82F6';
+const PURPLE = '#7C3AED';
 
-const CX = 434; // centres the drawing's bounding box
-const CY = 512;
-const point = (r, deg) => {
-  const a = (deg * Math.PI) / 180;
-  return `${(CX + r * Math.cos(a)).toFixed(1)} ${(CY + r * Math.sin(a)).toFixed(1)}`;
+const star = (x, y, r, rot = -18) => {
+  const p = [];
+  for (let i = 0; i < 10; i++) {
+    const a = ((rot + i * 36 - 90) * Math.PI) / 180;
+    const rr = i % 2 ? r * 0.45 : r;
+    p.push(`${(x + rr * Math.cos(a)).toFixed(1)},${(y + rr * Math.sin(a)).toFixed(1)}`);
+  }
+  return `<polygon points="${p.join(' ')}" stroke-linejoin="round"/>`;
 };
-/** An arc around the centre from `from`° to `to`° (clockwise, 0° = right). */
-const arc = (r, from, to) =>
-  `M ${point(r, from)} A ${r} ${r} 0 ${to - from > 180 ? 1 : 0} 1 ${point(r, to)}`;
+const sparkle = (x, y, s) =>
+  `M ${x} ${y - s} Q ${x} ${y} ${x + s} ${y} Q ${x} ${y} ${x} ${y + s} Q ${x} ${y} ${x - s} ${y} Q ${x} ${y} ${x} ${y - s} Z`;
 
-/** Centred in a 1024 box, scaled to fit Android's adaptive-icon safe circle (66 of 108 dp). */
-function art(c, wave) {
-  return `<g transform="translate(512 512) scale(0.94) translate(-512 -512)"><g fill="none" stroke-linecap="round">
-    <path d="${arc(200, 42, 318)}" stroke="${c}" stroke-width="96"/>
-    <path d="${arc(296, -26, 26)}" stroke="${wave}" stroke-width="54"/>
-    <path d="${arc(378, -22, 22)}" stroke="${wave}" stroke-width="54" opacity="0.7"/>
-  </g>
-  <circle cx="${CX}" cy="${CY}" r="50" fill="${wave}"/></g>`;
+const HAT = 'M 296 700 C 380 520 440 360 474 256 C 492 204 560 186 650 232 C 596 232 572 262 576 304 C 590 430 654 570 728 700 Z';
+
+/** The hat, brim and sparkles in one colour; scaled to fit the adaptive-icon safe circle. */
+function art(color) {
+  return `<defs><mask id="cut"><rect width="1024" height="1024" fill="white"/><g fill="black">${star(520, 520, 64)}</g></mask></defs>
+  <g transform="translate(512 512) scale(0.78) translate(-525 -462)" fill="${color}">
+    <path d="${HAT}" mask="url(#cut)"/>
+    <rect x="236" y="676" width="552" height="62" rx="31"/>
+    <path d="${sparkle(724, 230, 34)}"/>
+    <path d="${sparkle(780, 316, 16)}" opacity="0.7"/>
+  </g>`;
 }
 
-const svg = (body, bg) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">${
-    bg ? `<rect width="1024" height="1024" fill="${bg}"/>` : ''
-  }${body}</svg>`;
+const gradient = `<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+  <stop offset="0" stop-color="${BLUE}"/><stop offset="1" stop-color="${PURPLE}"/></linearGradient></defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>`;
+
+const svg = (body) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">${body}</svg>`;
 
 const files = {
-  'icon.png': svg(art(APRICOT, CREAM), NIGHT),
-  'android-icon-foreground.png': svg(art(APRICOT, CREAM)),
-  'android-icon-background.png': svg('', NIGHT),
-  'android-icon-monochrome.png': svg(art('#FFFFFF', '#FFFFFF')),
-  'splash-icon.png': svg(art(APRICOT, CREAM)),
+  'icon.png': svg(gradient + art('#FFFFFF')),
+  'android-icon-foreground.png': svg(art('#FFFFFF')),
+  'android-icon-background.png': svg(gradient),
+  'android-icon-monochrome.png': svg(art('#FFFFFF')),
+  'splash-icon.png': svg(art('#FFFFFF')),
 };
 
 const out = process.argv[2];
@@ -55,16 +62,15 @@ for (const [name, s] of Object.entries(files)) fs.writeFileSync(path.join(out, n
 fs.writeFileSync(path.join(out, 'favicon.png'), render(files['icon.png'], 48));
 
 if (process.argv.includes('--preview')) {
-  const fg = art(APRICOT, CREAM);
-  const preview = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420">
-    <rect width="1200" height="420" fill="#ECECEC"/><rect x="600" width="600" height="420" fill="#111"/>
-    <defs><clipPath id="c"><circle cx="512" cy="512" r="512"/></clipPath>
-      <clipPath id="r"><rect width="1024" height="1024" rx="230"/></clipPath></defs>
-    <g transform="translate(40,60) scale(0.29)"><g clip-path="url(#c)"><rect width="1024" height="1024" fill="${NIGHT}"/>${fg}</g></g>
-    <g transform="translate(360,60) scale(0.29)"><g clip-path="url(#r)"><rect width="1024" height="1024" fill="${NIGHT}"/>${fg}</g></g>
-    <g transform="translate(80,360) scale(0.047)"><g clip-path="url(#c)"><rect width="1024" height="1024" fill="${NIGHT}"/>${fg}</g></g>
-    <g transform="translate(680,60) scale(0.29)"><g clip-path="url(#c)"><rect width="1024" height="1024" fill="${NIGHT}"/>${fg}</g></g>
-    <g transform="translate(960,90) scale(0.2)"><rect width="1024" height="1024" fill="#333"/>${art('#FFFFFF', '#FFFFFF')}</g>
+  // Launchers show the middle 72 of the 108 dp canvas: circle and rounded-square masks.
+  const inner = (gradient + art('#FFFFFF')).replace(/id="(\w+)"/g, 'id="$1X"').replace(/url\(#(\w+)\)/g, 'url(#$1X)');
+  const crop = (x, y, scale, clip) =>
+    `<g transform="translate(${x} ${y}) scale(${scale}) translate(-171 -171)"><g clip-path="url(#${clip})">${inner}</g></g>`;
+  const preview = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="360">
+    <rect width="1000" height="360" fill="#ECECEC"/><rect x="500" width="500" height="360" fill="#111"/>
+    <defs><clipPath id="c"><circle cx="512" cy="512" r="341"/></clipPath>
+      <clipPath id="r"><rect x="171" y="171" width="682" height="682" rx="150"/></clipPath></defs>
+    ${crop(40, 40, 0.4, 'c')}${crop(300, 40, 0.4, 'r')}${crop(560, 40, 0.4, 'c')}${crop(820, 120, 0.15, 'r')}
   </svg>`;
   fs.writeFileSync(path.join(out, 'preview.png'), new Resvg(preview).render().asPng());
 }

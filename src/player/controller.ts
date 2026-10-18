@@ -7,6 +7,7 @@ import {
   getPodcastSettings,
   popQueue,
   savePosition,
+  setArchived,
   setPlayed,
   setPodcastSetting,
 } from '@/db/library';
@@ -207,6 +208,8 @@ export async function playEpisode(
   }
   if (startAtS != null) startS = startAtS;
   if (episode.played) await setPlayed(db, episodeId, false);
+  // Playing an archived episode brings it back.
+  if (episode.archived) await setArchived(db, episodeId, false);
   await dequeue(db, episodeId);
   await setSetting(db, 'nowPlaying', episodeId);
   endedFor = null;

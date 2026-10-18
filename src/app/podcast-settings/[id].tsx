@@ -14,6 +14,7 @@ import {
   setPodcastSetting,
   type PodcastSettings,
 } from '@/db/library';
+import { ARCHIVE_INACTIVE_OPTIONS, ARCHIVE_PLAYED_OPTIONS, runAutoArchive } from '@/db/archive';
 import { DEFAULT_SETTINGS } from '@/db/settings';
 import { useDbQuery } from '@/db/use-db-query';
 import { useSetSetting, useSettings } from '@/db/use-settings';
@@ -201,6 +202,36 @@ export default function PodcastSettingsScreen() {
             ]}
             value={own.notify}
             onChange={set('notify')}
+          />
+          <Setting
+            label="Archive played episodes"
+            options={[
+              {
+                value: null,
+                label: def(
+                  ARCHIVE_PLAYED_OPTIONS.find((o) => o.value === global.autoArchivePlayed)?.label ??
+                    'Never',
+                ),
+              },
+              ...ARCHIVE_PLAYED_OPTIONS,
+            ]}
+            value={own.archive_played_h}
+            onChange={(v) => void set('archive_played_h')(v).then(() => runAutoArchive(db))}
+          />
+          <Setting
+            label="Archive unstarted episodes"
+            options={[
+              {
+                value: null,
+                label: def(
+                  ARCHIVE_INACTIVE_OPTIONS.find((o) => o.value === global.autoArchiveInactive)
+                    ?.label ?? 'Never',
+                ),
+              },
+              ...ARCHIVE_INACTIVE_OPTIONS,
+            ]}
+            value={own.archive_inactive_h}
+            onChange={(v) => void set('archive_inactive_h')(v).then(() => runAutoArchive(db))}
           />
           <Setting
             label="Episode order"

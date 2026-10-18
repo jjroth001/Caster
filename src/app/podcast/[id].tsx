@@ -43,6 +43,7 @@ export default function PodcastScreen() {
   ]).data;
   const order: 'newest' | 'oldest' = own?.episode_sort === 'oldest' ? 'oldest' : 'newest';
   const [expanded, setExpanded] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const podcast = useDbQuery(
     ['podcast', 'episode', 'episode_state'],
@@ -65,6 +66,8 @@ export default function PodcastScreen() {
   const cards = theme.name !== 'paper';
 
   const menu = () => podcastMenu(db, podcast);
+  const archivedCount = (episodes ?? []).filter((e) => e.archived).length;
+  const shown = showArchived ? (episodes ?? []) : (episodes ?? []).filter((e) => !e.archived);
 
   const header = (
     <View>
@@ -153,7 +156,7 @@ export default function PodcastScreen() {
       )}
       <View style={styles.listHeader}>
         <Txt variant="bodyBold">
-          {podcast.new_count ? `${podcast.new_count} new` : `${episodes?.length ?? 0} episodes`}
+          {podcast.new_count ? `${podcast.new_count} new` : `${shown.length} episodes`}
         </Txt>
         <Pressable
           onPress={() =>
@@ -178,10 +181,24 @@ export default function PodcastScreen() {
     <View style={styles.flex}>
       <Background tint={tint} />
       <FlatList
-        data={episodes ?? []}
+        data={shown}
         keyExtractor={(e) => String(e.id)}
         renderItem={({ item }) => <EpisodeRow episode={item} cards={cards} />}
         ListHeaderComponent={header}
+        ListFooterComponent={
+          archivedCount > 0 ? (
+            <Pressable
+              onPress={() => setShowArchived((v) => !v)}
+              accessibilityRole="button"
+              style={styles.archivedToggle}>
+              <Txt variant="smallBold" color={theme.accent}>
+                {showArchived
+                  ? 'Hide archived episodes'
+                  : `Show ${archivedCount} archived episode${archivedCount === 1 ? '' : 's'}`}
+              </Txt>
+            </Pressable>
+          ) : null
+        }
         contentContainerStyle={{ paddingBottom: tabSpace + Spacing.two }}
         initialNumToRender={12}
         windowSize={11}
@@ -221,6 +238,7 @@ const styles = StyleSheet.create({
   follow: { marginTop: Spacing.two },
   description: { marginHorizontal: Spacing.four, marginTop: Spacing.three },
   signIn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  archivedToggle: { alignItems: 'center', paddingVertical: Spacing.four },
   signInText: { flex: 1 },
   listHeader: {
     flexDirection: 'row',

@@ -45,7 +45,7 @@ const CATEGORIES: Category[] = [
   {
     icon: 'download-simple',
     label: 'Downloads & storage',
-    hint: 'Auto-download, storage limit',
+    hint: 'Auto-download, storage limit, archiving',
     href: '/settings/downloads',
     show: downloadsAvailable,
   },

@@ -169,6 +169,11 @@ export const MIGRATIONS: string[] = [
   `
   ALTER TABLE episode_state ADD COLUMN auto_downloaded INTEGER NOT NULL DEFAULT 0;
   `,
+  // 4: a podcast's own auto-archive rules (hours; -1 never; null follows Settings).
+  `
+  ALTER TABLE podcast_settings ADD COLUMN archive_played_h INTEGER;
+  ALTER TABLE podcast_settings ADD COLUMN archive_inactive_h INTEGER;
+  `,
 ];
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {

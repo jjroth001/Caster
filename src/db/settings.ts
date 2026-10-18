@@ -59,6 +59,12 @@ export type Settings = {
   downloadChargingOnly: boolean;
   /** Automatic downloads wait while the phone is low on storage. */
   downloadStorageNotLow: boolean;
+  /** Archive played episodes this many hours after they finish (-1: never). */
+  autoArchivePlayed: number;
+  /** Archive episodes never started once they're this many hours old (-1: never). */
+  autoArchiveInactive: number;
+  /** Auto-archive starred episodes too. */
+  autoArchiveStarred: boolean;
   /** Keep downloads under this many GB by removing played ones, oldest first (0: no limit). */
   storageCapGb: number;
   deletePlayedDownloads: boolean;
@@ -123,6 +129,9 @@ export const DEFAULT_SETTINGS: Settings = {
   downloadWifiOnly: true,
   downloadChargingOnly: false,
   downloadStorageNotLow: true,
+  autoArchivePlayed: -1,
+  autoArchiveInactive: -1,
+  autoArchiveStarred: false,
   storageCapGb: 0,
   deletePlayedDownloads: false,
   adSkip: true,

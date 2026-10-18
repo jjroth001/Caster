@@ -421,6 +421,8 @@ export type PodcastSettings = {
   skip_start_s: number | null;
   skip_end_s: number | null;
   auto_download_n: number | null;
+  archive_played_h: number | null;
+  archive_inactive_h: number | null;
   notify: number | null;
   ad_skip_enabled: number | null;
   episode_sort: string | null;
@@ -433,6 +435,8 @@ const EMPTY_PODCAST_SETTINGS: PodcastSettings = {
   skip_start_s: null,
   skip_end_s: null,
   auto_download_n: null,
+  archive_played_h: null,
+  archive_inactive_h: null,
   notify: null,
   ad_skip_enabled: null,
   episode_sort: null,

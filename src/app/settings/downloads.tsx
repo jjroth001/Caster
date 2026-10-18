@@ -9,6 +9,7 @@ import {
   Toggle,
   useSettingsEditor,
 } from '@/components/settings-ui';
+import { ARCHIVE_INACTIVE_OPTIONS, ARCHIVE_PLAYED_OPTIONS, runAutoArchive } from '@/db/archive';
 import { enforceStorageCap } from '@/downloads/downloads';
 
 export default function DownloadSettings() {
@@ -58,6 +59,36 @@ export default function DownloadSettings() {
         <RowDivider />
         <Row label="Delete after playing" hint="Remove a download once you finish the episode">
           <Toggle value={s.deletePlayedDownloads} onChange={set('deletePlayedDownloads')} />
+        </Row>
+      </Section>
+
+      <Section title="Auto-archive">
+        <PickerRow
+          label="Played episodes"
+          hint="Archived episodes leave the podcast’s list; playing one brings it back"
+          options={ARCHIVE_PLAYED_OPTIONS}
+          value={s.autoArchivePlayed}
+          onChange={async (v) => {
+            await setSetting('autoArchivePlayed', v);
+            await runAutoArchive(db);
+          }}
+        />
+        <RowDivider />
+        <PickerRow
+          label="Episodes you haven’t started"
+          hint="Once they’re this old"
+          options={ARCHIVE_INACTIVE_OPTIONS}
+          value={s.autoArchiveInactive}
+          onChange={async (v) => {
+            await setSetting('autoArchiveInactive', v);
+            await runAutoArchive(db);
+          }}
+        />
+        <RowDivider />
+        <Row
+          label="Include starred episodes"
+          hint="Up Next, playing and downloaded episodes are never archived">
+          <Toggle value={s.autoArchiveStarred} onChange={set('autoArchiveStarred')} />
         </Row>
       </Section>
     </SettingsPage>

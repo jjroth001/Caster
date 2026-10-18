@@ -5,6 +5,7 @@ import { PlayerCore } from '@modules/player-core/src';
 import { detectRepeatedAds } from '@/ads/repeats';
 import { applyPendingState, writeAutoLibrary } from '@/auto/snapshot';
 import { runAutoTranscribe, startAutoTranscribe } from '@/transcripts/auto';
+import { runAutoArchive } from '@/db/archive';
 import { pruneUnfollowed, queueListeners } from '@/db/library';
 import { getSettings } from '@/db/settings';
 import { syncPrivateLogins } from '@/feeds/private';
@@ -29,6 +30,7 @@ async function catchUp(db: SQLiteDatabase, { force }: { force: boolean }) {
     await refreshAll(db);
   }
   await syncPrivateLogins(db);
+  await runAutoArchive(db);
   await runAutoDownloads(db);
   await enforceStorageCap(db);
   await writeBackgroundConfig(db);

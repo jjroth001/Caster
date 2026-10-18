@@ -102,6 +102,7 @@ need a second device or a car; skip those if you can't try them.
 - [ ] Wi-Fi only: with Wi-Fi off, automatic downloads wait; your own still go
 - [ ] Stop all downloads, Clear download errors
 - [ ] Storage limit and Delete after playing
+- [ ] Auto-archive (Settings → Downloads & storage): played and unstarted episodes leave the podcast's list after the chosen time; "Show archived" at the bottom brings them back; Archive / Unarchive in an episode's ⋯ menu; playing an archived one unarchives it; a podcast's own setting overrides
 
 ## Background and notifications
 

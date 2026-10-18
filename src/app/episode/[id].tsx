@@ -12,7 +12,14 @@ import { Icon, type IconName } from '@/components/icons/icon';
 import { useTabBarSpace } from '@/components/tab-bar';
 import { showSheet } from '@/components/sheet';
 import { Txt } from '@/components/text';
-import { dequeue, getEpisode, queueEpisode, setPlayed, setStarred } from '@/db/library';
+import {
+  dequeue,
+  getEpisode,
+  queueEpisode,
+  setArchived,
+  setPlayed,
+  setStarred,
+} from '@/db/library';
 import { listBookmarks } from '@/db/bookmarks';
 import { useDbQuery } from '@/db/use-db-query';
 import { downloadEpisode, downloadsAvailable, keyFor, removeDownload } from '@/downloads/downloads';
@@ -143,6 +150,12 @@ export default function EpisodeScreen() {
           label: 'Add to playlist',
           icon: 'playlist',
           onPress: () => void chooseManualPlaylist(db, episode.id),
+        },
+        {
+          label: episode.archived ? 'Unarchive' : 'Archive',
+          hint: episode.archived ? undefined : 'Hides it from the podcast’s episode list',
+          icon: 'archive',
+          onPress: () => void setArchived(db, episode.id, !episode.archived),
         },
         { label: 'Share', icon: 'share-network', onPress: share },
         {

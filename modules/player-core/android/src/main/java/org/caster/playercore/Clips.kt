@@ -40,7 +40,7 @@ internal object Clips {
     // Old clips are only needed until they've been shared.
     dir(context).listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 86_400_000 }?.forEach { it.delete() }
     val video = format != "audio" && !artworkUrl.isNullOrBlank()
-    val out = File(dir(context), "caster-clip-${System.currentTimeMillis()}.${if (video) "mp4" else "m4a"}")
+    val out = File(dir(context), "podwizard-clip-${System.currentTimeMillis()}.${if (video) "mp4" else "m4a"}")
     val clipped = MediaItem.Builder()
       .setUri(source)
       .setClippingConfiguration(

@@ -58,7 +58,7 @@ export default function NewEpisodeSettings() {
         <Section title="In the background">
           <PickerRow
             label="Check for new episodes"
-            hint="Even when Caster is closed"
+            hint="Even when Pod Wizard is closed"
             options={[
               { value: 0, label: 'Only when open' },
               { value: 1, label: 'Every hour' },
@@ -80,7 +80,7 @@ export default function NewEpisodeSettings() {
                 if (on && !(await requestNotificationPermission())) {
                   Alert.alert(
                     'Notifications are off',
-                    'Allow notifications for Caster in Android’s settings to get new-episode alerts.',
+                    'Allow notifications for Pod Wizard in Android’s settings to get new-episode alerts.',
                   );
                   return;
                 }

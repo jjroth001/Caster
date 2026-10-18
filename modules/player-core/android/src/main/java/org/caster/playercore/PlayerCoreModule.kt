@@ -242,7 +242,7 @@ class PlayerCoreModule : Module() {
       VideoScreen.setImmersive(appContext.currentActivity, on)
     }.runOnQueue(Queues.MAIN)
 
-    /** Shrinks Caster to a floating video window. Resolves false where that isn't possible. */
+    /** Shrinks Pod Wizard to a floating video window. Resolves false where that isn't possible. */
     AsyncFunction("enterPictureInPicture") {
       VideoScreen.enterPictureInPicture(appContext.currentActivity)
     }.runOnQueue(Queues.MAIN)
@@ -283,7 +283,7 @@ class PlayerCoreModule : Module() {
 
     // --- Generated transcripts ---
 
-    /** Transcribe while Caster is closed and the phone charges (or stop doing so). */
+    /** Transcribe while Pod Wizard is closed and the phone charges (or stop doing so). */
     Function("configureBackgroundTranscribe") { enabled: Boolean ->
       BackgroundTranscribe.configure(context, enabled)
     }
@@ -321,14 +321,14 @@ class PlayerCoreModule : Module() {
       context.getSystemService(BatteryManager::class.java)?.isCharging ?: false
     }
 
-    /** Whether Android's battery saving leaves Caster's background work alone. */
+    /** Whether Android's battery saving leaves Pod Wizard's background work alone. */
     Function("isIgnoringBatteryOptimizations") {
       context.getSystemService(PowerManager::class.java)
         ?.isIgnoringBatteryOptimizations(context.packageName) ?: true
     }
 
     /**
-     * Asks Android to let Caster run in the background (a system dialog with Allow / Deny);
+     * Asks Android to let Pod Wizard run in the background (a system dialog with Allow / Deny);
      * falls back to the battery optimisation list where that dialog isn't available.
      */
     Function("requestIgnoreBatteryOptimizations") {

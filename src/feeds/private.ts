@@ -31,7 +31,7 @@ export async function forgetPrivateFeed(db: SQLiteDatabase, feedUrl: string) {
 
 /**
  * Hands the player and downloader the sign-ins they need: each private feed's own host and the
- * hosts its episodes are served from. Run when Caster opens and after feeds are checked.
+ * hosts its episodes are served from. Run when Pod Wizard opens and after feeds are checked.
  */
 export async function syncPrivateLogins(db: SQLiteDatabase) {
   const { privateFeeds } = await getSettings(db);

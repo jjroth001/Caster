@@ -116,7 +116,7 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   setVideoScreenOpen(open: boolean): Promise<void>;
   /** Hides or shows the system bars. */
   setImmersive(on: boolean): Promise<void>;
-  /** Shrinks Caster to a floating video window; false where that isn't possible. */
+  /** Shrinks Pod Wizard to a floating video window; false where that isn't possible. */
   enterPictureInPicture(): Promise<boolean>;
   /** Signs in to a private feed's host for playback and downloads (kept in memory only). */
   setHostAuthorization(host: string, authorization: string): void;
@@ -133,7 +133,7 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
     format: 'audio' | 'square' | 'story';
   }): Promise<string>;
 
-  /** Transcribe while Caster is closed and the phone charges (or stop doing so). */
+  /** Transcribe while Pod Wizard is closed and the phone charges (or stop doing so). */
   configureBackgroundTranscribe(enabled: boolean): void;
   /** How many downloaded episodes are waiting for a transcript. */
   setTranscribePending(count: number): void;
@@ -150,7 +150,7 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   saveAdSample(key: string, sampleKey: string, startS: number, endS: number): boolean;
   /** Whether the phone is charging. */
   isCharging(): boolean;
-  /** Whether Android's battery saving leaves Caster's background work alone. */
+  /** Whether Android's battery saving leaves Pod Wizard's background work alone. */
   isIgnoringBatteryOptimizations(): boolean;
   /** Opens Android's "let this app run in the background?" dialog. */
   requestIgnoreBatteryOptimizations(): void;

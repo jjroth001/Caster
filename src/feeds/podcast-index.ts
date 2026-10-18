@@ -11,7 +11,7 @@ import type { DirectoryPodcast } from './apple';
  */
 
 const API = 'https://api.podcastindex.org/api/1.0';
-const USER_AGENT = 'Caster/1.0 (Android; open-source podcast player)';
+const USER_AGENT = 'PodWizard/1.0 (Android; open-source podcast player)';
 const KEY = 'podcastindex-key';
 const SECRET = 'podcastindex-secret';
 

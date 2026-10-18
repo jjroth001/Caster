@@ -6,10 +6,10 @@ import { LinkRow, Row, Section, SettingsPage } from '@/components/settings-ui';
 
 export default function AboutSettings() {
   return (
-    <SettingsPage title="About Caster">
+    <SettingsPage title="About Pod Wizard">
       <Section>
         <Row
-          label={`Caster ${Constants.expoConfig?.version ?? ''}`}
+          label={`Pod Wizard ${Constants.expoConfig?.version ?? ''}`}
           hint="Free and open source (GPL-3.0). No account, no ads, no tracking: your podcasts and listening history stay on this phone. The app talks only to podcast hosts and, for search, Apple’s public directory."
         />
         <RowDivider />

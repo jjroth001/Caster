@@ -11,7 +11,7 @@ import javax.crypto.spec.GCMParameterSpec
 
 /**
  * Encrypts small secrets (private feeds' sign-ins for the background check) with a key that
- * lives in Android's keystore and never leaves it, so the files Caster writes hold nothing
+ * lives in Android's keystore and never leaves it, so the files Pod Wizard writes hold nothing
  * readable.
  */
 internal object SecretBox {

@@ -15,7 +15,7 @@ export const MARK_CHOICES = [
 ];
 
 /**
- * Marks the stretch just heard as an ad. It snaps to anything Caster had already found there,
+ * Marks the stretch just heard as an ad. It snaps to anything Pod Wizard had already found there,
  * is always skipped from now on, and (when the episode has an audio fingerprint) becomes a
  * sample that finds the same ad in other episodes, now and in future downloads.
  */

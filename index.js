@@ -1,4 +1,4 @@
-// App entry: Expo Router, plus the task Android runs to transcribe while Caster is closed.
+// App entry: Expo Router, plus the task Android runs to transcribe while Pod Wizard is closed.
 import 'expo-router/entry';
 
 import { PlayerCore } from './modules/player-core/src';

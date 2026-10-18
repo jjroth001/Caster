@@ -82,5 +82,5 @@ export async function shareAllTranscripts(db: SQLiteDatabase) {
     )
     .join(divider);
   const date = new Date().toISOString().slice(0, 10);
-  await shareText(`caster-transcripts-${date}.txt`, text, 'text/plain');
+  await shareText(`podwizard-transcripts-${date}.txt`, text, 'text/plain');
 }

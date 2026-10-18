@@ -6,13 +6,15 @@ import { getSettings, setSetting } from '@/db/settings';
 
 /**
  * Automatic backups into a folder the user picks (Android's folder picker, so it can be a
- * synced folder such as Nextcloud or Syncthing). Runs when Caster opens or goes to the
+ * synced folder such as Nextcloud or Syncthing). Runs when Pod Wizard opens or goes to the
  * background, once a day or week; keeps the newest few and removes older ones.
  */
 
 /** How many automatic backups are kept in the folder. */
 export const BACKUPS_KEPT = 7;
-const PREFIX = 'caster-backup-';
+const PREFIX = 'podwizard-backup-';
+/** Backups made before the app was renamed; they count toward the limit and are tidied too. */
+const OLD_PREFIX = 'caster-backup-';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -30,7 +32,7 @@ export function isBackupDue(
 /** Of the files in the backup folder, the automatic backups to remove (oldest beyond the limit). */
 export function backupsToRemove(names: string[], keep = BACKUPS_KEPT): string[] {
   return names
-    .filter((n) => n.startsWith(PREFIX) && n.endsWith('.json'))
+    .filter((n) => (n.startsWith(PREFIX) || n.startsWith(OLD_PREFIX)) && n.endsWith('.json'))
     .sort()
     .reverse()
     .slice(keep);
@@ -50,7 +52,7 @@ export async function chooseBackupFolder(db: SQLiteDatabase): Promise<boolean> {
   return true;
 }
 
-/** A readable name for a picked folder ("Nextcloud/Caster" rather than a content:// address). */
+/** A readable name for a picked folder ("Nextcloud/Pod Wizard" rather than a content:// address). */
 export function folderName(uri: string): string {
   const decoded = decodeURIComponent(uri);
   const tree = decoded.split('/tree/')[1] ?? decoded;

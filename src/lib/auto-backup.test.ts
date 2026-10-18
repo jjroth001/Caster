@@ -36,6 +36,19 @@ describe('backupsToRemove', () => {
   });
 });
 
+it('tidies backups from before the rename along with new ones', () => {
+  expect(
+    backupsToRemove(
+      [
+        'caster-backup-2031-03-01.json',
+        'podwizard-backup-2031-03-03.json',
+        'caster-backup-2031-03-02.json',
+      ],
+      2,
+    ),
+  ).toEqual(['caster-backup-2031-03-01.json']);
+});
+
 describe('folderName', () => {
   it('shows the path of a picked folder', () => {
     expect(

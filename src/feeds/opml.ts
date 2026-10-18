@@ -55,7 +55,7 @@ export function toOpml(feeds: { title: string; feedUrl: string }[], now = new Da
   return `<?xml version="1.0" encoding="UTF-8"?>
 <opml version="2.0">
   <head>
-    <title>Caster subscriptions</title>
+    <title>Pod Wizard subscriptions</title>
     <dateCreated>${now.toUTCString()}</dateCreated>
   </head>
   <body>

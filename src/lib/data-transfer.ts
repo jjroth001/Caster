@@ -32,7 +32,7 @@ export async function shareOpml(db: SQLiteDatabase) {
   const feeds = await feedList(db);
   const date = new Date().toISOString().slice(0, 10);
   await shareFile(
-    `caster-subscriptions-${date}.opml`,
+    `podwizard-subscriptions-${date}.opml`,
     toOpml(feeds),
     'text/x-opml',
     'Save subscriptions',
@@ -81,14 +81,14 @@ export async function shareBackup(db: SQLiteDatabase) {
   const backup = await createBackup(db);
   const date = new Date().toISOString().slice(0, 10);
   await shareFile(
-    `caster-backup-${date}.json`,
+    `podwizard-backup-${date}.json`,
     JSON.stringify(backup),
     'application/json',
-    'Save Caster backup',
+    'Save Pod Wizard backup',
   );
 }
 
-/** Lets the user pick a Caster backup and merges it in. Returns null if they cancel. */
+/** Lets the user pick a Pod Wizard backup and merges it in. Returns null if they cancel. */
 export async function restoreFromFile(
   db: SQLiteDatabase,
   onProgress: (p: RestoreProgress) => void,

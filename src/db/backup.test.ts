@@ -29,7 +29,7 @@ describe('parseBackup', () => {
 
   it.each([
     ['not json', /valid JSON/],
-    [JSON.stringify({ hello: 'world' }), /isn’t a Caster backup/],
+    [JSON.stringify({ hello: 'world' }), /isn’t a Pod Wizard backup/],
     [JSON.stringify({ ...valid, format: 99 }), /newer version/],
     [JSON.stringify({ ...valid, episodes: undefined }), /damaged/],
     [JSON.stringify({ ...valid, podcasts: [{ title: 'x' }] }), /damaged/],

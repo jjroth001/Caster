@@ -1,4 +1,4 @@
-# Caster
+# Pod Wizard
 
 A podcast player for Android, built to be an open-source alternative to Pocket Casts.
 Every feature is free, there is no account, and nothing leaves your phone except requests
@@ -44,7 +44,7 @@ Not on the Play Store and no Google Play services: install the signed APK direct
   a folder you choose (a synced Nextcloud or Syncthing folder works); listening stats.
 - **Looks:** Paper, Dusk and Midnight themes, optional tint from the cover art.
 
-## Using Caster
+## Using Pod Wizard
 
 **Installing.** Download the APK from [Releases](../../releases) on your phone and open it.
 Android asks once to allow installs from your browser or file manager. New versions install
@@ -57,7 +57,7 @@ over the old one and keep everything.
 2. Tap an episode's play button. The mini player stays at the bottom of every screen; tap it
    for the full player, swipe down to close it.
 3. Settings → New episodes: choose how often to check, and turn on notifications if you like.
-   If Settings shows "Let Caster work in the background", tap Allow so Android doesn't stop
+   If Settings shows "Let Pod Wizard work in the background", tap Allow so Android doesn't stop
    those checks.
 
 **Good to know.**
@@ -67,11 +67,11 @@ over the old one and keep everything.
   hold a podcast to drag it (onto a folder to file it).
 - **Downloads:** download an episode for offline listening, or set up Settings → Downloads &
   storage → Auto-download.
-- **Ad skipping** works best with downloaded episodes: Caster reads transcripts and compares
+- **Ad skipping** works best with downloaded episodes: Pod Wizard reads transcripts and compares
   the audio of your downloads. Player ⋯ → Ads in this episode shows what it found.
 - **Transcripts on the phone:** Settings → Transcripts & bookmarks → pick a speech model
   (a one-time download), then make transcripts by hand or automatically while charging.
-- **Private feeds:** paste the feed; Caster asks for the username and password.
+- **Private feeds:** paste the feed; Pod Wizard asks for the username and password.
 - **Backups:** Settings → Backup & import. An automatic backup into a synced folder means a
   new phone is one restore away.
 
@@ -79,7 +79,7 @@ over the old one and keep everything.
 Play Store. In Android Auto's settings, tap the version number 10 times, then turn on
 "Unknown sources" in its developer settings.
 
-**Privacy.** No account, no ads, no analytics. Caster talks only to the podcast hosts you
+**Privacy.** No account, no ads, no analytics. Pod Wizard talks only to the podcast hosts you
 follow, Apple's public directory for search and charts, Podcast Index if you add a key, and
 Hugging Face once if you download a speech model. Everything else stays on your phone.
 

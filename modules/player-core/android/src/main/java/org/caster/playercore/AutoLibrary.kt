@@ -48,7 +48,7 @@ internal object AutoLibrary {
   private data class Node(val id: String, val title: String, val artwork: String?, val children: List<Node>, val episodes: List<String>)
 
   private var loadedAt = 0L
-  private var root: Node = Node(ROOT, "Caster", null, emptyList(), emptyList())
+  private var root: Node = Node(ROOT, "Pod Wizard", null, emptyList(), emptyList())
   private val nodes = HashMap<String, Node>()
   private val episodes = HashMap<String, Episode>()
 
@@ -89,7 +89,7 @@ internal object AutoLibrary {
       return node
     }
     val sections = json.optJSONArray("sections") ?: JSONArray()
-    root = Node(ROOT, "Caster", null, (0 until sections.length()).map { parseNode(sections.getJSONObject(it)) }, emptyList())
+    root = Node(ROOT, "Pod Wizard", null, (0 until sections.length()).map { parseNode(sections.getJSONObject(it)) }, emptyList())
     nodes[ROOT] = root
   }
 

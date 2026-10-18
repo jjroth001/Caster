@@ -45,7 +45,7 @@ function RoundButton({
 
 /**
  * The playing episode's video, full screen. The phone may turn sideways here (the rest of
- * Caster stays upright), and leaving Caster while it plays shrinks it to a floating window.
+ * Pod Wizard stays upright), and leaving Pod Wizard while it plays shrinks it to a floating window.
  * Closing it keeps the episode playing as audio.
  */
 export default function VideoScreen() {
@@ -57,7 +57,7 @@ export default function VideoScreen() {
   const [controls, setControls] = useState(true);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const landscape = width > height;
-  // In picture-in-picture Caster's window is tiny: show the video alone.
+  // In picture-in-picture Pod Wizard's window is tiny: show the video alone.
   const pip = width < 400 && height < 400;
 
   useEffect(() => {

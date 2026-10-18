@@ -133,8 +133,8 @@ function AdsList({ episode }: { episode: Episode }) {
       )}
       {data && ads.length === 0 && (
         <Txt variant="small" secondary>
-          No ads found yet. Caster looks in chapter titles, the transcript, and audio that repeats
-          in your other downloads. Missed one? Use “That was an ad” in the player’s menu.
+          No ads found yet. Pod Wizard looks in chapter titles, the transcript, and audio that
+          repeats in your other downloads. Missed one? Use “That was an ad” in the player’s menu.
         </Txt>
       )}
       {ads.map((ad, i) => (

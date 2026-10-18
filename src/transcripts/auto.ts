@@ -8,7 +8,7 @@ import { ensureTranscript } from './transcripts';
 import { cancelTranscription, generateTranscript, modelUri, SPEECH_MODELS } from './whisper';
 
 /**
- * Automatic transcripts: while the phone is charging and Caster is running (open or playing),
+ * Automatic transcripts: while the phone is charging and Pod Wizard is running (open or playing),
  * downloaded episodes without a transcript get one, newest first, one at a time. A publisher's
  * transcript is used when there is one. Unplugging stops the current episode.
  */
@@ -60,7 +60,7 @@ export async function runAutoTranscribe(db: SQLiteDatabase) {
     for (;;) {
       const settings = await getSettings(db);
       const waiting = await candidates(db);
-      // The background worker only wakes Caster when something is waiting.
+      // The background worker only wakes Pod Wizard when something is waiting.
       PlayerCore.setTranscribePending(settings.autoTranscribe === 'always' ? waiting.length : 0);
       if (settings.autoTranscribe === 'off') {
         setStatus({ state: 'off' });

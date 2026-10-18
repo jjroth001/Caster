@@ -1,14 +1,14 @@
-# Caster — Spec Sheet
+# Pod Wizard — Spec Sheet
 
 ## Overview
 
-Caster is an Android podcast player (phone and Android Auto) that matches Pocket Casts feature for feature, with every Plus and Patron feature free, no account, and nothing leaving the device. Same pattern as LibreBaby: Expo/React Native, TypeScript, local-first storage, installed directly as a signed APK. **No Google Play reliance:** no Play Store listing, and no Google Play services code anywhere in the app.
+Pod Wizard is an Android podcast player (phone and Android Auto) that matches Pocket Casts feature for feature, with every Plus and Patron feature free, no account, and nothing leaving the device. Same pattern as LibreBaby: Expo/React Native, TypeScript, local-first storage, installed directly as a signed APK. **No Google Play reliance:** no Play Store listing, and no Google Play services code anywhere in the app.
 
 **Decisions locked in:**
 
 | Area | Decision | What it means |
 | --- | --- | --- |
-| Name | Caster | Package `org.caster.app` |
+| Name | Pod Wizard (called Caster until 0.7) | Package `org.caster.app` (kept from the old name so updates install over it) |
 | Platforms | Android phone + Android Auto | No iOS, CarPlay, Wear OS, Apple Watch, web or desktop |
 | Distribution | Signed APK, sideloaded | No Play Store. F-Droid possible later, since there is no proprietary code |
 | Google Play services | None | Chromecast and the Wear OS app are dropped (both require Play services) |
@@ -18,7 +18,7 @@ Caster is an Android podcast player (phone and Android Auto) that matches Pocket
 | Ad skipping | Layers 1–4, all on-device | Intro/outro, chapter rules, repeated-audio fingerprinting, transcript classification |
 | License | GPL-3.0-or-later | |
 
-**Android Auto and sideloading.** Android Auto hides media apps that weren't installed from the Play Store. To use Caster in the car, turn on Android Auto's developer settings (tap its version number 10 times) and enable "Unknown sources". Nothing in Caster itself depends on Google code.
+**Android Auto and sideloading.** Android Auto hides media apps that weren't installed from the Play Store. To use Pod Wizard in the car, turn on Android Auto's developer settings (tap its version number 10 times) and enable "Unknown sources". Nothing in Pod Wizard itself depends on Google code.
 
 **Testing in Expo Go.** The `player-core` native module is loaded with `requireOptionalNativeModule`. In Expo Go it is missing, and the app falls back to a simple `expo-audio` player (play, pause, seek, speed) so library, queue and settings screens can still be tried there. Background playback, trim silence, volume boost, downloads in the background, Android Auto, transcription and fingerprinting need an installed APK.
 
@@ -221,12 +221,12 @@ One SQLite database, managed by Drizzle migrations. Large blobs (audio, transcri
 | Fingerprint index grows without bound | Storage | Keep fingerprints only for downloaded or recent episodes plus user-confirmed ads; prune on a schedule |
 | Background refresh killed by OEM battery savers | Missed episodes | Battery-optimization exemption prompt with an explanation; refresh on app open as a fallback |
 | Apple Search API terms or availability change | Search breaks | Podcast Index as a second provider; RSS URL entry always works |
-| Android Auto hides sideloaded apps | Caster missing in the car | Document the Android Auto "Unknown sources" developer setting in the README |
+| Android Auto hides sideloaded apps | Pod Wizard missing in the car | Document the Android Auto "Unknown sources" developer setting in the README |
 
 ## Distribution
 
-- **Name:** Caster. Keep "Pocket" and "Casts" out of the app name; say "open-source alternative to Pocket Casts" in the README only, same rule used for LibreBaby.
-- **APK:** release builds signed with Caster's own key, installed directly. No Play Store listing and no Google Play services libraries. The player service declares the foreground service type `mediaPlayback`.
+- **Name:** Pod Wizard (first called Caster, renamed because other apps use that name). Keep "Pocket" and "Casts" out of the app name; say "open-source alternative to Pocket Casts" in the README only, same rule used for LibreBaby.
+- **APK:** release builds signed with Pod Wizard's own key, installed directly. No Play Store listing and no Google Play services libraries. The player service declares the foreground service type `mediaPlayback`.
 - **F-Droid (later, optional):** possible because nothing proprietary is included. Reviewers may flag the Apple search API as a non-free network service; the RSS-only and Podcast Index paths keep the app usable either way.
 - **License:** GPL-3.0-or-later. Chromaprint (LGPL-2.1), whisper.cpp (MIT) and Media3 (Apache-2.0) are compatible.
 
@@ -243,10 +243,10 @@ One SQLite database, managed by Drizzle migrations. Large blobs (audio, transcri
 9. Clip editor and export.
 
 **Progress (0.5):** steps 1–9 are built. Notes on what was built differently: repeated-audio
-detection uses Caster's own Haitsma–Kalker fingerprints (Kotlin, 32-bit codes every 16 ms)
+detection uses Pod Wizard's own Haitsma–Kalker fingerprints (Kotlin, 32-bit codes every 16 ms)
 instead of the Chromaprint library, compares each new download with the 40 most recent
 fingerprinted episodes, and keeps fingerprints after downloads are removed; transcription can run on request, automatically while
-Caster is open, or any time while charging (a WorkManager job wakes Caster headless); clip videos show the cover art without a waveform; the
+Pod Wizard is open, or any time while charging (a WorkManager job wakes Pod Wizard headless); clip videos show the cover art without a waveform; the
 clip editor uses a range bar with nudge buttons rather than a waveform; background refresh
 fetches feeds into an inbox the app saves on its next run, so only the app writes its database.
 

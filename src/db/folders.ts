@@ -89,7 +89,11 @@ export async function saveLibraryOrder(
 }
 
 /** Sets which podcasts are in a folder: these ones in, any others it had back out. */
-export async function setFolderPodcasts(db: SQLiteDatabase, folderId: number, podcastIds: number[]) {
+export async function setFolderPodcasts(
+  db: SQLiteDatabase,
+  folderId: number,
+  podcastIds: number[],
+) {
   await inTransaction(db, async () => {
     await db.runAsync('UPDATE podcast SET folder_id = NULL WHERE folder_id = ?', folderId);
     for (const id of podcastIds) {

@@ -32,7 +32,8 @@ type EpisodeStateEntry = EpisodeRef & {
 };
 
 export type Backup = {
-  app: 'Caster';
+  /** 'Caster' in backups made before the app was renamed. */
+  app: 'Pod Wizard' | 'Caster';
   format: number;
   exportedAt: number;
   podcasts: {
@@ -150,7 +151,7 @@ export async function createBackup(db: SQLiteDatabase): Promise<Backup> {
     Object.entries(settings).filter(([k]) => !LOCAL_SETTINGS.includes(k as keyof Settings)),
   ) as Partial<Settings>;
   return {
-    app: 'Caster',
+    app: 'Pod Wizard',
     format: BACKUP_FORMAT,
     exportedAt: Date.now(),
     podcasts: podcastEntries,
@@ -174,9 +175,10 @@ export function parseBackup(text: string): Backup {
     throw new Error('This file isn’t valid JSON.');
   }
   const b = data as Partial<Backup>;
-  if (!b || b.app !== 'Caster') throw new Error('This file isn’t a Caster backup.');
+  if (!b || (b.app !== 'Pod Wizard' && b.app !== 'Caster'))
+    throw new Error('This file isn’t a Pod Wizard backup.');
   if (typeof b.format !== 'number' || b.format > BACKUP_FORMAT) {
-    throw new Error('This backup was made by a newer version of Caster. Update the app first.');
+    throw new Error('This backup was made by a newer version of Pod Wizard. Update the app first.');
   }
   const arrays = [
     'podcasts',

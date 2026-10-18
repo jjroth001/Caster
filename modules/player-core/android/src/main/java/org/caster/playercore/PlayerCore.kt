@@ -53,7 +53,7 @@ interface PlayerCoreListener {
  * notification, headset buttons) and [PlayerCoreModule] (the JS API). Main thread only.
  */
 object PlayerCore {
-  private const val USER_AGENT = "Caster/1.0 (Android; open-source podcast player)"
+  private const val USER_AGENT = "PodWizard/1.0 (Android; open-source podcast player)"
   private const val BOOST_GAIN_MB = 800 // +8 dB; LoudnessEnhancer limits peaks itself.
 
   private var exo: ExoPlayer? = null

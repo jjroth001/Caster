@@ -127,7 +127,7 @@ export default function BackupSettings() {
         <LinkRow
           icon="arrow-counter-clockwise"
           label="Restore from a backup"
-          hint="Merges in a Caster backup; nothing here is lost"
+          hint="Merges in a Pod Wizard backup; nothing here is lost"
           onPress={() => void runRestore()}
         />
       </Section>

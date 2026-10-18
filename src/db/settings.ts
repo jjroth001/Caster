@@ -91,8 +91,8 @@ export type Settings = {
   /** The whisper.cpp model used for generated transcripts (null: none chosen). */
   speechModel: string | null;
   /**
-   * Transcribe downloaded episodes automatically while charging: never, while Caster is open
-   * or playing, or any time (Android wakes Caster to do it while it's closed).
+   * Transcribe downloaded episodes automatically while charging: never, while Pod Wizard is open
+   * or playing, or any time (Android wakes Pod Wizard to do it while it's closed).
    */
   autoTranscribe: 'off' | 'open' | 'always';
   /** Back up into a chosen folder automatically: never, daily or weekly. */

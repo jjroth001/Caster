@@ -34,7 +34,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 const count = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${n} ${many}`);
 
-/** Everything Caster downloads by itself, and when it's allowed to. */
+/** Everything Pod Wizard downloads by itself, and when it's allowed to. */
 export default function AutoDownloadScreen() {
   const db = useSQLiteContext();
   const theme = useTheme();

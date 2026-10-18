@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Caster",
-    "slug": "Caster",
+    "name": "Pod Wizard",
+    "slug": "PodWizard",
     "version": "0.6.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "caster",
+    "scheme": "podwizard",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "org.caster.app",

@@ -56,7 +56,7 @@ export default function StatsScreen() {
           </Txt>
           <Txt variant="title">{span(stats?.listened ?? 0)}</Txt>
           <Txt variant="small" secondary>
-            Caster saved you {span(saved)}
+            Pod Wizard saved you {span(saved)}
           </Txt>
           <View style={styles.savedRows}>
             {[

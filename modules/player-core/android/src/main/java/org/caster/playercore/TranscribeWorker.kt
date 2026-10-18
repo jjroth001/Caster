@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit
 const val TRANSCRIBE_TASK_KEY = "CasterTranscribe"
 
 /**
- * Work on downloads while Caster is closed: transcripts (if you chose "any time") and audio
+ * Work on downloads while Pod Wizard is closed: transcripts (if you chose "any time") and audio
  * fingerprints for repeated-ad detection. WorkManager wakes this while the phone is charging,
  * it shows a quiet notification (Android requires one), starts React Native without the app's
  * screen and runs the app's task until it's done or the phone is unplugged. The app keeps
@@ -73,7 +73,7 @@ internal object BackgroundTranscribe {
   fun notification(context: Context): Notification {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       val channel = NotificationChannel(CHANNEL, "Getting episodes ready", NotificationManager.IMPORTANCE_MIN)
-      channel.description = "Shown while Caster makes transcripts and finds ads in downloads as the phone charges"
+      channel.description = "Shown while Pod Wizard makes transcripts and finds ads in downloads as the phone charges"
       channel.setShowBadge(false)
       context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }

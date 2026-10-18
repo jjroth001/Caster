@@ -26,7 +26,7 @@ export default function AdSettings() {
             <RowDivider />
             <PickerRow
               label="Ad detection"
-              hint="How sure Caster must be before skipping an ad read"
+              hint="How sure Pod Wizard must be before skipping an ad read"
               options={[
                 { value: 'cautious', label: 'Cautious', hint: 'Only clear-cut ad reads' },
                 { value: 'balanced', label: 'Balanced' },
@@ -56,10 +56,10 @@ export default function AdSettings() {
         </Section>
       )}
       <Txt variant="small" secondary style={settingsStyles.note}>
-        Caster finds ads three ways: chapters titled like ads, ad reads in transcripts, and the same
-        audio turning up in more than one downloaded episode (checked while your phone charges, even
-        with Caster closed). Every skip shows “Skipped ad · Undo”. Turn skipping off for a single
-        show in its podcast settings, and set seconds to skip at its start and end there too.
+        Pod Wizard finds ads three ways: chapters titled like ads, ad reads in transcripts, and the
+        same audio turning up in more than one downloaded episode (checked while your phone charges,
+        even with Pod Wizard closed). Every skip shows “Skipped ad · Undo”. Turn skipping off for a
+        single show in its podcast settings, and set seconds to skip at its start and end there too.
       </Txt>
     </SettingsPage>
   );

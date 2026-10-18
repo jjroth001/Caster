@@ -65,7 +65,7 @@ const CATEGORIES: Category[] = [
 
 const MORE: Category[] = [
   { icon: 'chart-bar', label: 'Listening stats', href: '/stats' },
-  { icon: 'info', label: 'About Caster', href: '/settings/about' },
+  { icon: 'info', label: 'About Pod Wizard', href: '/settings/about' },
 ];
 
 function CategoryRow({ item }: { item: Category }) {
@@ -120,10 +120,10 @@ export default function SettingsScreen() {
           style={[styles.banner, { backgroundColor: theme.element, borderColor: theme.accent }]}>
           <Icon name="warning" size={26} color={theme.accent} />
           <View style={styles.rowText}>
-            <Txt variant="bodyBold">Let Caster work in the background</Txt>
+            <Txt variant="bodyBold">Let Pod Wizard work in the background</Txt>
             <Txt variant="small" secondary>
               Android’s battery saving may stop new-episode checks, downloads and transcripts while
-              Caster is closed.
+              Pod Wizard is closed.
             </Txt>
           </View>
           <Button label="Allow" onPress={askToRunInBackground} />
@@ -138,7 +138,7 @@ export default function SettingsScreen() {
       </View>
 
       <Txt variant="small" secondary style={styles.footer}>
-        Caster {Constants.expoConfig?.version ?? ''} · open source, no account, no ads
+        Pod Wizard {Constants.expoConfig?.version ?? ''} · open source, no account, no ads
       </Txt>
     </ScrollView>
   );

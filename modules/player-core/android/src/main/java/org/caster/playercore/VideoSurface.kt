@@ -78,7 +78,7 @@ class VideoSurfaceView(context: Context, appContext: AppContext) : ExpoView(cont
 internal object VideoScreen {
   private val ratio = Rational(16, 9)
 
-  /** Open: the phone may rotate and Caster shrinks to a floating window when you leave it. */
+  /** Open: the phone may rotate and Pod Wizard shrinks to a floating window when you leave it. */
   fun setOpen(activity: Activity?, open: Boolean) {
     activity ?: return
     activity.requestedOrientation =

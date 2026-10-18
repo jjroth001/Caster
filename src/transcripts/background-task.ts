@@ -10,7 +10,7 @@ import { runAutoTranscribe } from './auto';
 import { cancelTranscription } from './whisper';
 
 /**
- * Runs from the charging worker (modules/player-core TranscribeWorker), usually with Caster
+ * Runs from the charging worker (modules/player-core TranscribeWorker), usually with Pod Wizard
  * closed: fingerprints downloads for repeated-ad detection, then transcribes (if set to "any
  * time"). Returns when done; the worker asks it to stop (CasterStopTranscribe) on unplugging.
  */

@@ -165,7 +165,7 @@ export default function TranscriptsScreen() {
         ListEmptyComponent={
           <Txt secondary style={styles.empty}>
             No transcripts yet. They appear here when an episode comes with one from the publisher,
-            or when Caster makes one on your phone (Settings → Generated transcripts).
+            or when Pod Wizard makes one on your phone (Settings → Generated transcripts).
           </Txt>
         }
       />

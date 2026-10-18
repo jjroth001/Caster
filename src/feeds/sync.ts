@@ -14,7 +14,7 @@ import { basicAuth, getFeedLogin, splitLogin } from './credentials';
 import { FeedAuthError, FeedError, parseFeed, type ParsedFeed } from './parse-feed';
 import { rememberFeedLogin } from './private';
 
-const USER_AGENT = 'Caster/1.0 (Android; open-source podcast player)';
+const USER_AGENT = 'PodWizard/1.0 (Android; open-source podcast player)';
 
 /**
  * Lets the interface handle taps and scrolling before the next chunk of work: parsing a big

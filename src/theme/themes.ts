@@ -1,5 +1,5 @@
 /**
- * Caster's three looks (see docs/mockups). Every screen reads colours from the active theme,
+ * Pod Wizard's three looks (see docs/mockups). Every screen reads colours from the active theme,
  * so adding a theme means adding one object here.
  */
 

@@ -46,17 +46,17 @@ need a second device or a car; skip those if you can't try them.
 - [ ] Sleep timer: minutes, end of episode, end of chapter; fades out at the end
 - [ ] In the sleep timer's last minute, two firm shakes buzz and add 5 minutes (also with the screen off); the setting is under Playback
 - [ ] Leaving the app, locking the phone and coming back keeps playing and keeps the place
-- [ ] After closing Caster completely, it reopens at the same episode and position
+- [ ] After closing Pod Wizard completely, it reopens at the same episode and position
 
 ## Video
 
 - [ ] A video episode shows its picture in the player instead of the cover
 - [ ] Tapping it opens full screen; turning the phone sideways fills the screen and hides
-      the bars; the rest of Caster stays upright afterwards
+      the bars; the rest of Pod Wizard stays upright afterwards
 - [ ] Tap shows and hides the controls; play, pause and skip work
 - [ ] The floating-window button, and pressing Home while it plays, shrink it to a small
-      window; tapping that window brings Caster back
-- [ ] Closing full screen keeps it playing; leaving Caster from the normal player keeps the
+      window; tapping that window brings Pod Wizard back
+- [ ] Closing full screen keeps it playing; leaving Pod Wizard from the normal player keeps the
       sound going
 
 ## Chapters, transcripts and bookmarks
@@ -66,7 +66,7 @@ need a second device or a car; skip those if you can't try them.
 - [ ] Publisher transcript follows along, search finds words, tapping a line jumps there
 - [ ] Making a transcript on the phone: download a speech model, make one, leave the
       screen and come back (progress is still there), Stop works
-- [ ] Automatic transcription while charging, with Caster open; and "any time" with Caster
+- [ ] Automatic transcription while charging, with Pod Wizard open; and "any time" with Pod Wizard
       closed (a quiet notification while it works; unplugging stops it)
 - [ ] Transcripts screen: open, export as text and subtitles, export all, delete
 - [ ] Bookmarks from the player and the headphone action; smart titles from transcripts;
@@ -115,12 +115,12 @@ need a second device or a car; skip those if you can't try them.
 - [ ] New-episode check runs with the app closed (leave it a few hours)
 - [ ] New-episode notifications, one per podcast
 - [ ] After restarting the phone, background checks and downloads still happen
-- [ ] Settings shows "Let Caster work in the background" until you tap Allow in Android's
+- [ ] Settings shows "Let Pod Wizard work in the background" until you tap Allow in Android's
       dialog, then hides it
 
 ## Android Auto (needs a car or the desktop head unit)
 
-- [ ] Caster shows in the car's app list (after turning on Unknown sources, see README)
+- [ ] Pod Wizard shows in the car's app list (after turning on Unknown sources, see README)
 - [ ] Browse Up Next, In progress, New episodes, Downloads, Playlists, Podcasts
 - [ ] Play, pause, skip; speed and bookmark under "more"
 - [ ] Position and bookmarks from the car show up in the app afterwards

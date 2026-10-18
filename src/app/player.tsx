@@ -197,7 +197,7 @@ export default function PlayerScreen() {
                 onPress: () =>
                   showSheet({
                     title: 'Which part was an ad?',
-                    message: 'It snaps to anything Caster already found there.',
+                    message: 'It snaps to anything Pod Wizard already found there.',
                     options: MARK_CHOICES.map((c) => ({
                       label: c.label,
                       onPress: () => void markAdBefore(db, episode, positionMs / 1000, c.seconds),

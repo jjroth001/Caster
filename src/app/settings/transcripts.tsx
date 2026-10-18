@@ -47,13 +47,13 @@ export default function TranscriptSettings() {
               },
               {
                 value: 'open' as const,
-                label: 'While Caster is open',
+                label: 'While Pod Wizard is open',
                 hint: 'Or playing in the background',
               },
               {
                 value: 'always' as const,
                 label: 'Any time',
-                hint: 'Android wakes Caster while charging, even when it’s closed (shows a notification while it works)',
+                hint: 'Android wakes Pod Wizard while charging, even when it’s closed (shows a notification while it works)',
               },
             ]}
             value={s.autoTranscribe}

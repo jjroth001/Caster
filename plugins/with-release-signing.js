@@ -1,5 +1,5 @@
 /**
- * Signs release builds with Caster's own key instead of React Native's public
+ * Signs release builds with Pod Wizard's own key instead of React Native's public
  * debug key (which anyone could use to sign a fake "update").
  *
  * The key's location and passwords come from Gradle properties, normally set in

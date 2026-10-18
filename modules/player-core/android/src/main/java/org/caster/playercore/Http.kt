@@ -5,7 +5,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 
-internal const val USER_AGENT = "Caster/1.0 (Android; open-source podcast player)"
+internal const val USER_AGENT = "PodWizard/1.0 (Android; open-source podcast player)"
 
 /**
  * Sign-ins for private feeds, by host, handed over by the app (kept in memory only; the app

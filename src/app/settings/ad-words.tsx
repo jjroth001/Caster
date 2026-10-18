@@ -25,7 +25,7 @@ const KINDS = {
     placeholder: 'A sponsor’s name, or “our friends at”',
     note: 'A transcript sentence with one of these counts as part of an ad read. A one-word phrase is treated like a sponsor’s name and followed through the read. Transcripts on your phone are checked again when you change the list.',
     empty:
-      'None yet. Caster already knows the usual ones (“brought to you by”, “use code”, web addresses).',
+      'None yet. Pod Wizard already knows the usual ones (“brought to you by”, “use code”, web addresses).',
   },
   chapters: {
     title: 'Chapter words',

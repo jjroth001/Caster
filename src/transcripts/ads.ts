@@ -105,7 +105,7 @@ function brandPattern(brand: string): RegExp {
 }
 
 /**
- * Brands that often sponsor podcasts, as a starting point; Caster adds every brand it finds in
+ * Brands that often sponsor podcasts, as a starting point; Pod Wizard adds every brand it finds in
  * an ad read on this phone. Only distinctive names: everyday words ("Factor", "Indeed") would
  * catch ordinary talk. A brand alone never makes an ad; it needs a second sign.
  */

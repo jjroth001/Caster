@@ -119,7 +119,7 @@ export function cancelRepeatedAds() {
   cancelled = true;
   again = false;
 }
-/** Downloads that couldn't be fingerprinted this session (not retried until Caster restarts). */
+/** Downloads that couldn't be fingerprinted this session (not retried until Pod Wizard restarts). */
 const failed = new Set<string>();
 
 // --- What the episode page shows: which episodes have a fingerprint, and which one is in progress.

@@ -16,6 +16,10 @@ import { mergeSpans, repeatConfidence, type AdSpan } from './repeat-rules';
  * or end of the same show is more likely its theme, so it's only shaded on the progress bar.
  */
 
+/** Keys of fingerprints of ads you marked (parts of episodes), checked against every episode. */
+export const SAMPLE = 'ad:';
+const isSample = (key: string) => key.startsWith(SAMPLE);
+
 /** How many other episodes each new one is compared with. */
 const COMPARE_WITH = 40;
 /** Fingerprints kept (the newest episodes'); older ones are removed. */
@@ -42,7 +46,7 @@ async function episodeForKey(db: SQLiteDatabase, key: string): Promise<EpisodeRo
  * Saves repeated-audio ads for one episode: replaces earlier findings you haven't judged, and
  * never adds one over a stretch you said isn't an ad (Undo).
  */
-async function saveSpans(db: SQLiteDatabase, episodeId: number, spans: AdSpan[]) {
+export async function saveSpans(db: SQLiteDatabase, episodeId: number, spans: AdSpan[]) {
   if (spans.length === 0) return;
   await inTransaction(db, async () => {
     const existing = await db.getAllAsync<{
@@ -86,6 +90,11 @@ async function applyRepeats(db: SQLiteDatabase, episode: EpisodeRow, repeats: Au
   const mine: AdSpan[] = [];
   const theirs = new Map<number, { episode: EpisodeRow; spans: AdSpan[] }>();
   for (const r of repeats) {
+    // The same audio as an ad you marked yourself: as sure as it gets.
+    if (isSample(r.otherKey)) {
+      mine.push({ start: r.start, end: r.end, confidence: 0.95 });
+      continue;
+    }
     const otherPodcast = splitKey(r.otherKey)?.podcastId ?? -1;
     const otherShow = otherPodcast !== episode.podcast_id;
     mine.push({ ...r, confidence: repeatConfidence(r, episode.duration_s, otherShow) });
@@ -148,7 +157,7 @@ async function runOnce(db: SQLiteDatabase) {
       continue;
     }
     have.add(key);
-    const others = await recentKeys(db, [...have], key);
+    const others = [...(await recentKeys(db, [...have], key)), ...[...have].filter(isSample)];
     const repeats = await PlayerCore.findRepeats(key, others);
     if (repeats.length > 0) {
       await applyRepeats(db, episode, repeats);
@@ -188,5 +197,22 @@ async function recentKeys(
 async function prune(db: SQLiteDatabase, keys: string[]) {
   if (!PlayerCore || keys.length <= KEEP) return;
   const keep = new Set(await recentKeys(db, keys, '', KEEP));
-  for (const key of keys) if (!keep.has(key)) PlayerCore.deleteFingerprint(key);
+  for (const key of keys) if (!keep.has(key) && !isSample(key)) PlayerCore.deleteFingerprint(key);
+}
+
+/** Checks the recent episodes against an ad you just marked, so they skip it too. */
+export async function scanForSample(db: SQLiteDatabase, sampleKey: string) {
+  if (!PlayerCore) return;
+  const keys = PlayerCore.listFingerprints();
+  let changed = false;
+  for (const key of await recentKeys(db, keys, '')) {
+    const episode = await episodeForKey(db, key);
+    if (!episode) continue;
+    const repeats = await PlayerCore.findRepeats(key, [sampleKey]);
+    if (repeats.length > 0) {
+      await applyRepeats(db, episode, repeats);
+      changed = true;
+    }
+  }
+  if (changed) await refreshSkipRules(db);
 }

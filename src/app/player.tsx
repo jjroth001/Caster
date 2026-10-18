@@ -13,6 +13,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { VideoSurface } from '@modules/player-core/src/VideoSurface';
+import { MARK_CHOICES, markAdBefore } from '@/ads/mark';
 import { Artwork } from '@/components/artwork';
 import { Background } from '@/components/background';
 import { useArtworkTint } from '@/theme/artwork-tint';
@@ -178,6 +179,24 @@ export default function PlayerScreen() {
         },
         { label: 'Chapters', icon: 'list', onPress: () => router.push('/chapters') },
         { label: 'Transcript', icon: 'file-text', onPress: () => router.push('/transcript') },
+        ...(current
+          ? [
+              {
+                label: 'That was an ad',
+                hint: 'Skip it from now on, here and in other episodes',
+                icon: 'warning' as const,
+                onPress: () =>
+                  showSheet({
+                    title: 'Which part was an ad?',
+                    message: 'It snaps to anything Caster already found there.',
+                    options: MARK_CHOICES.map((c) => ({
+                      label: c.label,
+                      onPress: () => void markAdBefore(db, episode, positionMs / 1000, c.seconds),
+                    })),
+                  }),
+              },
+            ]
+          : []),
         { label: 'Share episode', icon: 'share-network', onPress: () => shareEpisode(episode) },
         {
           label: `Share from ${clock(positionMs)}`,

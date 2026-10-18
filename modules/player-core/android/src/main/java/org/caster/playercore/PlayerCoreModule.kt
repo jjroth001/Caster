@@ -305,6 +305,11 @@ class PlayerCoreModule : Module() {
 
     Function("deleteFingerprint") { key: String -> Fingerprints.delete(context, key) }
 
+    /** Keeps the fingerprint of an ad you marked, to find it in other episodes. */
+    Function("saveAdSample") { key: String, sampleKey: String, startS: Double, endS: Double ->
+      Fingerprints.saveSample(context, key, sampleKey, startS, endS)
+    }
+
     /** Whether the phone is charging (or full while plugged in). */
     Function("isCharging") {
       context.getSystemService(BatteryManager::class.java)?.isCharging ?: false

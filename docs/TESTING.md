@@ -75,6 +75,7 @@ need a second device or a car; skip those if you can't try them.
       at the start of the read and jumps past all of it
 - [ ] Shaded bands on the progress bar where ads were found
 - [ ] Undo goes back and that stretch isn't skipped again
+- [ ] Player ⋯ → That was an ad → the last minute: a band appears and it's skipped next time; a downloaded episode with the same ad gets it skipped too
 - [ ] Chapters titled like ads are skipped
 - [ ] Repeated ads: download two or three episodes of a show with the same sponsor; after a
       minute or two, the shared ad shows as a band and is skipped in both. A show's theme at the

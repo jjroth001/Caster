@@ -27,6 +27,24 @@ internal object Fingerprints {
     SpeechAudio.decodeMono(source, FingerprintBuilder.RATE, onProgress = {}) { builder.add(it) }
     val codes = builder.result()
     if (codes.isEmpty()) throw IOException("No audio")
+    write(context, key, codes)
+    return codes.size
+  }
+
+  /**
+   * Saves part of an episode's fingerprint (an ad you marked) under its own key, so other
+   * episodes can be checked against it. False if the episode has no fingerprint yet.
+   */
+  fun saveSample(context: Context, key: String, sampleKey: String, startS: Double, endS: Double): Boolean {
+    val codes = read(context, key) ?: return false
+    val from = (startS * FingerprintBuilder.FPS).toInt().coerceIn(0, codes.size)
+    val to = (endS * FingerprintBuilder.FPS).toInt().coerceIn(from, codes.size)
+    if (to - from < FingerprintBuilder.FPS * RepeatFinder.MIN_SECONDS) return false
+    write(context, sampleKey, codes.copyOfRange(from, to))
+    return true
+  }
+
+  private fun write(context: Context, key: String, codes: IntArray) {
     val file = fileFor(context, key)
     val part = File(file.path + ".part")
     DataOutputStream(part.outputStream().buffered()).use { out ->
@@ -36,7 +54,6 @@ internal object Fingerprints {
       for (c in codes) out.writeInt(c)
     }
     if (!part.renameTo(file)) throw IOException("Couldn't save the fingerprint")
-    return codes.size
   }
 
   fun read(context: Context, key: String): IntArray? {

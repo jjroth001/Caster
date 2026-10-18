@@ -142,6 +142,8 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   /** Keys of the episodes that have a fingerprint. */
   listFingerprints(): string[];
   deleteFingerprint(key: string): void;
+  /** Keeps part of an episode's fingerprint (an ad you marked) as `sampleKey`; false if it has none. */
+  saveAdSample(key: string, sampleKey: string, startS: number, endS: number): boolean;
   /** Whether the phone is charging. */
   isCharging(): boolean;
   /** Whether Android's battery saving leaves Caster's background work alone. */

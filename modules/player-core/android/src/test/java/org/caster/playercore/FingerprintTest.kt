@@ -81,4 +81,17 @@ class FingerprintTest {
     val matched = (System.nanoTime() - matchStart) / 1e9
     println("hour: ${a.size} codes, fingerprint ${"%.1f".format(built)} s, match ${"%.2f".format(matched)} s")
   }
+
+  @Test
+  fun aMarkedSampleFindsTheAdElsewhere() {
+    val ad = talk(40.0, 77)
+    val a = fingerprint(talk(120.0, 31), ad, talk(60.0, 32))
+    // The part someone marked: the ad's codes, cut out of episode A.
+    val fps = FingerprintBuilder.FPS
+    val sample = a.copyOfRange((121 * fps).toInt(), (159 * fps).toInt())
+    val b = fingerprint(talk(300.0, 33), FloatArray(53), ad, talk(30.0, 34), gain = 0.9f, noise = 80f, seed = 3)
+    val repeats = RepeatFinder(b).against("sample", sample)
+    assertEquals(1, repeats.size)
+    assertTrue("near 301 s: ${repeats[0].start}", abs(repeats[0].start - 301) < 1.5)
+  }
 }

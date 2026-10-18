@@ -2,14 +2,14 @@
   "expo": {
     "name": "Pod Wizard",
     "slug": "PodWizard",
-    "version": "0.6.1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "podwizard",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "org.caster.app",
-      "versionCode": 12,
+      "versionCode": 13,
       "adaptiveIcon": {
         "backgroundColor": "#5B5EF1",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

@@ -95,12 +95,12 @@ export function brandsIn(text: string): string[] {
   return [...found].filter((b) => !NOT_BRANDS.has(b));
 }
 
-/** "mudwater" also matches "Mudwater", "mud water" and "Mud-Water". */
+/** "brewless" also matches "Brewless", "brew less" and "Brew-Less". */
 function brandPattern(brand: string): RegExp {
   const letters = brand.replace(/[^a-z0-9]/g, '').split('');
   // Short brands ("GCU") must match the whole word exactly.
   if (letters.length <= 3) return new RegExp(`\\b${letters.join('')}(?:'?s)?\\b`, 'i');
-  // A possessive or plural still counts ("Mudwater's"), a longer word doesn't ("Lume" ≠ "lumen").
+  // A possessive or plural still counts ("Brewless's"), a longer word doesn't ("Lume" ≠ "lumen").
   return new RegExp(`\\b${letters.join('[\\s-]?')}(?:'?s)?\\b`, 'i');
 }
 
@@ -136,12 +136,10 @@ export const COMMON_SPONSORS = [
   'meundies',
   'mint mobile',
   'monday.com',
-  'mudwater',
   'noom',
   'nordvpn',
   'nutrafol',
   'policygenius',
-  'preborn',
   'quince',
   'raycon',
   'rocket money',

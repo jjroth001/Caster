@@ -62,7 +62,9 @@ export default function NewEpisodeSettings() {
             options={[
               { value: 0, label: 'Only when open' },
               { value: 1, label: 'Every hour' },
+              { value: 2, label: 'Every 2 hours' },
               { value: 4, label: 'Every 4 hours' },
+              { value: 6, label: 'Every 6 hours' },
               { value: 12, label: 'Every 12 hours' },
             ]}
             value={s.refreshHours}

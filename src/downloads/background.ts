@@ -4,6 +4,7 @@ import { PermissionsAndroid, Platform } from 'react-native';
 import { PlayerCore } from '@modules/player-core/src';
 import { savePodcast } from '@/db/library';
 import { getSettings } from '@/db/settings';
+import { basicAuth, getFeedLogin } from '@/feeds/credentials';
 import { parseFeed } from '@/feeds/parse-feed';
 
 /**
@@ -29,6 +30,13 @@ export async function writeBackgroundConfig(db: SQLiteDatabase) {
      FROM podcast p LEFT JOIN podcast_settings ps ON ps.podcast_id = p.id
      WHERE p.subscribed = 1`,
   );
+  // Private feeds' sign-ins go along so the check can sign in; the native side seals them with
+  // a keystore key before writing anything.
+  const auth = new Map<string, string>();
+  for (const url of settings.privateFeeds) {
+    const login = await getFeedLogin(url);
+    if (login) auth.set(url, basicAuth(login));
+  }
   PlayerCore.configureBackground(
     JSON.stringify({
       settings: {
@@ -45,7 +53,7 @@ export async function writeBackgroundConfig(db: SQLiteDatabase) {
         lastModified: p.last_modified,
         latestPub: p.latest_pub ?? 0,
         notify: p.notify == null ? settings.notifyNewEpisodes : !!p.notify,
-        private: settings.privateFeeds.includes(p.feed_url),
+        authorization: auth.get(p.feed_url),
         autoDownload: settings.autoDownloadNew && p.auto_n ? settings.autoDownloadLimit : 0,
       })),
     }),

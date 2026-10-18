@@ -36,8 +36,21 @@ internal object Background {
 
   /** Saves the app's snapshot and (re)schedules the periodic check. */
   fun configure(context: Context, json: String) {
-    configFile(context).writeText(json)
     val config = JSONObject(json)
+    // Private feeds' sign-ins are sealed before anything is written to a file.
+    config.optJSONArray("podcasts")?.let { list ->
+      for (i in 0 until list.length()) {
+        val p = list.getJSONObject(i)
+        if (p.isNull("authorization")) {
+          p.remove("authorization")
+          continue
+        }
+        val auth = p.getString("authorization").ifEmpty { null } ?: continue
+        p.remove("authorization")
+        p.put("authSealed", SecretBox.encrypt(auth))
+      }
+    }
+    configFile(context).writeText(config.toString())
     val hours = config.optJSONObject("settings")?.optInt("refreshHours", 0) ?: 0
     val work = WorkManager.getInstance(context)
     if (hours <= 0) {
@@ -123,8 +136,10 @@ class RefreshWorker(context: Context, params: WorkerParameters) : Worker(context
       val p = podcasts.getJSONObject(i)
       val id = p.getLong("id")
       val feedUrl = p.getString("feedUrl")
-      // Private feeds need the sign-in the app keeps encrypted; it checks them when it opens.
-      if (p.optBoolean("private", false)) continue
+      // A private feed: open its sealed sign-in for this check (sent to its own host only).
+      val auth = p.optString("authSealed").ifEmpty { null }?.let { SecretBox.decrypt(it) }
+      if (p.has("authSealed") && auth == null) continue
+      if (auth != null) runCatching { java.net.URL(feedUrl).host }.getOrNull()?.let { HostAuth.put(it, auth) }
       val etag = prefs.getString("etag:$id", null) ?: p.optString("etag").ifEmpty { null }
       val lastModified = prefs.getString("lm:$id", null) ?: p.optString("lastModified").ifEmpty { null }
       // Episodes newer than this count as new (whichever is later: the app's view or our last run).
@@ -170,6 +185,7 @@ class RefreshWorker(context: Context, params: WorkerParameters) : Worker(context
             wifiOnly = settings.optBoolean("wifiOnly", true),
             chargingOnly = settings.optBoolean("chargingOnly", false),
             storageNotLow = settings.optBoolean("storageNotLow", true),
+            authorization = auth,
           )
         }
       } catch (_: Exception) {

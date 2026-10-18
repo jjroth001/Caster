@@ -12,8 +12,8 @@ Not on the Play Store and no Google Play services: install the signed APK direct
 
 ## Features
 
-- **Find and follow:** search Apple's public directory, paste a feed or Apple Podcasts link,
-  top charts, OPML import and export; private feeds with a username and password (kept
+- **Find and follow:** search Apple's public directory (and Podcast Index with your own free
+  key), paste a feed or Apple Podcasts link, top and trending charts, OPML import and export; private feeds with a username and password (kept
   encrypted on the phone).
 - **Library:** grid, large grid or list; coloured folders; new-episode counts.
 - **Listening:** background playback with notification, lock-screen and headset controls;

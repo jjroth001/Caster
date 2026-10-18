@@ -4,7 +4,9 @@
  */
 
 export type DirectoryPodcast = {
+  /** Apple's id; for Podcast Index results "pi" and its id (they always have a feed). */
   appleId: string;
+  source?: 'apple' | 'podcastindex';
   title: string;
   author: string;
   artworkUrl: string | null;

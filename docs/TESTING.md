@@ -17,6 +17,7 @@ need a second device or a car; skip those if you can't try them.
 - [ ] Follow adds it to the library; Following → Unfollow removes it
 - [ ] Pasting a feed address and an Apple Podcasts link both work
 - [ ] Discover shows top charts; changing country or category changes them
+- [ ] Discover → Add Podcast Index (free key from api.podcastindex.org): a wrong key is refused; with a good one, search adds shows Apple doesn't have, and the list header switches to Trending on Podcast Index
 - [ ] OPML import from another app brings everything in; failures say why
 - [ ] OPML export opens the share sheet with a file
 - [ ] A private feed (username and password) asks to sign in, then loads; its episodes play

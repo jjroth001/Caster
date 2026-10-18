@@ -1,13 +1,22 @@
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
 import { Icon } from '@/components/icons/icon';
 import { ScreenHeader } from '@/components/screen-header';
-import { showSignIn } from '@/components/sign-in-sheet';
+import { showSheet } from '@/components/sheet';
+import { showKeyForm, showSignIn } from '@/components/sign-in-sheet';
 import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import {
@@ -20,10 +29,27 @@ import {
 } from '@/feeds/apple';
 import { splitLogin } from '@/feeds/credentials';
 import { FeedAuthError } from '@/feeds/parse-feed';
+import {
+  forgetPodcastIndexLogin,
+  getPodcastIndexLogin,
+  mergeResults,
+  savePodcastIndexLogin,
+  searchPodcastIndex,
+  trendingPodcastIndex,
+} from '@/feeds/podcast-index';
 import { rememberFeedLogin } from '@/feeds/private';
 import { openFeed } from '@/feeds/sync';
 import { useTheme } from '@/theme/theme-provider';
 import { Radius, Spacing } from '@/theme/themes';
+
+/** The phone's language ("en"), for Podcast Index's trending list. */
+function language(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().locale.split(/[-_]/)[0] || 'en';
+  } catch {
+    return 'en';
+  }
+}
 
 /** How long after the last keystroke the search runs. */
 const TYPING_PAUSE_MS = 500;
@@ -46,11 +72,78 @@ export default function DiscoverScreen() {
   const [error, setError] = useState<string | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const latestSearch = useRef(0);
+  const [indexKey, setIndexKey] = useState(false);
+  const [source, setSource] = useState<'apple' | 'podcastindex'>('apple');
   const country = deviceCountry();
 
   useEffect(() => {
-    topPodcasts(country).then(setCharts, () => setCharts([]));
-  }, [country]);
+    void getPodcastIndexLogin().then((login) => setIndexKey(!!login));
+  }, []);
+
+  useEffect(() => {
+    let live = true;
+    const load =
+      source === 'podcastindex' ? trendingPodcastIndex(language()) : topPodcasts(country);
+    load.then(
+      (items) => live && setCharts(items),
+      () => live && setCharts([]),
+    );
+    return () => {
+      live = false;
+    };
+  }, [country, source]);
+
+  const chooseSource = () =>
+    showSheet({
+      title: 'Show',
+      choice: true,
+      options: [
+        { label: 'Top shows on Apple Podcasts', value: 'apple' as const },
+        { label: 'Trending on Podcast Index', value: 'podcastindex' as const },
+      ].map((o) => ({
+        label: o.label,
+        selected: source === o.value,
+        onPress: () => {
+          if (o.value === source) return;
+          setCharts(null);
+          setSource(o.value);
+        },
+      })),
+    });
+
+  const addIndexKey = () =>
+    showKeyForm(
+      'Podcast Index',
+      'Podcast Index is the open podcast directory. Get a free API key at api.podcastindex.org, then paste the key and secret here to add its search results and trending shows.',
+      {
+        user: 'API key',
+        password: 'API secret',
+        note: 'Kept encrypted on this phone and sent only to Podcast Index.',
+        confirm: 'Add',
+      },
+      ({ first, second }) =>
+        void savePodcastIndexLogin({ key: first, secret: second }).then(
+          () => setIndexKey(true),
+          (e) => Alert.alert('Couldn’t add the key', e instanceof Error ? e.message : undefined),
+        ),
+    );
+
+  const removeIndexKey = () =>
+    Alert.alert('Remove the Podcast Index key?', undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () =>
+          void forgetPodcastIndexLogin().then(() => {
+            setIndexKey(false);
+            if (source === 'podcastindex') {
+              setCharts(null);
+              setSource('apple');
+            }
+          }),
+      },
+    ]);
 
   useEffect(() => () => clearTimeout(typingTimer.current), []);
 
@@ -86,7 +179,12 @@ export default function DiscoverScreen() {
     const request = ++latestSearch.current;
     setResults({ kind: 'loading' });
     try {
-      const items = await searchPodcasts(term, country);
+      // With a Podcast Index key, its results join Apple's (without repeats).
+      const [apple, index] = await Promise.all([
+        searchPodcasts(term, country),
+        indexKey ? searchPodcastIndex(term).catch(() => []) : Promise.resolve([]),
+      ]);
+      const items = mergeResults(apple, index);
       // A slower, older search finishing late mustn't replace newer results.
       if (request === latestSearch.current) setResults({ kind: 'done', items });
     } catch (e) {
@@ -159,9 +257,22 @@ export default function DiscoverScreen() {
               {error}
             </Txt>
           )}
-          <Txt variant="meta" secondary style={styles.section}>
-            {searching ? 'Results' : 'Top shows'}
-          </Txt>
+          {searching || !indexKey ? (
+            <Txt variant="meta" secondary style={styles.section}>
+              {searching ? 'Results' : 'Top shows'}
+            </Txt>
+          ) : (
+            <Pressable
+              onPress={chooseSource}
+              accessibilityRole="button"
+              accessibilityHint="Choose where the list comes from"
+              style={[styles.section, styles.sourceRow]}>
+              <Txt variant="meta" color={theme.accent}>
+                {source === 'podcastindex' ? 'Trending on Podcast Index' : 'Top shows on Apple'}
+              </Txt>
+              <Icon name="caret-down" size={14} color={theme.accent} duotone={false} />
+            </Pressable>
+          )}
           {results.kind === 'loading' || (!searching && charts == null) ? (
             <ActivityIndicator color={theme.accent} style={styles.spinner} />
           ) : results.kind === 'error' ? (
@@ -207,10 +318,21 @@ export default function DiscoverScreen() {
         </Pressable>
       )}
       ListFooterComponent={
-        <Txt variant="small" secondary style={styles.footer}>
-          Search and charts come from Apple’s public podcast directory. Only your search words are
-          sent.
-        </Txt>
+        <View style={styles.footerBox}>
+          <Txt variant="small" secondary style={styles.footer}>
+            {indexKey
+              ? 'Search and charts come from Apple’s public podcast directory and Podcast Index. Only your search words are sent.'
+              : 'Search and charts come from Apple’s public podcast directory. Only your search words are sent.'}
+          </Txt>
+          <Pressable
+            onPress={indexKey ? removeIndexKey : addIndexKey}
+            accessibilityRole="button"
+            hitSlop={8}>
+            <Txt variant="smallBold" color={theme.accent} style={styles.footer}>
+              {indexKey ? 'Remove the Podcast Index key' : 'Add Podcast Index (free key)'}
+            </Txt>
+          </Pressable>
+        </View>
       }
     />
   );
@@ -239,5 +361,7 @@ const styles = StyleSheet.create({
   },
   rank: { width: 22, textAlign: 'center' },
   rowText: { flex: 1, gap: 2 },
-  footer: { marginHorizontal: Spacing.four, marginTop: Spacing.four, textAlign: 'center' },
+  footerBox: { marginTop: Spacing.four, gap: Spacing.three },
+  footer: { marginHorizontal: Spacing.four, textAlign: 'center' },
+  sourceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
 });

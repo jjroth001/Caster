@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { RefreshControl, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Reanimated, { useAnimatedRef } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Sortable from 'react-native-sortables';
+import Sortable, { type DragMoveParams, type DragStartParams } from 'react-native-sortables';
 
 import { Button, IconButton } from '@/components/controls';
 import { FolderTile, PodcastTile } from '@/components/library-tiles';
@@ -12,7 +12,12 @@ import { ScreenHeader } from '@/components/screen-header';
 import { showSheet } from '@/components/sheet';
 import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
-import { listFolders, saveLibraryOrder, type LibraryFolder } from '@/db/folders';
+import {
+  listFolders,
+  movePodcastToFolder,
+  saveLibraryOrder,
+  type LibraryFolder,
+} from '@/db/folders';
 import { listLibrary, type LibraryPodcast } from '@/db/library';
 import { DEFAULT_SETTINGS, LIBRARY_SORTS } from '@/db/settings';
 import { useDbQuery } from '@/db/use-db-query';
@@ -22,6 +27,11 @@ import { useTheme } from '@/theme/theme-provider';
 import { Spacing } from '@/theme/themes';
 
 const LAYOUTS = ['grid', 'large', 'list'] as const;
+
+/** How long a podcast must hover over a folder before letting go drops it in. */
+const HOVER_MS = 350;
+
+type Rect = { x: number; y: number; width: number; height: number };
 
 type Item =
   | { kind: 'folder'; key: string; order: number; folder: LibraryFolder }
@@ -36,6 +46,20 @@ export default function PodcastsScreen() {
   const settings = useSettings().data ?? DEFAULT_SETTINGS;
   const setSetting = useSetSetting();
   const scrollRef = useAnimatedRef<Reanimated.ScrollView>();
+  // Dragging a podcast onto a folder: folders hold still while a podcast is dragged, and the
+  // one under the finger for a moment becomes the drop target.
+  const [draggingPodcast, setDraggingPodcast] = useState(false);
+  const [dropFolder, setDropFolder] = useState<number | null>(null);
+  const folderViews = useRef(new Map<number, View>());
+  const folderRects = useRef(new Map<number, Rect>());
+  const scrollY = useRef(0);
+  const scrollAtStart = useRef(0);
+  const dragging = useRef(false);
+  const hover = useRef<{
+    id: number | null;
+    ready: boolean;
+    timer?: ReturnType<typeof setTimeout>;
+  }>({ id: null, ready: false });
   const layout = settings.libraryLayout;
   const sort = settings.librarySort;
   const library = useDbQuery(
@@ -115,14 +139,38 @@ export default function PodcastsScreen() {
 
   // Dropping a podcast where you want it switches to your own order and saves it.
   const onDragEnd = ({
+    key,
     data,
     fromIndex,
     toIndex,
   }: {
+    key: string;
     data: Item[];
     fromIndex: number;
     toIndex: number;
   }) => {
+    const target = hover.current.ready ? hover.current.id : null;
+    clearTimeout(hover.current.timer);
+    hover.current = { id: null, ready: false };
+    dragging.current = false;
+    setDropFolder(null);
+    setDraggingPodcast(false);
+    const moved = data.find((i) => i.key === key);
+    if (target != null && moved?.kind === 'podcast') {
+      // Dropped on a folder: in it goes, and the rest keep the order they had.
+      void (async () => {
+        await movePodcastToFolder(db, moved.podcast.id, target);
+        if (sort === 'manual') {
+          await saveLibraryOrder(
+            db,
+            data
+              .filter((i) => i !== moved)
+              .map((i) => ({ kind: i.kind, id: i.kind === 'folder' ? i.folder.id : i.podcast.id })),
+          );
+        }
+      })();
+      return;
+    }
     if (fromIndex === toIndex) return;
     void (async () => {
       await saveLibraryOrder(
@@ -133,6 +181,49 @@ export default function PodcastsScreen() {
     })();
   };
 
+  const onDragStart = ({ key }: DragStartParams) => {
+    if (!key.startsWith('p')) return;
+    dragging.current = true;
+    setDraggingPodcast(true);
+    scrollAtStart.current = scrollY.current;
+    folderRects.current.clear();
+    for (const [id, view] of folderViews.current) {
+      view.measureInWindow((x, y, w, h) =>
+        folderRects.current.set(id, { x, y, width: w, height: h }),
+      );
+    }
+  };
+
+  const onDragMove = ({ touchData }: DragMoveParams) => {
+    if (!dragging.current) return;
+    // Folders stay put during the drag; only scrolling moves them on screen.
+    const dy = scrollY.current - scrollAtStart.current;
+    let over: number | null = null;
+    for (const [id, r] of folderRects.current) {
+      const inset = Math.min(r.width, r.height) * 0.15;
+      const top = r.y - dy;
+      if (
+        touchData.absoluteX > r.x + inset &&
+        touchData.absoluteX < r.x + r.width - inset &&
+        touchData.absoluteY > top + inset &&
+        touchData.absoluteY < top + r.height - inset
+      ) {
+        over = id;
+        break;
+      }
+    }
+    if (over === hover.current.id) return;
+    clearTimeout(hover.current.timer);
+    hover.current = { id: over, ready: false };
+    setDropFolder(null);
+    if (over != null) {
+      hover.current.timer = setTimeout(() => {
+        hover.current.ready = true;
+        setDropFolder(over);
+      }, HOVER_MS);
+    }
+  };
+
   const data = library.data ?? [];
   const empty = library.status === 'success' && data.length === 0;
 
@@ -140,6 +231,10 @@ export default function PodcastsScreen() {
     <View style={styles.flex}>
       <Reanimated.ScrollView
         ref={scrollRef}
+        scrollEventThrottle={16}
+        onScroll={(e) => {
+          scrollY.current = e.nativeEvent.contentOffset.y;
+        }}
         contentContainerStyle={{ paddingTop: insets.top, paddingBottom: bottom }}
         refreshControl={
           <RefreshControl
@@ -194,12 +289,31 @@ export default function PodcastsScreen() {
               scrollableRef={scrollRef}
               dragActivationDelay={300}
               activeItemScale={1.06}
+              onDragStart={onDragStart}
+              onDragMove={onDragMove}
               onDragEnd={onDragEnd}
+              customHandle
               renderItem={({ item }) =>
                 item.kind === 'folder' ? (
-                  <FolderTile item={item.folder} layout={layout} size={tile} />
+                  <Sortable.Handle mode={draggingPodcast ? 'fixed-order' : 'draggable'}>
+                    <View
+                      ref={(v) => {
+                        if (v) folderViews.current.set(item.folder.id, v);
+                        else folderViews.current.delete(item.folder.id);
+                      }}
+                      collapsable={false}>
+                      <FolderTile
+                        item={item.folder}
+                        layout={layout}
+                        size={tile}
+                        dropTarget={dropFolder === item.folder.id}
+                      />
+                    </View>
+                  </Sortable.Handle>
                 ) : (
-                  <PodcastTile item={item.podcast} layout={layout} size={tile} />
+                  <Sortable.Handle>
+                    <PodcastTile item={item.podcast} layout={layout} size={tile} />
+                  </Sortable.Handle>
                 )
               }
             />

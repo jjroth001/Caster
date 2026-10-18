@@ -1,5 +1,7 @@
 import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { Artwork } from '@/components/artwork';
 import { Icon } from '@/components/icons/icon';
@@ -94,18 +96,30 @@ export function FolderTile({
   item,
   layout,
   size,
+  dropTarget = false,
 }: {
   item: LibraryFolder;
   layout: Layout;
   size: number;
+  /** A podcast is being dragged over it: it grows a little and gets an outline. */
+  dropTarget?: boolean;
 }) {
   const theme = useTheme();
+  const lift = useSharedValue(0);
+  useEffect(() => {
+    lift.value = withTiming(dropTarget ? 1 : 0, { duration: 160 });
+  }, [dropTarget, lift]);
+  const liftStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + lift.value * 0.08 }],
+    borderColor: theme.accent,
+    borderWidth: lift.value * 3,
+  }));
   const open = () => router.push(`/folder/${item.id}`);
   const covers = (box: number) => {
     const gap = Math.max(3, box * 0.05);
     const cell = (box - gap * 3) / 2;
     return (
-      <View
+      <Reanimated.View
         style={[
           styles.folder,
           {
@@ -116,6 +130,7 @@ export function FolderTile({
             padding: gap,
             gap,
           },
+          liftStyle,
         ]}>
         {[0, 1, 2, 3].map((i) =>
           item.artworks[i] !== undefined ? (
@@ -138,7 +153,7 @@ export function FolderTile({
             />
           ),
         )}
-      </View>
+      </Reanimated.View>
     );
   };
   const summary = `${item.podcast_count} podcast${item.podcast_count === 1 ? '' : 's'}`;

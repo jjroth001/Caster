@@ -30,6 +30,7 @@ need a second device or a car; skip those if you can't try them.
 - [ ] Sorting from the ⋮ menu: date added, episode release date, recently played, name, drag & drop
 - [ ] Press and hold a podcast or folder, drag it somewhere else; the order sticks and the sort becomes drag & drop; dragging near the top or bottom scrolls
 - [ ] Folders: the folder button makes a new folder (name, colour, podcasts) and edits existing ones; a folder can sit between podcasts in your own order
+- [ ] Drag a podcast onto a folder and hold a moment: the folder grows and gets an outline; let go and the podcast is in the folder. Moving off the folder first just reorders. Folders don't shuffle while a podcast is dragged
 - [ ] Pull to refresh finds new episodes
 
 ## Playing

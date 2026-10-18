@@ -3,6 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { EmbeddedChapter } from '@modules/player-core/src';
 import { inTransaction } from '@/db/library';
 import { getSettings } from '@/db/settings';
+import { fetchWithTimeout } from '@/lib/http';
 
 export type Chapter = {
   start: number;
@@ -141,7 +142,7 @@ export async function ensureChapters(db: SQLiteDatabase, episodeId: number) {
   );
   if (!episode?.chapters_url) return;
   try {
-    const response = await fetch(episode.chapters_url);
+    const response = await fetchWithTimeout(episode.chapters_url, {}, 30_000);
     if (!response.ok) return;
     const chapters = parseChaptersJson(await response.text());
     await saveChapters(db, episodeId, chapters, 'json');

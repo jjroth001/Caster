@@ -51,8 +51,16 @@ function language(): string {
   }
 }
 
-/** How long after the last keystroke the search runs. */
-const TYPING_PAUSE_MS = 500;
+/** How long after the last keystroke the search runs, and the fewest letters worth it. */
+const TYPING_PAUSE_MS = 800;
+const MIN_LETTERS = 3;
+
+/**
+ * Searches made in the last 10 minutes, so retyping or going back never asks again (Apple's
+ * directory turns away phones that search a lot in a short time).
+ */
+const CACHE_MS = 10 * 60_000;
+const recentSearches = new Map<string, { at: number; items: DirectoryPodcast[] }>();
 
 type Results =
   | { kind: 'idle' }
@@ -177,6 +185,12 @@ export default function DiscoverScreen() {
   const search = async (term: string) => {
     clearTimeout(typingTimer.current);
     const request = ++latestSearch.current;
+    const cacheKey = `${term.trim().toLowerCase()}|${indexKey}`;
+    const cached = recentSearches.get(cacheKey);
+    if (cached && Date.now() - cached.at < CACHE_MS) {
+      setResults({ kind: 'done', items: cached.items });
+      return;
+    }
     setResults({ kind: 'loading' });
     try {
       // With a Podcast Index key, its results join Apple's (without repeats).
@@ -185,6 +199,7 @@ export default function DiscoverScreen() {
         indexKey ? searchPodcastIndex(term).catch(() => []) : Promise.resolve([]),
       ]);
       const items = mergeResults(apple, index);
+      recentSearches.set(cacheKey, { at: Date.now(), items });
       // A slower, older search finishing late mustn't replace newer results.
       if (request === latestSearch.current) setResults({ kind: 'done', items });
     } catch (e) {
@@ -212,7 +227,7 @@ export default function DiscoverScreen() {
       setResults({ kind: 'idle' });
       return;
     }
-    if (q.kind === 'search' && q.term && q.term.length >= 2) {
+    if (q.kind === 'search' && q.term.length >= MIN_LETTERS) {
       typingTimer.current = setTimeout(() => void search(q.term), TYPING_PAUSE_MS);
     }
   };

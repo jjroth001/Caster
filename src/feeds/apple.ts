@@ -3,6 +3,8 @@
  * straight from the phone to Apple; nothing about the user is sent beyond the search words.
  */
 
+import { fetchWithTimeout } from '@/lib/http';
+
 export type DirectoryPodcast = {
   /** Apple's id; for Podcast Index results "pi" and its id (they always have a feed). */
   appleId: string;
@@ -35,7 +37,16 @@ const toPodcast = (r: AppleResult): DirectoryPodcast | null =>
     : null;
 
 async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(
+    url,
+    {},
+    15_000,
+    'Apple’s podcast directory didn’t answer. Try again in a moment.',
+  );
+  // Apple turns away phones that search a lot in a short time.
+  if (response.status === 403 || response.status === 429) {
+    throw new Error('Apple’s podcast directory is busy. Try again in a minute.');
+  }
   if (!response.ok) throw new Error(`The podcast directory answered ${response.status}.`);
   return (await response.json()) as T;
 }

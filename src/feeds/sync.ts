@@ -8,6 +8,7 @@ import {
   type PodcastRow,
 } from '@/db/library';
 import { setSetting } from '@/db/settings';
+import { fetchWithTimeout } from '@/lib/http';
 
 import { basicAuth, getFeedLogin, splitLogin } from './credentials';
 import { FeedAuthError, FeedError, parseFeed, type ParsedFeed } from './parse-feed';
@@ -34,7 +35,8 @@ export async function fetchFeed(
   if (login) headers.Authorization = basicAuth(login);
   let response: Response;
   try {
-    response = await fetch(url, { headers });
+    // Feeds can be large, so a longer limit than searches get.
+    response = await fetchWithTimeout(url, { headers }, 45_000);
   } catch {
     throw new FeedError('Couldn’t reach this podcast. Check your connection.');
   }

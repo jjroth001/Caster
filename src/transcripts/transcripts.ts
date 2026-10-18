@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { inTransaction } from '@/db/library';
 import { getSettings, setSetting } from '@/db/settings';
+import { fetchWithTimeout } from '@/lib/http';
 
 import { AD_DETECTION_VERSION, brandsInSegments, COMMON_SPONSORS, findAdSegments } from './ads';
 import { parseTranscript } from './parse';
@@ -87,7 +88,7 @@ export async function ensureTranscript(
   }>('SELECT transcript_url, transcript_type FROM episode WHERE id = ?', episodeId);
   if (!episode?.transcript_url) return null;
   try {
-    const response = await fetch(episode.transcript_url);
+    const response = await fetchWithTimeout(episode.transcript_url, {}, 30_000);
     if (!response.ok) return null;
     const cues = parseTranscript(
       await response.text(),

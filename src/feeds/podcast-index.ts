@@ -1,5 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
+import { fetchWithTimeout } from '@/lib/http';
+
 import type { DirectoryPodcast } from './apple';
 
 /**
@@ -81,7 +83,9 @@ export async function getPodcastIndexLogin(): Promise<PodcastIndexLogin | null> 
 
 /** Saves the key after checking it works (throws with a reason if it doesn't). */
 export async function savePodcastIndexLogin(login: PodcastIndexLogin) {
-  const response = await fetch(`${API}/stats/current`, { headers: signedHeaders(login) });
+  const response = await fetchWithTimeout(`${API}/stats/current`, {
+    headers: signedHeaders(login),
+  });
   if (response.status === 401 || response.status === 403) {
     throw new Error('Podcast Index didn’t accept that key and secret.');
   }
@@ -119,7 +123,12 @@ const toPodcast = (f: Feed): DirectoryPodcast | null =>
 async function get(path: string): Promise<Feed[]> {
   const login = await getPodcastIndexLogin();
   if (!login) return [];
-  const response = await fetch(`${API}${path}`, { headers: signedHeaders(login) });
+  const response = await fetchWithTimeout(
+    `${API}${path}`,
+    { headers: signedHeaders(login) },
+    15_000,
+    'Podcast Index didn’t answer. Try again in a moment.',
+  );
   if (!response.ok) throw new Error(`Podcast Index answered ${response.status}.`);
   const data = (await response.json()) as { feeds?: Feed[] };
   return data.feeds ?? [];

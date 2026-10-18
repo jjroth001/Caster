@@ -1,4 +1,4 @@
-import { brandsIn, findAdSegments, scoreSentence } from './ads';
+import { brandsIn, findAdSegments, phrasePattern, scoreSentence } from './ads';
 import { parseJsonTranscript, parseTimedText, parseTranscript } from './parse';
 
 const VTT = `WEBVTT
@@ -174,5 +174,25 @@ describe('transcript ad detection', () => {
     ]);
     expect(brandsIn('That is Moss T M O S S and Co.com/harbour.')).toEqual(['moss']);
     expect(brandsIn('Just visit HCU.edu to learn more.')).toEqual(['hcu']);
+  });
+
+  it('treats your own phrases as signs of an ad read', () => {
+    const read = [
+      { start: 0, end: 120, text: 'And that is how the lighthouse got its second lamp.' },
+      { start: 300, end: 310, text: 'A quick word about our friends at Driftwood Tea.' },
+      { start: 310, end: 320, text: 'Driftwood Tea blends are smooth and calming.' },
+      { start: 320, end: 330, text: 'I drink Driftwood Tea every evening.' },
+      { start: 340, end: 600, text: 'Anyway, back to the storm of 1903.' },
+    ];
+    expect(findAdSegments(read, [])).toEqual([]);
+    expect(findAdSegments(read, [], ['our friends at', 'driftwood'])).toEqual([
+      expect.objectContaining({ start: 300, end: 330 }),
+    ]);
+  });
+
+  it('matches phrases as whole words, any case and spacing', () => {
+    expect(phrasePattern('our friends at').test('Our  friends AT Driftwood')).toBe(true);
+    expect(phrasePattern('ad').test('I added a lamp')).toBe(false);
+    expect(phrasePattern('c++ deals').test('big c++ deals today')).toBe(true);
   });
 });

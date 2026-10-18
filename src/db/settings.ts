@@ -74,6 +74,8 @@ export type Settings = {
   adSkip: boolean;
   /** Chapters whose title contains one of these are skipped as ads. */
   adKeywords: string[];
+  /** Your own phrases that mark a transcript sentence as part of an ad read. */
+  adPhrases: string[];
   /** Brands found in ad reads on this phone, recognised in later episodes. */
   adBrands: string[];
   /** The ad detection that last checked the transcripts already saved. */
@@ -139,6 +141,7 @@ export const DEFAULT_SETTINGS: Settings = {
   deletePlayedDownloads: false,
   adSkip: true,
   adKeywords: ['sponsor', 'advertisement', 'ad break', 'promo'],
+  adPhrases: [],
   adBrands: [],
   adDetectionVersion: 0,
   headsetDouble: 'skipForward',

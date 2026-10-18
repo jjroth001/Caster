@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { EmbeddedChapter } from '@modules/player-core/src';
 import { inTransaction } from '@/db/library';
-import { getSettings } from '@/db/settings';
+import { getSettings, setSetting } from '@/db/settings';
 import { fetchWithTimeout } from '@/lib/http';
 
 export type Chapter = {
@@ -64,6 +64,23 @@ export function fromEmbedded(chapters: EmbeddedChapter[]): Chapter[] {
       url: null,
     })),
   );
+}
+
+/**
+ * Saves your chapter words and skips saved chapters that now match (ones you ticked or
+ * unticked yourself otherwise stay as they are).
+ */
+export async function setChapterWords(db: SQLiteDatabase, words: string[]) {
+  await setSetting(db, 'adKeywords', words);
+  const chapters = await db.getAllAsync<{ rowid: number; title: string | null }>(
+    'SELECT rowid, title FROM chapter WHERE selected = 1 AND title IS NOT NULL',
+  );
+  const matching = chapters.filter((c) => isAdTitle(c.title, words));
+  await inTransaction(db, async () => {
+    for (const c of matching) {
+      await db.runAsync('UPDATE chapter SET selected = 0 WHERE rowid = ?', c.rowid);
+    }
+  });
 }
 
 /** Whether a chapter title looks like an ad break, by the user's keyword list. */

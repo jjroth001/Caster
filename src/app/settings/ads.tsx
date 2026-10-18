@@ -1,4 +1,6 @@
-import { PickerRow, RowDivider } from '@/components/picker-row';
+import { router } from 'expo-router';
+
+import { NavRow, PickerRow, RowDivider } from '@/components/picker-row';
 import {
   Row,
   Section,
@@ -36,6 +38,23 @@ export default function AdSettings() {
           </>
         )}
       </Section>
+      {s.adSkip && (
+        <Section title="What counts as an ad">
+          <NavRow
+            label="Ad phrases"
+            hint="Words that mark an ad read in transcripts"
+            value={String(s.adPhrases.length)}
+            onPress={() => router.push('/settings/ad-words?kind=phrases')}
+          />
+          <RowDivider />
+          <NavRow
+            label="Chapter words"
+            hint="Chapters titled with these are skipped"
+            value={String(s.adKeywords.length)}
+            onPress={() => router.push('/settings/ad-words?kind=chapters')}
+          />
+        </Section>
+      )}
       <Txt variant="small" secondary style={settingsStyles.note}>
         Caster finds ads three ways: chapters titled like ads, ad reads in transcripts, and the same
         audio turning up in more than one downloaded episode. Every skip shows “Skipped ad · Undo”.

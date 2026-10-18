@@ -91,6 +91,7 @@ function Root() {
         <Stack.Screen name="settings/appearance" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="settings/playback" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="settings/ads" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/ad-words" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="settings/new-episodes" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="settings/downloads" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="settings/transcripts" options={{ animation: 'slide_from_right' }} />

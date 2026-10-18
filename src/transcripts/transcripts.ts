@@ -24,7 +24,11 @@ export async function getTranscript(db: SQLiteDatabase, episodeId: number): Prom
 /** Marks ad reads found in the transcript (layer 4); the user's own verdicts are kept. */
 export async function detectTranscriptAds(db: SQLiteDatabase, episodeId: number, cues: Cue[]) {
   const settings = await getSettings(db);
-  const segments = findAdSegments(cues, [...COMMON_SPONSORS, ...settings.adBrands]);
+  const segments = findAdSegments(
+    cues,
+    [...COMMON_SPONSORS, ...settings.adBrands],
+    settings.adPhrases,
+  );
   // Remember the brands found, so their reads are recognised even without a web address.
   const learned = brandsInSegments(cues, segments).filter(
     (b) => !settings.adBrands.includes(b) && !COMMON_SPONSORS.includes(b),
@@ -55,11 +59,11 @@ export async function detectTranscriptAds(db: SQLiteDatabase, episodeId: number,
 
 /**
  * Checks transcripts already on the phone again after ad detection improves (once per
- * version), keeping any ad you marked yourself.
+ * version) or your ad phrases change (`force`), keeping any ad you marked yourself.
  */
-export async function redetectTranscriptAds(db: SQLiteDatabase) {
+export async function redetectTranscriptAds(db: SQLiteDatabase, force = false) {
   const settings = await getSettings(db);
-  if (settings.adDetectionVersion >= AD_DETECTION_VERSION) return;
+  if (!force && settings.adDetectionVersion >= AD_DETECTION_VERSION) return;
   if (settings.adSkip) {
     const rows = await db.getAllAsync<{ episode_id: number; cues_json: string }>(
       'SELECT episode_id, cues_json FROM transcript',
@@ -73,6 +77,12 @@ export async function redetectTranscriptAds(db: SQLiteDatabase) {
     }
   }
   await setSetting(db, 'adDetectionVersion', AD_DETECTION_VERSION);
+}
+
+/** Saves your ad phrases and checks the transcripts on the phone again with them. */
+export async function setAdPhrases(db: SQLiteDatabase, phrases: string[]) {
+  await setSetting(db, 'adPhrases', phrases);
+  await redetectTranscriptAds(db, true);
 }
 
 /** Fetches the publisher's transcript once and keeps it; returns the cues, or null if none. */

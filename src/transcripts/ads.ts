@@ -45,10 +45,27 @@ const WEAK = [
   /\bstarter kit\b/,
 ];
 
-export function scoreSentence(text: string): number {
+/**
+ * A phrase you added ("our friends at", a sponsor's name) as a pattern: whole words only, any
+ * spacing, any case.
+ */
+export function phrasePattern(phrase: string): RegExp {
+  const words = phrase
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const body = words.join('\\s+');
+  const start = /^\w/.test(phrase.trim()) ? '\\b' : '';
+  const end = /\w$/.test(phrase.trim()) ? '\\b' : '';
+  return new RegExp(`${start}${body}${end}`, 'i');
+}
+
+export function scoreSentence(text: string, custom: RegExp[] = []): number {
   const t = text.toLowerCase();
   let score = 0;
   for (const p of STRONG) if (p.test(t)) score += 0.6;
+  // Your own phrases count as strongly as "use code".
+  for (const p of custom) if (p.test(text)) score += 0.6;
   for (const p of WEAK) if (p.test(t)) score += 0.2;
   return Math.min(1, score);
 }
@@ -165,16 +182,24 @@ const MAX_READ_S = 180;
 export function findAdSegments(
   cues: Cue[],
   knownBrands: string[] = COMMON_SPONSORS,
+  customPhrases: string[] = [],
   gapS = 25,
 ): AdSegment[] {
   const timed = cues.filter((c) => c.start >= 0 && c.end > c.start);
-  const known = [...new Set(knownBrands.map(normalise))].map((b) => ({
+  const custom = customPhrases.filter((p) => p.trim()).map(phrasePattern);
+  // A one-word phrase is probably a sponsor's name: follow it through the read like one.
+  const names = customPhrases
+    .map((p) => p.trim().toLowerCase())
+    .filter((p) => /^[\w-]{3,}$/.test(p));
+  const known = [...new Set([...knownBrands, ...names].map(normalise))].map((b) => ({
     brand: b,
     pattern: brandPattern(b),
   }));
   const knownIn = (text: string) => known.filter((k) => k.pattern.test(text)).map((k) => k.brand);
   // A known sponsor counts as one more sign; with an ad phrase it makes an anchor.
-  const scores = timed.map((c) => scoreSentence(c.text) + (knownIn(c.text).length > 0 ? 0.3 : 0));
+  const scores = timed.map(
+    (c) => scoreSentence(c.text, custom) + (knownIn(c.text).length > 0 ? 0.3 : 0),
+  );
   // A known sponsor named three times within a minute is an anchor by itself.
   timed.forEach((c, i) => {
     for (const brand of knownIn(c.text)) {

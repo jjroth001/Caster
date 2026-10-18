@@ -205,6 +205,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
         connection.disconnect()
       }
       if (!part.renameTo(target)) throw IOException("Couldn't save the file")
+      // An episode (not a speech model) to transcribe and fingerprint, even with the app closed.
+      if (!key.startsWith("model:")) BackgroundTranscribe.afterDownload(applicationContext)
       Result.success(done(target))
     } catch (e: java.io.FileNotFoundException) {
       Result.failure(workDataOf("key" to key, "error" to "The file isn't there any more (404)"))

@@ -29,10 +29,12 @@ import java.util.concurrent.TimeUnit
 const val TRANSCRIBE_TASK_KEY = "CasterTranscribe"
 
 /**
- * Transcripts while Caster is closed (optional): WorkManager wakes this while the phone is
- * charging, it shows a quiet notification (Android requires one), starts React Native without
- * the app's screen and runs the app's transcription task until it's done or the phone is
- * unplugged. The app keeps a count of episodes waiting, so there's nothing to start otherwise.
+ * Work on downloads while Caster is closed: transcripts (if you chose "any time") and audio
+ * fingerprints for repeated-ad detection. WorkManager wakes this while the phone is charging,
+ * it shows a quiet notification (Android requires one), starts React Native without the app's
+ * screen and runs the app's task until it's done or the phone is unplugged. The app keeps
+ * counts of episodes waiting (and finished downloads add to them), so there's nothing to start
+ * otherwise.
  */
 internal object BackgroundTranscribe {
   const val WORK = "caster-transcribe"
@@ -57,10 +59,21 @@ internal object BackgroundTranscribe {
 
   fun pending(context: Context) = prefs(context).getInt("pending", 0)
 
+  fun setFingerprintPending(context: Context, count: Int) =
+    prefs(context).edit().putInt("fingerprints", count).apply()
+
+  /** A download finished (maybe with the app closed): there may be work for both. */
+  fun afterDownload(context: Context) {
+    val p = prefs(context)
+    p.edit().putInt("pending", p.getInt("pending", 0) + 1).putInt("fingerprints", p.getInt("fingerprints", 0) + 1).apply()
+  }
+
+  fun hasWork(context: Context) = pending(context) > 0 || prefs(context).getInt("fingerprints", 0) > 0
+
   fun notification(context: Context): Notification {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val channel = NotificationChannel(CHANNEL, "Making transcripts", NotificationManager.IMPORTANCE_MIN)
-      channel.description = "Shown while Caster transcribes downloaded episodes as the phone charges"
+      val channel = NotificationChannel(CHANNEL, "Getting episodes ready", NotificationManager.IMPORTANCE_MIN)
+      channel.description = "Shown while Caster makes transcripts and finds ads in downloads as the phone charges"
       channel.setShowBadge(false)
       context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
@@ -73,8 +86,8 @@ internal object BackgroundTranscribe {
       else Notification.Builder(context).setPriority(Notification.PRIORITY_MIN)
     return builder
       .setSmallIcon(icon)
-      .setContentTitle("Making transcripts")
-      .setContentText("While your phone charges · stops when you unplug")
+      .setContentTitle("Getting episodes ready")
+      .setContentText("Transcripts and ad finding while your phone charges · stops when you unplug")
       .setOngoing(true)
       .setShowWhen(false)
       .setCategory(Notification.CATEGORY_PROGRESS)
@@ -87,7 +100,7 @@ internal object BackgroundTranscribe {
 
 class TranscribeWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
   override fun doWork(): Result {
-    if (BackgroundTranscribe.pending(applicationContext) <= 0) return Result.success()
+    if (!BackgroundTranscribe.hasWork(applicationContext)) return Result.success()
     val host = (applicationContext as? ReactApplication)?.reactHost ?: return Result.success()
     // Transcribing can take a while: run as a foreground service so Android lets it finish.
     val info =

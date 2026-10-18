@@ -112,6 +112,13 @@ async function applyRepeats(db: SQLiteDatabase, episode: EpisodeRow, repeats: Au
 
 let running = false;
 let again = false;
+let cancelled = false;
+
+/** Stops after the episode being fingerprinted now (the phone was unplugged). */
+export function cancelRepeatedAds() {
+  cancelled = true;
+  again = false;
+}
 /** Downloads that couldn't be fingerprinted this session (not retried until Caster restarts). */
 const failed = new Set<string>();
 
@@ -161,6 +168,7 @@ export async function detectRepeatedAds(db: SQLiteDatabase) {
     return;
   }
   running = true;
+  cancelled = false;
   try {
     do {
       again = false;
@@ -182,8 +190,12 @@ async function runOnce(db: SQLiteDatabase) {
      WHERE s.local_path IS NOT NULL ORDER BY e.pub_date DESC LIMIT 100`,
   );
   const todo = downloaded.filter((e) => !have.has(keyFor(e)) && !failed.has(keyFor(e)));
+  // Tells the charging worker whether there's anything left for it to do.
+  PlayerCore.setFingerprintPending(todo.length);
   let changed = false;
+  let left = todo.length;
   for (const episode of todo) {
+    if (cancelled) break;
     const key = keyFor(episode);
     update({ working: key });
     try {
@@ -195,6 +207,7 @@ async function runOnce(db: SQLiteDatabase) {
     }
     have.add(key);
     update({ working: null, known: new Set(have) });
+    PlayerCore.setFingerprintPending(--left);
     const others = [...(await recentKeys(db, [...have], key)), ...[...have].filter(isSample)];
     const repeats = await PlayerCore.findRepeats(key, others);
     if (repeats.length > 0) {

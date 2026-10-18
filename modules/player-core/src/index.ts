@@ -137,6 +137,8 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   configureBackgroundTranscribe(enabled: boolean): void;
   /** How many downloaded episodes are waiting for a transcript. */
   setTranscribePending(count: number): void;
+  /** How many downloaded episodes still need an audio fingerprint (wakes the charging worker). */
+  setFingerprintPending(count: number): void;
   /** Fingerprints a downloaded episode's audio (for finding repeated ads); resolves with its size. */
   fingerprintEpisode(key: string, source: string): Promise<number>;
   /** Stretches of an episode that also play in the other episodes given (seconds). */

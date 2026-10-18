@@ -116,7 +116,8 @@ export async function runAutoTranscribe(db: SQLiteDatabase) {
 export async function syncBackgroundTranscribe(db: SQLiteDatabase) {
   if (!PlayerCore) return;
   const settings = await getSettings(db);
-  PlayerCore.configureBackgroundTranscribe(settings.autoTranscribe === 'always');
+  // The charging worker also finds repeated ads, so it runs when ad skipping is on too.
+  PlayerCore.configureBackgroundTranscribe(settings.autoTranscribe === 'always' || settings.adSkip);
   const waiting = await candidates(db);
   PlayerCore.setTranscribePending(settings.autoTranscribe === 'always' ? waiting.length : 0);
 }

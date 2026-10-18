@@ -1,16 +1,16 @@
 import { fetchWithTimeout, TimeoutError } from './http';
 
 describe('fetchWithTimeout', () => {
-  const realFetch = global.fetch;
+  const realFetch = globalThis.fetch;
   afterEach(() => {
-    global.fetch = realFetch;
+    globalThis.fetch = realFetch;
     jest.useRealTimers();
   });
 
   it('gives up on a server that never answers, with a clear message', async () => {
     jest.useFakeTimers();
     // A request that hangs until it's cancelled, like a stalled server.
-    global.fetch = jest.fn(
+    globalThis.fetch = jest.fn(
       (_url: unknown, init?: RequestInit) =>
         new Promise<Response>((_resolve, reject) => {
           init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
@@ -23,7 +23,7 @@ describe('fetchWithTimeout', () => {
   });
 
   it('passes answers through', async () => {
-    global.fetch = jest.fn(async () => new Response('ok')) as typeof fetch;
+    globalThis.fetch = jest.fn(async () => new Response('ok')) as typeof fetch;
     const response = await fetchWithTimeout('https://example.org/fast');
     expect(await response.text()).toBe('ok');
   });

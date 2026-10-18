@@ -22,6 +22,10 @@ audit (version 1.0.1).
 - **Other apps get little.** Only Pod Wizard itself, the system's media controls, Android Auto
   and system apps can browse the library through the media service; other apps can play,
   pause and skip, like headphone buttons. The `podwizard://` link scheme only opens screens.
+- **Cover art for the car** is served by a read-only content provider (Android Auto only shows
+  content:// artwork). It serves only covers from your library, under names salted with a
+  per-install secret, so other apps can't fetch arbitrary addresses through it or probe which
+  shows you follow.
 - **No cloud copy.** Android's automatic cloud backup is off; the app's own backups go where
   you choose.
 - **Network.** Requests have time limits. Only HTTPS is allowed by Android's default policy

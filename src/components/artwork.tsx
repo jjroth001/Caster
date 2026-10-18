@@ -2,6 +2,8 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { PlayerCore } from '@modules/player-core/src';
+
 const PLACEHOLDER_COLORS = [
   '#5E8C61',
   '#3B4BA8',
@@ -27,10 +29,18 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** A podcast or episode cover; a coloured tile with the first letter while loading or if missing. */
+/** Covers drawn at most this big use the small cached copy instead of the full image. */
+const THUMBNAIL_MAX = 220;
+
+/**
+ * A podcast or episode cover; a coloured tile with the first letter while loading or if missing.
+ * Feeds often supply huge covers (thousands of pixels); lists use a small copy the app keeps.
+ */
 export function Artwork({ uri, title, size, radius = Math.round(size * 0.12), style }: Props) {
   const [failed, setFailed] = useState(false);
-  const showImage = !!uri && !failed;
+  const source =
+    uri && size <= THUMBNAIL_MAX && PlayerCore ? (PlayerCore.artworkThumbnail(uri) ?? uri) : uri;
+  const showImage = !!source && !failed;
   return (
     <View
       style={[
@@ -43,12 +53,12 @@ export function Artwork({ uri, title, size, radius = Math.round(size * 0.12), st
       </Text>
       {showImage && (
         <Image
-          source={{ uri }}
+          source={{ uri: source! }}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={200}
           cachePolicy="memory-disk"
-          recyclingKey={uri}
+          recyclingKey={source}
           onError={() => setFailed(true)}
           accessibilityIgnoresInvertColors
         />

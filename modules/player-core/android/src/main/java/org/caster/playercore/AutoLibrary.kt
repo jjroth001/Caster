@@ -59,7 +59,10 @@ internal object AutoLibrary {
     loadedAt = 0
   }
 
+  private var appContext: Context? = null
+
   private fun load(context: Context) {
+    appContext = context.applicationContext
     val f = file(context)
     if (!f.exists() || f.lastModified() == loadedAt) return
     loadedAt = f.lastModified()
@@ -99,7 +102,7 @@ internal object AutoLibrary {
       .setMediaMetadata(
         MediaMetadata.Builder()
           .setTitle(node.title)
-          .setArtworkUri(node.artwork?.let(Uri::parse))
+          .setArtworkUri(appContext?.let { Artwork.uriFor(it, node.artwork) })
           .setIsBrowsable(true)
           .setIsPlayable(false)
           .setMediaType(if (node.id.startsWith("pod:")) MediaMetadata.MEDIA_TYPE_PODCAST else MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
@@ -116,7 +119,7 @@ internal object AutoLibrary {
           .setTitle(e.title)
           .setArtist(e.subtitle)
           .setAlbumTitle(e.subtitle)
-          .setArtworkUri(e.artwork?.let(Uri::parse))
+          .setArtworkUri(appContext?.let { Artwork.uriFor(it, e.artwork) })
           .setIsBrowsable(false)
           .setIsPlayable(true)
           .setMediaType(MediaMetadata.MEDIA_TYPE_PODCAST_EPISODE)

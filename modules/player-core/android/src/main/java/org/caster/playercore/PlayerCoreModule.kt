@@ -354,6 +354,9 @@ class PlayerCoreModule : Module() {
     }
 
     /** "#RRGGBB" picked from a cover image, or null. */
+    /** A small cached copy of a cover (content:// address) for lists, the car and the notification. */
+    Function("artworkThumbnail") { url: String -> Artwork.uriFor(context, url)?.toString() }
+
     AsyncFunction("artworkColor") { url: String -> runCatching { ArtworkColor.of(url) }.getOrNull() }
 
     // --- Android Auto ---

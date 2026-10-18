@@ -17,6 +17,13 @@
     <meta-data
       android:name="com.google.android.gms.car.application"
       android:resource="@xml/automotive_app_desc" />
+    <!-- Cover art for Android Auto and the notification (read-only; only covers from the
+         library). Exported because the car reads it from its own app. -->
+    <provider
+      android:name="org.caster.playercore.ArtworkProvider"
+      android:authorities="${applicationId}.artwork"
+      android:exported="true"
+      android:grantUriPermissions="true" />
     <!-- Exported so the system media controls, headsets and Android Auto can connect. -->
     <service
       android:name="org.caster.playercore.PlaybackService"

@@ -175,7 +175,8 @@ object PlayerCore {
         .setTitle(title)
         .setArtist(artist)
         .setAlbumTitle(album)
-        .setArtworkUri(artworkUrl?.let(Uri::parse))
+        // Through the app's own artwork provider: the car only shows content:// covers.
+        .setArtworkUri(Artwork.uriFor(context, artworkUrl))
         .setMediaType(MediaMetadata.MEDIA_TYPE_PODCAST_EPISODE)
         .setIsPlayable(true)
         .setIsBrowsable(false)

@@ -123,6 +123,7 @@ need a second device or a car; skip those if you can't try them.
 
 - [ ] Pod Wizard shows in the car's app list (after turning on Unknown sources, see README)
 - [ ] Browse Up Next, In progress, New episodes, Downloads, Playlists, Podcasts
+- [ ] Cover art shows in the car's lists and on its now-playing screen
 - [ ] Play, pause, skip; speed and bookmark under "more"
 - [ ] Position and bookmarks from the car show up in the app afterwards
 

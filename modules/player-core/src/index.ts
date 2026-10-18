@@ -103,6 +103,8 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   setSkipIntervals(backSeconds: number, forwardSeconds: number): Promise<void>;
   /** Pauses after `ms` (fading out over the last 10 s); 0 turns the timer off. */
   setSleepTimer(ms: number): Promise<void>;
+  /** Shaking the phone in the sleep timer's last minute adds five minutes. */
+  setShakeToExtend(enabled: boolean): void;
   /** What double and triple presses of a headset's play button do. */
   setHeadsetActions(double: HeadsetAction, triple: HeadsetAction): void;
   stop(): Promise<void>;

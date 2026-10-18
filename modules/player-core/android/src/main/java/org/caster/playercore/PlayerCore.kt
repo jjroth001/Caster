@@ -81,6 +81,8 @@ object PlayerCore {
   /** When the sleep timer pauses playback (elapsedRealtime ms), or 0 when it's off. */
   private var sleepAt = 0L
   private const val FADE_MS = 10_000L
+  private const val SHAKE_WINDOW_MS = 60_000L
+  private const val SHAKE_ADDS_MS = 5 * 60_000L
 
   val isCreated: Boolean
     get() = exo != null
@@ -200,6 +202,7 @@ object PlayerCore {
   /** Pauses after `ms`, fading out over the last 10 seconds; 0 turns the timer off. */
   fun setSleepTimer(ms: Long) {
     handler.removeCallbacks(sleepTick)
+    ShakeToExtend.stop()
     exo?.volume = 1f
     sleepAt = if (ms > 0) SystemClock.elapsedRealtime() + ms else 0L
     if (sleepAt > 0) handler.post(sleepTick)
@@ -212,11 +215,22 @@ object PlayerCore {
         val player = exo ?: return
         val left = sleepAt - SystemClock.elapsedRealtime()
         if (left <= 0) {
+          ShakeToExtend.stop()
           player.pause()
           player.volume = 1f
           sleepAt = 0L
           listener?.onStateChanged()
           return
+        }
+        // In the last minute, a shake adds five more.
+        if (left < SHAKE_WINDOW_MS && !ShakeToExtend.listening) {
+          appContext?.let { context ->
+            ShakeToExtend.start(context) {
+              val remaining = (sleepAt - SystemClock.elapsedRealtime()).coerceAtLeast(0)
+              ShakeToExtend.buzz(context)
+              setSleepTimer(remaining + SHAKE_ADDS_MS)
+            }
+          }
         }
         // Only fade while actually playing; a paused timer keeps counting down.
         player.volume = if (left < FADE_MS) (left.toFloat() / FADE_MS).coerceIn(0f, 1f) else 1f

@@ -42,6 +42,7 @@ need a second device or a car; skip those if you can't try them.
 - [ ] Tab bar and mini player stay on screen everywhere except the full player
 - [ ] The queue button on the mini player shows how many are in Up Next and opens it
 - [ ] Sleep timer: minutes, end of episode, end of chapter; fades out at the end
+- [ ] In the sleep timer's last minute, two firm shakes buzz and add 5 minutes (also with the screen off); the setting is under Playback
 - [ ] Leaving the app, locking the phone and coming back keeps playing and keeps the place
 - [ ] After closing Caster completely, it reopens at the same episode and position
 

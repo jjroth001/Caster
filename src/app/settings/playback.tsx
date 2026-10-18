@@ -66,6 +66,16 @@ export default function PlaybackSettings() {
         </Section>
       )}
 
+      {engine.kind === 'native' && (
+        <Section title="Sleep timer">
+          <Row
+            label="Shake to add 5 minutes"
+            hint="In the timer’s last minute, shake the phone to keep listening a little longer">
+            <Toggle value={s.shakeToExtend} onChange={setPlayback('shakeToExtend')} />
+          </Row>
+        </Section>
+      )}
+
       <Section title="Bookmarks">
         <Row label="Smart bookmarks" hint="With a transcript, bookmarks keep what was just said">
           <Toggle value={s.smartBookmarks} onChange={set('smartBookmarks')} />

@@ -196,6 +196,9 @@ class PlayerCoreModule : Module() {
     AsyncFunction("setSleepTimer") { ms: Double -> PlayerCore.setSleepTimer(ms.toLong()) }
       .runOnQueue(Queues.MAIN)
 
+    /** Shaking the phone in the sleep timer's last minute adds five minutes. */
+    Function("setShakeToExtend") { enabled: Boolean -> ShakeToExtend.enabled = enabled }
+
     /** What double and triple presses of a headset button do. */
     Function("setHeadsetActions") { double: String, triple: String ->
       HeadsetButtons.doubleAction = double

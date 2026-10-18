@@ -1,6 +1,7 @@
 import { addDatabaseChangeListener, type SQLiteDatabase } from 'expo-sqlite';
 import { useSyncExternalStore } from 'react';
 
+import { PlayerCore } from '@modules/player-core/src';
 import {
   dequeue,
   getEpisode,
@@ -121,6 +122,7 @@ export async function applyPlayerSettings(db: SQLiteDatabase) {
   const s = await getSettings(db);
   await engine.setSkipIntervals(s.skipBackS, s.skipForwardS);
   engine.setHeadsetActions(s.headsetDouble, s.headsetTriple);
+  PlayerCore?.setShakeToExtend(s.shakeToExtend);
 }
 
 // --- Skip rules for the episode in the player ----------------------------------------------

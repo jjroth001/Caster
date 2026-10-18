@@ -2,6 +2,7 @@ import { addDatabaseChangeListener, type SQLiteDatabase } from 'expo-sqlite';
 import { useSyncExternalStore } from 'react';
 
 import { PlayerCore } from '@modules/player-core/src';
+import { AD_THRESHOLDS } from '@/ads/thresholds';
 import {
   dequeue,
   getEpisode,
@@ -142,7 +143,7 @@ async function refreshRules(db: SQLiteDatabase, episodeId: number) {
     title: string | null;
   }>('SELECT start_s, end_s, title FROM chapter WHERE episode_id = ? AND selected = 0', episodeId);
   const settings = await getSettings(db);
-  const threshold = { cautious: 0.95, balanced: 0.8, eager: 0.6 }[settings.adSensitivity];
+  const threshold = AD_THRESHOLDS[settings.adSensitivity];
   const adsOn = options.adSkip;
   const ads = adsOn
     ? await db.getAllAsync<{ id: number; start_s: number; end_s: number }>(

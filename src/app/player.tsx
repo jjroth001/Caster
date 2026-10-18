@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { VideoSurface } from '@modules/player-core/src/VideoSurface';
 import { MARK_CHOICES, markAdBefore } from '@/ads/mark';
+import { showAdsSheet } from '@/components/ads-sheet';
 import { Artwork } from '@/components/artwork';
 import { Background } from '@/components/background';
 import { useArtworkTint } from '@/theme/artwork-tint';
@@ -179,6 +180,12 @@ export default function PlayerScreen() {
         },
         { label: 'Chapters', icon: 'list', onPress: () => router.push('/chapters') },
         { label: 'Transcript', icon: 'file-text', onPress: () => router.push('/transcript') },
+        {
+          label: 'Ads in this episode',
+          hint: 'When they are, how they were found, and which are skipped',
+          icon: 'scissors' as const,
+          onPress: () => showAdsSheet(episode),
+        },
         ...(current
           ? [
               {

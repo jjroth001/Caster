@@ -10,6 +10,7 @@ import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { Button, IconButton } from '@/components/controls';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { useTabBarSpace } from '@/components/tab-bar';
+import { showAdsSheet } from '@/components/ads-sheet';
 import { showSheet } from '@/components/sheet';
 import { Txt } from '@/components/text';
 import {
@@ -150,6 +151,11 @@ export default function EpisodeScreen() {
           label: 'Add to playlist',
           icon: 'playlist',
           onPress: () => void chooseManualPlaylist(db, episode.id),
+        },
+        {
+          label: 'Ads in this episode',
+          icon: 'scissors',
+          onPress: () => showAdsSheet(episode),
         },
         {
           label: episode.archived ? 'Unarchive' : 'Archive',

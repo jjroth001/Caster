@@ -76,6 +76,7 @@ need a second device or a car; skip those if you can't try them.
 - [ ] An episode with a publisher transcript and sponsor reads shows "Skipped ad · Undo"
       at the start of the read and jumps past all of it
 - [ ] Shaded bands on the progress bar where ads were found
+- [ ] Player ⋯ (or an episode's More) → Ads in this episode: each ad's times, how it was found and whether it's skipped; tapping one jumps there; the switch changes whether it's skipped; the bottom line says whether the audio fingerprint is made, being made or waiting
 - [ ] Undo goes back and that stretch isn't skipped again
 - [ ] Player ⋯ → That was an ad → the last minute: a band appears and it's skipped next time; a downloaded episode with the same ad gets it skipped too
 - [ ] Chapters titled like ads are skipped

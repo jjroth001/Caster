@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { useSyncExternalStore } from 'react';
 
 import { PlayerCore, type AudioRepeat } from '@modules/player-core/src';
 import { inTransaction } from '@/db/library';
@@ -114,6 +115,40 @@ let again = false;
 /** Downloads that couldn't be fingerprinted this session (not retried until Caster restarts). */
 const failed = new Set<string>();
 
+// --- What the episode page shows: which episodes have a fingerprint, and which one is in progress.
+
+type FingerprintState = { known: Set<string> | null; working: string | null; failed: Set<string> };
+let state: FingerprintState = { known: null, working: null, failed };
+const listeners = new Set<() => void>();
+function update(next: Partial<FingerprintState>) {
+  state = { ...state, ...next };
+  listeners.forEach((l) => l());
+}
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  if (!state.known && PlayerCore) {
+    const known = new Set(PlayerCore.listFingerprints());
+    queueMicrotask(() => update({ known }));
+  }
+  return () => listeners.delete(listener);
+}
+
+export type FingerprintStatus = 'done' | 'working' | 'waiting' | 'failed' | 'needs-download';
+
+/** Where an episode's audio fingerprint is up to (null before it's known, or in Expo Go). */
+export function useFingerprintStatus(
+  episode: { podcast_id: number; guid: string } | null,
+  downloaded: boolean,
+): FingerprintStatus | null {
+  const s = useSyncExternalStore(subscribe, () => state);
+  if (!PlayerCore || !episode || !s.known) return null;
+  const key = keyFor(episode);
+  if (s.known.has(key)) return 'done';
+  if (s.working === key) return 'working';
+  if (s.failed.has(key)) return 'failed';
+  return downloaded ? 'waiting' : 'needs-download';
+}
+
 /**
  * Fingerprints downloaded episodes that don't have one yet, newest first, and marks the ads
  * they share with other episodes. Runs one at a time in the background; a call while it's
@@ -150,13 +185,16 @@ async function runOnce(db: SQLiteDatabase) {
   let changed = false;
   for (const episode of todo) {
     const key = keyFor(episode);
+    update({ working: key });
     try {
       await PlayerCore.fingerprintEpisode(key, episode.local_path);
     } catch {
       failed.add(key);
+      update({ working: null, failed: new Set(failed) });
       continue;
     }
     have.add(key);
+    update({ working: null, known: new Set(have) });
     const others = [...(await recentKeys(db, [...have], key)), ...[...have].filter(isSample)];
     const repeats = await PlayerCore.findRepeats(key, others);
     if (repeats.length > 0) {

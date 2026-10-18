@@ -38,4 +38,24 @@ describe('instant play/pause and seeking', () => {
   it('ignores the tap for a different episode', () => {
     expect(applyExpected(report({ id: '8' }), '7', tapped, 1300).playWhenReady).toBe(false);
   });
+
+  it('keeps showing a newly started episode over late updates about the old one', () => {
+    const started = {
+      at: 1000,
+      patch: { id: '9', state: 'buffering' as const, playWhenReady: true },
+    };
+    expect(applyExpected(report({ id: '7' }), '9', started, 1500)).toMatchObject({
+      id: '9',
+      playWhenReady: true,
+    });
+    // Once the player reports the new episode, its report wins.
+    expect(
+      applyExpected(
+        report({ id: '9', state: 'ready', playing: true, playWhenReady: true }),
+        '9',
+        started,
+        1600,
+      ).state,
+    ).toBe('ready');
+  });
 });

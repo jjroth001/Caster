@@ -196,6 +196,18 @@ export async function playEpisode(
   const previous = lastState;
   const episode = await getEpisode(db, episodeId);
   if (!episode) return;
+  // Show it starting at once: the button, the episode's row and the mini player switch to it
+  // now, not when the player reports back.
+  expectPlayerState({
+    id: String(episodeId),
+    state: 'buffering',
+    playing: false,
+    playWhenReady,
+    positionMs: (startAtS ?? (episode.played ? 0 : episode.position_s)) * 1000,
+    durationMs: episode.duration_s ? episode.duration_s * 1000 : null,
+    bufferedMs: 0,
+  });
+  const nowPlayingSaved = setSetting(db, 'nowPlaying', episodeId);
   const options = await optionsFor(db, episode.podcast_id);
   let startS = episode.played ? 0 : episode.position_s;
   // Starting within the last few seconds would end it at once; start over instead.
@@ -231,13 +243,38 @@ export async function playEpisode(
     // Playing an archived episode brings it back.
     episode.archived ? setArchived(db, episodeId, false) : null,
     dequeue(db, episodeId),
-    setSetting(db, 'nowPlaying', episodeId),
+    nowPlayingSaved,
     refreshRules(db, episodeId),
   ]);
-  void ensureChapters(db, episodeId).then(() => refreshRules(db, episodeId));
-  void ensureTranscript(db, episodeId).then((cues) =>
-    cues ? refreshRules(db, episodeId) : undefined,
-  );
+  // Chapters and the transcript (which can be megabytes) wait until the audio is playing, so
+  // they don't compete with its first seconds on a slow connection.
+  void whenPlaying(episodeId).then(() => {
+    void ensureChapters(db, episodeId).then(() => refreshRules(db, episodeId));
+    void ensureTranscript(db, episodeId).then((cues) =>
+      cues ? refreshRules(db, episodeId) : undefined,
+    );
+  });
+}
+
+/** Resolves once this episode is actually playing, or after a few seconds regardless. */
+function whenPlaying(episodeId: number, maxMs = 8000): Promise<void> {
+  return new Promise((resolve) => {
+    let done = false;
+    let unsubscribe = () => {};
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      unsubscribe();
+      resolve();
+    };
+    const timer = setTimeout(finish, maxMs);
+    unsubscribe = engine.subscribe((event) => {
+      if (event.type === 'state' && event.state.id === String(episodeId) && event.state.playing) {
+        finish();
+      }
+    });
+  });
 }
 
 /** Plays an episode from a given moment (bookmarks, transcript lines). */

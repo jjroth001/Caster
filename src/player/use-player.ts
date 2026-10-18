@@ -10,6 +10,7 @@ let unsubscribe: (() => void) | null = null;
 /** What a tap just changed, and when: a report from before it reached the player is ignored. */
 let expected: { at: number; patch: Partial<PlayerState> } | null = null;
 const SETTLE_MS = 700;
+const SWITCH_MS = 2500;
 
 /** A report from the player, unless it predates what was just tapped (then the tap wins). */
 export function applyExpected(
@@ -18,12 +19,23 @@ export function applyExpected(
   tapped: { at: number; patch: Partial<PlayerState> } | null,
   now: number,
 ): PlayerState {
-  if (!tapped || now - tapped.at > SETTLE_MS || report.id !== currentId) return report;
+  if (!tapped) return report;
+  // Starting another episode: until the player reports the new one (a little longer, since
+  // it has to load), updates about the old one are from before the tap.
+  if (tapped.patch.id !== undefined && tapped.patch.id !== report.id) {
+    return now - tapped.at <= SWITCH_MS ? { ...report, ...tapped.patch } : report;
+  }
+  if (now - tapped.at > SETTLE_MS || report.id !== currentId) return report;
   const { playWhenReady, positionMs } = tapped.patch;
-  const late =
-    (playWhenReady !== undefined && report.playWhenReady !== playWhenReady) ||
-    (positionMs !== undefined && Math.abs(report.positionMs - positionMs) > 1500);
-  return late ? { ...report, ...tapped.patch } : report;
+  // Only what was tapped overrides the report (play/pause, position), never the rest of it.
+  const fix: Partial<PlayerState> = {};
+  if (playWhenReady !== undefined && report.playWhenReady !== playWhenReady) {
+    fix.playWhenReady = playWhenReady;
+  }
+  if (positionMs !== undefined && Math.abs(report.positionMs - positionMs) > 1500) {
+    fix.positionMs = positionMs;
+  }
+  return Object.keys(fix).length > 0 ? { ...report, ...fix } : report;
 }
 
 function start() {

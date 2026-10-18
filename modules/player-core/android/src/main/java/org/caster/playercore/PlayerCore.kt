@@ -23,6 +23,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
@@ -81,6 +82,8 @@ object PlayerCore {
   /** When the sleep timer pauses playback (elapsedRealtime ms), or 0 when it's off. */
   private var sleepAt = 0L
   private const val FADE_MS = 10_000L
+  private const val START_BUFFER_MS = 1_000
+  private const val RESUME_BUFFER_MS = 2_000
   private const val SHAKE_WINDOW_MS = 60_000L
   private const val SHAKE_ADDS_MS = 5 * 60_000L
 
@@ -131,6 +134,18 @@ object PlayerCore {
             .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
             .build(),
           /* handleAudioFocus = */ true,
+        )
+        // Start (and resume after a stall) on less buffered audio than the music-minded
+        // defaults (2.5 s / 5 s): a second of speech is plenty, and it starts sooner on mobile data.
+        .setLoadControl(
+          DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+              DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
+              DefaultLoadControl.DEFAULT_MAX_BUFFER_MS,
+              START_BUFFER_MS,
+              RESUME_BUFFER_MS,
+            )
+            .build()
         )
         .setHandleAudioBecomingNoisy(true) // pause when headphones are unplugged
         .setWakeMode(C.WAKE_MODE_NETWORK)

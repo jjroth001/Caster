@@ -16,8 +16,8 @@ export default function AboutSettings() {
         <LinkRow
           icon="info"
           label="Source code"
-          hint="github.com/jjroth001/Caster"
-          onPress={() => void Linking.openURL('https://github.com/jjroth001/Caster')}
+          hint="github.com/jjroth001/PodWizard"
+          onPress={() => void Linking.openURL('https://github.com/jjroth001/PodWizard')}
         />
       </Section>
     </SettingsPage>

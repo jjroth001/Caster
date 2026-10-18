@@ -37,6 +37,8 @@ import {
   bookmarkNow,
   setPlaybackOption,
   setStopAtEndOfEpisode,
+  seekTo,
+  skipBy,
   togglePlay,
   useStopAtEndOfEpisode,
 } from '@/player/controller';
@@ -357,11 +359,14 @@ export default function PlayerScreen() {
                 .map((c) => ({ startMs: c.start_s * 1000, endMs: c.end_s! * 1000 })),
               ...ads.map((a) => ({ startMs: a.start_s * 1000, endMs: a.end_s * 1000 })),
             ]}
-            onSeek={(ms) => void engine.seekTo(ms)}
+            onSeek={(ms) => void seekTo(ms)}
           />
 
           <View style={styles.transport}>
-            <SkipButton seconds={settings.skipBackS} onPress={() => void engine.skipBack()} />
+            <SkipButton
+              seconds={settings.skipBackS}
+              onPress={() => void skipBy(-settings.skipBackS)}
+            />
             <Pressable
               onPress={() => void togglePlay(db)}
               accessibilityRole="button"
@@ -382,7 +387,7 @@ export default function PlayerScreen() {
             <SkipButton
               seconds={settings.skipForwardS}
               forward
-              onPress={() => void engine.skipForward()}
+              onPress={() => void skipBy(settings.skipForwardS)}
             />
           </View>
           {current && player.playWhenReady && player.state === 'buffering' && (

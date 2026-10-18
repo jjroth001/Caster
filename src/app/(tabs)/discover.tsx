@@ -62,6 +62,15 @@ const MIN_LETTERS = 3;
 const CACHE_MS = 10 * 60_000;
 const recentSearches = new Map<string, { at: number; items: DirectoryPodcast[] }>();
 
+/** The top-shows list, kept for half an hour so coming back to Discover is instant. */
+const CHARTS_MS = 30 * 60_000;
+const recentCharts = new Map<string, { at: number; items: DirectoryPodcast[] }>();
+
+function cachedCharts(key: string): DirectoryPodcast[] | null {
+  const hit = recentCharts.get(key);
+  return hit && Date.now() - hit.at < CHARTS_MS ? hit.items : null;
+}
+
 type Results =
   | { kind: 'idle' }
   | { kind: 'loading' }
@@ -75,7 +84,9 @@ export default function DiscoverScreen() {
   const bottom = useTabBarSpace();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Results>({ kind: 'idle' });
-  const [charts, setCharts] = useState<DirectoryPodcast[] | null>(null);
+  const [charts, setCharts] = useState<DirectoryPodcast[] | null>(() =>
+    cachedCharts(`apple|${deviceCountry()}`),
+  );
   const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -90,10 +101,15 @@ export default function DiscoverScreen() {
 
   useEffect(() => {
     let live = true;
+    const key = `${source}|${country}`;
+    if (cachedCharts(key)) return;
     const load =
       source === 'podcastindex' ? trendingPodcastIndex(language()) : topPodcasts(country);
     load.then(
-      (items) => live && setCharts(items),
+      (items) => {
+        recentCharts.set(key, { at: Date.now(), items });
+        if (live) setCharts(items);
+      },
       () => live && setCharts([]),
     );
     return () => {
@@ -113,7 +129,7 @@ export default function DiscoverScreen() {
         selected: source === o.value,
         onPress: () => {
           if (o.value === source) return;
-          setCharts(null);
+          setCharts(cachedCharts(`${o.value}|${country}`));
           setSource(o.value);
         },
       })),
@@ -146,7 +162,7 @@ export default function DiscoverScreen() {
           void forgetPodcastIndexLogin().then(() => {
             setIndexKey(false);
             if (source === 'podcastindex') {
-              setCharts(null);
+              setCharts(cachedCharts(`apple|${country}`));
               setSource('apple');
             }
           }),

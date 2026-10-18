@@ -11,8 +11,7 @@ import { getSettings } from '@/db/settings';
 import { useDbQuery } from '@/db/use-db-query';
 import { clock } from '@/lib/format';
 import { isAdTitle } from '@/player/chapters';
-import { optionsFor, refreshSkipRules } from '@/player/controller';
-import { engine } from '@/player/engine';
+import { optionsFor, refreshSkipRules, seekTo } from '@/player/controller';
 import { useTheme } from '@/theme/theme-provider';
 import { Spacing } from '@/theme/themes';
 
@@ -145,7 +144,7 @@ function AdsList({ episode }: { episode: Episode }) {
             <Pressable
               onPress={() => {
                 closeSheet();
-                void engine.seekTo(ad.start * 1000);
+                void seekTo(ad.start * 1000);
               }}
               accessibilityRole="button"
               accessibilityHint="Jumps there"

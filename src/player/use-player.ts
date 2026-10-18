@@ -7,10 +7,29 @@ let lastError: string | null = null;
 const listeners = new Set<() => void>();
 let unsubscribe: (() => void) | null = null;
 
+/** What a tap just changed, and when: a report from before it reached the player is ignored. */
+let expected: { at: number; patch: Partial<PlayerState> } | null = null;
+const SETTLE_MS = 700;
+
+/** A report from the player, unless it predates what was just tapped (then the tap wins). */
+export function applyExpected(
+  report: PlayerState,
+  currentId: string | null,
+  tapped: { at: number; patch: Partial<PlayerState> } | null,
+  now: number,
+): PlayerState {
+  if (!tapped || now - tapped.at > SETTLE_MS || report.id !== currentId) return report;
+  const { playWhenReady, positionMs } = tapped.patch;
+  const late =
+    (playWhenReady !== undefined && report.playWhenReady !== playWhenReady) ||
+    (positionMs !== undefined && Math.abs(report.positionMs - positionMs) > 1500);
+  return late ? { ...report, ...tapped.patch } : report;
+}
+
 function start() {
   unsubscribe = engine.subscribe((event) => {
     if (event.type === 'state') {
-      current = event.state;
+      current = applyExpected(event.state, current.id, expected, Date.now());
       if (event.state.playing) lastError = null;
     } else if (event.type === 'error') {
       lastError = event.message || 'Playback failed';
@@ -31,6 +50,17 @@ function subscribe(listener: () => void) {
       unsubscribe = null;
     }
   };
+}
+
+/**
+ * Shows a change straight away (play/pause flips the moment it's tapped) instead of waiting for
+ * the player to report back; its next report replaces this either way.
+ */
+export function expectPlayerState(patch: Partial<PlayerState>) {
+  const recent = expected && Date.now() - expected.at <= SETTLE_MS ? expected.patch : {};
+  expected = { at: Date.now(), patch: { ...recent, ...patch } };
+  current = { ...current, ...patch };
+  listeners.forEach((l) => l());
 }
 
 const snapshot = () => current;

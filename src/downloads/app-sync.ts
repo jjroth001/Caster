@@ -18,6 +18,7 @@ import { autoDownloadQueued, runAutoDownloads } from './auto-download';
 import { applyDownloadEvent, enforceStorageCap, reconcileDownloads } from './downloads';
 
 const STALE_MS = 15 * 60_000;
+const OPENING_DELAY_MS = 1200;
 
 /** Everything the app does to catch up with the outside world when it opens or returns. */
 async function catchUp(db: SQLiteDatabase, { force }: { force: boolean }) {
@@ -46,12 +47,15 @@ async function catchUp(db: SQLiteDatabase, { force }: { force: boolean }) {
  * when the app goes away. Returns a function that stops it.
  */
 export function startAppSync(db: SQLiteDatabase): () => void {
-  void (async () => {
-    const settings = await getSettings(db);
-    await pruneUnfollowed(db, settings.nowPlaying);
-    await catchUp(db, { force: true });
-    await redetectTranscriptAds(db);
-  })();
+  // Catch up a moment after opening, so the first taps and scrolls don't compete with it.
+  const opening = setTimeout(() => {
+    void (async () => {
+      const settings = await getSettings(db);
+      await pruneUnfollowed(db, settings.nowPlaying);
+      await catchUp(db, { force: true });
+      await redetectTranscriptAds(db);
+    })();
+  }, OPENING_DELAY_MS);
   const appState = AppState.addEventListener('change', (state) => {
     if (state === 'active') {
       void catchUp(db, { force: false }).then(() => runAutoTranscribe(db));
@@ -79,6 +83,7 @@ export function startAppSync(db: SQLiteDatabase): () => void {
   const onQueued = (d: SQLiteDatabase, episodeId: number) => void autoDownloadQueued(d, episodeId);
   queueListeners.add(onQueued);
   return () => {
+    clearTimeout(opening);
     queueListeners.delete(onQueued);
     transcribe();
     appState.remove();

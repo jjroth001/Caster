@@ -28,8 +28,7 @@ import { useDownloadLabel } from '@/downloads/progress';
 import { htmlToText } from '@/feeds/text';
 import { duration, releaseDate, timeLeft } from '@/lib/format';
 import { chooseManualPlaylist } from '@/lib/library-actions';
-import { playEpisode } from '@/player/controller';
-import { engine } from '@/player/engine';
+import { playEpisode, togglePlay } from '@/player/controller';
 import { usePlayerState } from '@/player/use-player';
 import { useTheme } from '@/theme/theme-provider';
 import { Spacing } from '@/theme/themes';
@@ -216,7 +215,7 @@ export default function EpisodeScreen() {
           label={playing ? 'Pause' : current ? 'Resume' : progress ? 'Resume' : 'Play'}
           icon={playing ? 'pause-fill' : 'play-fill'}
           onPress={() => {
-            if (current) void (playing ? engine.pause() : engine.play());
+            if (current) void togglePlay(db);
             else void playEpisode(db, episode.id);
           }}
           style={styles.play}

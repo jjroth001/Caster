@@ -16,6 +16,12 @@ import { rememberFeedLogin } from './private';
 
 const USER_AGENT = 'Caster/1.0 (Android; open-source podcast player)';
 
+/**
+ * Lets the interface handle taps and scrolling before the next chunk of work: parsing a big
+ * feed runs on the same thread as the screen.
+ */
+const yieldToUi = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
 type FetchResult =
   | { status: 'unchanged' }
   | { status: 'ok'; feed: ParsedFeed; etag: string | null; lastModified: string | null };
@@ -47,6 +53,7 @@ export async function fetchFeed(
   }
   if (!response.ok) throw new FeedError(`The podcast’s server answered ${response.status}.`);
   const xml = await response.text();
+  await yieldToUi();
   return {
     status: 'ok',
     feed: parseFeed(xml, url),
@@ -111,6 +118,7 @@ export function refreshAll(db: SQLiteDatabase): Promise<{ updated: number; faile
       while (next < podcasts.length) {
         const podcast = podcasts[next++];
         if (!(await refreshOne(db, podcast))) failed++;
+        await yieldToUi();
       }
     };
     await Promise.all(Array.from({ length: Math.min(4, podcasts.length) }, worker));

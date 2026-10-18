@@ -22,6 +22,7 @@ import { ensureTranscript } from '@/transcripts/transcripts';
 import { ensureChapters, saveEmbeddedChapters } from './chapters';
 import { engine, type PlayerState, type TrimSilence } from './engine';
 import { flushStats, trackSkip, trackState } from './stats';
+import { expectPlayerState } from './use-player';
 
 /**
  * Glue between the library and the player engine: what to load, from where, with which
@@ -185,21 +186,16 @@ export function undoSkip(notice: SkipNotice) {
 
 // --- Loading and finishing ---------------------------------------------------------------
 
-/** Saves where the current episode is, so it resumes there. */
-async function saveCurrent(db: SQLiteDatabase) {
-  const state = lastState;
-  if (!state?.id || state.state === 'ended') return;
-  await savePosition(db, Number(state.id), state.positionMs / 1000);
-}
-
 export async function playEpisode(
   db: SQLiteDatabase,
   episodeId: number,
   { playWhenReady = true, startAtS }: { playWhenReady?: boolean; startAtS?: number } = {},
 ) {
+  // Only what's needed to start the audio comes first; the bookkeeping happens alongside it,
+  // so pressing play responds straight away.
+  const previous = lastState;
   const episode = await getEpisode(db, episodeId);
   if (!episode) return;
-  if (lastState?.id !== String(episodeId)) await saveCurrent(db);
   const options = await optionsFor(db, episode.podcast_id);
   let startS = episode.played ? 0 : episode.position_s;
   // Starting within the last few seconds would end it at once; start over instead.
@@ -210,15 +206,9 @@ export async function playEpisode(
     startS = options.skipStartS;
   }
   if (startAtS != null) startS = startAtS;
-  if (episode.played) await setPlayed(db, episodeId, false);
-  // Playing an archived episode brings it back.
-  if (episode.archived) await setArchived(db, episodeId, false);
-  await dequeue(db, episodeId);
-  await setSetting(db, 'nowPlaying', episodeId);
   endedFor = null;
   heard.clear();
   skipNotice.set(null);
-  await refreshRules(db, episodeId);
   await engine.load({
     id: String(episodeId),
     url: episode.local_path ?? episode.enclosure_url,
@@ -233,6 +223,16 @@ export async function playEpisode(
     engine.setSpeed(options.speed),
     engine.setTrimSilence(options.trimSilence),
     engine.setVolumeBoost(options.volumeBoost),
+    // Where the previous episode was, from its last report before this one replaced it.
+    previous?.id && previous.id !== String(episodeId) && previous.state !== 'ended'
+      ? savePosition(db, Number(previous.id), previous.positionMs / 1000)
+      : null,
+    episode.played ? setPlayed(db, episodeId, false) : null,
+    // Playing an archived episode brings it back.
+    episode.archived ? setArchived(db, episodeId, false) : null,
+    dequeue(db, episodeId),
+    setSetting(db, 'nowPlaying', episodeId),
+    refreshRules(db, episodeId),
   ]);
   void ensureChapters(db, episodeId).then(() => refreshRules(db, episodeId));
   void ensureTranscript(db, episodeId).then((cues) =>
@@ -278,10 +278,33 @@ export async function nextChapter(db: SQLiteDatabase) {
 }
 
 /** Plays or pauses; with nothing loaded, starts the first Up Next episode. */
+/** Moves the shown position straight away (no snapping back while the player catches up). */
+function expectPosition(ms: number) {
+  if (!lastState?.id) return;
+  const clamped = Math.max(0, lastState.durationMs ? Math.min(ms, lastState.durationMs) : ms);
+  lastState = { ...lastState, positionMs: clamped };
+  expectPlayerState({ positionMs: clamped });
+}
+
+export function seekTo(ms: number) {
+  expectPosition(ms);
+  return engine.seekTo(ms);
+}
+
+/** Skip back or forward by the player's interval (seconds, from Settings). */
+export function skipBy(seconds: number) {
+  if (lastState) expectPosition(lastState.positionMs + seconds * 1000);
+  return seconds < 0 ? engine.skipBack() : engine.skipForward();
+}
+
 export async function togglePlay(db: SQLiteDatabase) {
   if (lastState?.id && lastState.state !== 'ended') {
-    if (lastState.playWhenReady) await engine.pause();
-    else await engine.play();
+    const play = !lastState.playWhenReady;
+    // The button flips at once; the player confirms a moment later.
+    expectPlayerState({ playWhenReady: play });
+    lastState = { ...lastState, playWhenReady: play };
+    if (play) await engine.play();
+    else await engine.pause();
     return;
   }
   // Resume the episode in the player; after one has finished, move on to Up Next first.

@@ -11,8 +11,7 @@ import type { EpisodeItem } from '@/db/library';
 import { keyFor } from '@/downloads/downloads';
 import { useDownloadLabel } from '@/downloads/progress';
 import { duration, releaseDate, timeLeft } from '@/lib/format';
-import { engine } from '@/player/engine';
-import { playEpisode } from '@/player/controller';
+import { playEpisode, togglePlay } from '@/player/controller';
 import { useEpisodePlayback } from '@/player/use-player';
 import { useTheme } from '@/theme/theme-provider';
 import { Radius, Spacing } from '@/theme/themes';
@@ -53,7 +52,7 @@ export function EpisodeRow({ episode, showPodcast, cards, trailing }: Props) {
     .join(' · ');
 
   const onPlay = () => {
-    if (current) void (player.playWhenReady ? engine.pause() : engine.play());
+    if (current) void togglePlay(db);
     else void playEpisode(db, episode.id);
   };
 

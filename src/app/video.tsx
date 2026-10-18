@@ -10,8 +10,9 @@ import { VideoSurface } from '@modules/player-core/src/VideoSurface';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { Txt } from '@/components/text';
 import { clock } from '@/lib/format';
-import { togglePlay } from '@/player/controller';
-import { engine } from '@/player/engine';
+import { DEFAULT_SETTINGS } from '@/db/settings';
+import { useSettings } from '@/db/use-settings';
+import { skipBy, togglePlay } from '@/player/controller';
 import { usePlayerState } from '@/player/use-player';
 import { Spacing } from '@/theme/themes';
 
@@ -52,6 +53,7 @@ export default function VideoScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const player = usePlayerState();
+  const settings = useSettings().data ?? DEFAULT_SETTINGS;
   const [controls, setControls] = useState(true);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const landscape = width > height;
@@ -125,7 +127,7 @@ export default function VideoScreen() {
               icon="arrow-counter-clockwise"
               label="Skip back"
               size={34}
-              onPress={nudge(() => void engine.skipBack())}
+              onPress={nudge(() => void skipBy(-settings.skipBackS))}
             />
             <Pressable
               onPress={nudge(() => void togglePlay(db))}
@@ -143,7 +145,7 @@ export default function VideoScreen() {
               icon="arrow-clockwise"
               label="Skip forward"
               size={34}
-              onPress={nudge(() => void engine.skipForward())}
+              onPress={nudge(() => void skipBy(settings.skipForwardS))}
             />
           </View>
           <View

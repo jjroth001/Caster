@@ -9,7 +9,7 @@ import { Txt } from '@/components/text';
 import { useDbQuery } from '@/db/use-db-query';
 import { clock } from '@/lib/format';
 import { chapterAt, listChapters, setChapterSelected } from '@/player/chapters';
-import { engine } from '@/player/engine';
+import { seekTo } from '@/player/controller';
 import { useNowPlaying } from '@/player/use-now-playing';
 import { usePlayerState } from '@/player/use-player';
 import { useTheme } from '@/theme/theme-provider';
@@ -52,7 +52,7 @@ export default function ChaptersScreen() {
                 !item.selected && { opacity: 0.55 },
               ]}>
               <Pressable
-                onPress={() => void engine.seekTo(item.start_s * 1000 + 1)}
+                onPress={() => void seekTo(item.start_s * 1000 + 1)}
                 accessibilityRole="button"
                 accessibilityLabel={`Jump to ${item.title ?? `chapter ${index + 1}`}`}
                 style={styles.main}>

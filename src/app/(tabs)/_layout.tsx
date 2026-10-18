@@ -15,7 +15,13 @@ export default function TabsLayout() {
       <TopTabs
         tabBarPosition="bottom"
         tabBar={(props: TabBarProps) => <TabsBridge {...props} />}
-        screenOptions={{ sceneStyle: { backgroundColor: 'transparent' }, lazy: true }}>
+        screenOptions={{
+          sceneStyle: { backgroundColor: 'transparent' },
+          // Tabs draw when first needed, but the ones beside the current tab are made ready
+          // in advance, so swiping or tapping to them never shows an empty page.
+          lazy: true,
+          lazyPreloadDistance: 1,
+        }}>
         {TABS.map((tab) => (
           <TopTabs.Screen key={tab.name} name={tab.name} options={{ title: tab.title }} />
         ))}

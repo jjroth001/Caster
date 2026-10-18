@@ -91,6 +91,7 @@ need a second device or a car; skip those if you can't try them.
 ## Up Next and playlists
 
 - [ ] Play next, play last, drag to reorder, clear, shuffle
+- [ ] A podcast's settings → Add to Up Next (top or bottom): its next new episode joins Up Next by itself; nothing is added once Up Next reaches the limit (Settings → Playback)
 - [ ] The next episode starts by itself when one ends (when that setting is on)
 - [ ] Manual playlists: add, reorder, remove
 - [ ] Smart playlists: the four defaults look right; editing rules changes the list

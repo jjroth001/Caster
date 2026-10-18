@@ -25,7 +25,7 @@ import { speedLabel } from '@/lib/format';
 import { engine } from '@/player/engine';
 import { Spacing } from '@/theme/themes';
 
-type Option<T> = { value: T; label: string };
+type Option<T> = { value: T; label: string; hint?: string };
 
 /** One per-podcast setting: a row showing the current choice; tapping opens the choices. */
 function Setting<T extends string | number | null>({
@@ -193,6 +193,21 @@ export default function PodcastSettingsScreen() {
               }
             />
           )}
+          <Setting
+            label="Add to Up Next"
+            hint={
+              own.up_next_auto
+                ? `New episodes join Up Next, until it has ${global.upNextLimit}`
+                : 'Add new episodes to Up Next as they come out'
+            }
+            options={[
+              { value: null, label: 'Off' },
+              { value: 'top', label: 'To the top', hint: 'They play next' },
+              { value: 'bottom', label: 'To the bottom', hint: 'They play after the rest' },
+            ]}
+            value={own.up_next_auto}
+            onChange={set('up_next_auto')}
+          />
           <Setting
             label="Notifications"
             options={[

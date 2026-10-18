@@ -45,6 +45,14 @@ export default function PlaybackSettings() {
         <Row label="Play Up Next automatically" hint="When an episode ends, start the next one">
           <Toggle value={s.autoPlayNext} onChange={set('autoPlayNext')} />
         </Row>
+        <RowDivider />
+        <PickerRow
+          label="Up Next limit"
+          hint="Podcasts set to add new episodes stop once Up Next has this many (each podcast’s settings)"
+          options={[10, 25, 50, 100].map((n) => ({ value: n, label: `${n} episodes` }))}
+          value={s.upNextLimit}
+          onChange={set('upNextLimit')}
+        />
       </Section>
 
       {engine.kind === 'native' && (

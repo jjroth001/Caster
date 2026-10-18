@@ -261,10 +261,19 @@ export async function savePodcast(
 ): Promise<number> {
   const now = Date.now();
   let id = 0;
+  // The newest episode it had before this save: anything newer afterwards is new.
+  let latestBefore: number | null = null;
   await inTransaction(db, async () => {
     const existing = await findPodcastByFeed(db, feedUrl);
     if (existing) {
       id = existing.id;
+      latestBefore =
+        (
+          await db.getFirstAsync<{ latest: number | null }>(
+            'SELECT MAX(pub_date) AS latest FROM episode WHERE podcast_id = ?',
+            id,
+          )
+        )?.latest ?? null;
       await db.runAsync(
         `UPDATE podcast SET title = ?, author = ?, description = ?, artwork_url = ?, website = ?,
            subscribed = MAX(subscribed, ?), etag = ?, last_modified = ?, last_refreshed = ?,
@@ -303,8 +312,18 @@ export async function savePodcast(
     }
     await upsertEpisodes(db, id, feed.episodes);
   });
+  const since = latestBefore;
+  if (since != null) newEpisodeListeners.forEach((l) => l(db, id, since));
   return id;
 }
+
+/**
+ * Called after a feed check saves a podcast it had before, with the newest episode date it had
+ * until then (auto-add to Up Next listens here).
+ */
+export const newEpisodeListeners = new Set<
+  (db: SQLiteDatabase, podcastId: number, latestBefore: number) => void
+>();
 
 /** Follows a podcast that was only being browsed; its newest episode counts as new. */
 export async function followPodcast(db: SQLiteDatabase, podcastId: number) {
@@ -421,6 +440,8 @@ export type PodcastSettings = {
   skip_start_s: number | null;
   skip_end_s: number | null;
   auto_download_n: number | null;
+  /** Add new episodes to Up Next: at the top, at the bottom, or not (null). */
+  up_next_auto: 'top' | 'bottom' | null;
   archive_played_h: number | null;
   archive_inactive_h: number | null;
   notify: number | null;
@@ -435,6 +456,7 @@ const EMPTY_PODCAST_SETTINGS: PodcastSettings = {
   skip_start_s: null,
   skip_end_s: null,
   auto_download_n: null,
+  up_next_auto: null,
   archive_played_h: null,
   archive_inactive_h: null,
   notify: null,

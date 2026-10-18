@@ -174,6 +174,10 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE podcast_settings ADD COLUMN archive_played_h INTEGER;
   ALTER TABLE podcast_settings ADD COLUMN archive_inactive_h INTEGER;
   `,
+  // 5: add a podcast's new episodes to Up Next ('top', 'bottom' or null for no).
+  `
+  ALTER TABLE podcast_settings ADD COLUMN up_next_auto TEXT;
+  `,
 ];
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {

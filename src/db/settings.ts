@@ -32,6 +32,8 @@ export type Settings = {
   volumeBoost: boolean;
   /** Shaking the phone in the sleep timer's last minute adds five minutes. */
   shakeToExtend: boolean;
+  /** Auto-add to Up Next stops once it has this many episodes. */
+  upNextLimit: number;
   /** Up Next plays the next episode automatically when one finishes. */
   autoPlayNext: boolean;
   /** The episode in the player (kept so it's still there after the app restarts). */
@@ -119,6 +121,7 @@ export const DEFAULT_SETTINGS: Settings = {
   trimSilence: 'off',
   volumeBoost: false,
   autoPlayNext: true,
+  upNextLimit: 50,
   shakeToExtend: true,
   nowPlaying: null,
   lastRefreshAt: null,

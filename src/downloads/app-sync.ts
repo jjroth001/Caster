@@ -6,7 +6,8 @@ import { detectRepeatedAds } from '@/ads/repeats';
 import { applyPendingState, writeAutoLibrary } from '@/auto/snapshot';
 import { runAutoTranscribe, startAutoTranscribe } from '@/transcripts/auto';
 import { runAutoArchive } from '@/db/archive';
-import { pruneUnfollowed, queueListeners } from '@/db/library';
+import { autoQueueNew } from '@/db/auto-queue';
+import { newEpisodeListeners, pruneUnfollowed, queueListeners } from '@/db/library';
 import { getSettings } from '@/db/settings';
 import { syncPrivateLogins } from '@/feeds/private';
 import { refreshAll } from '@/feeds/sync';
@@ -82,7 +83,11 @@ export function startAppSync(db: SQLiteDatabase): () => void {
   const transcribe = startAutoTranscribe(db);
   const onQueued = (d: SQLiteDatabase, episodeId: number) => void autoDownloadQueued(d, episodeId);
   queueListeners.add(onQueued);
+  const onNew = (d: SQLiteDatabase, podcastId: number, latestBefore: number) =>
+    void autoQueueNew(d, podcastId, latestBefore);
+  newEpisodeListeners.add(onNew);
   return () => {
+    newEpisodeListeners.delete(onNew);
     clearTimeout(opening);
     queueListeners.delete(onQueued);
     transcribe();

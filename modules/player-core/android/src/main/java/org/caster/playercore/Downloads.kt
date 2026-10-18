@@ -40,6 +40,9 @@ internal object Downloads {
   private fun hash(key: String): String =
     MessageDigest.getInstance("SHA-1").digest(key.toByteArray()).joinToString("") { "%02x".format(it) }.take(20)
 
+  private val MEDIA_EXTENSIONS =
+    setOf("mp3", "m4a", "m4b", "mp4", "m4v", "aac", "ogg", "oga", "opus", "wav", "flac", "webm", "mov", "mkv")
+
   fun extension(url: String, mime: String?): String {
     val fromMime = when (mime?.lowercase()) {
       "audio/mpeg", "audio/mp3" -> "mp3"
@@ -52,7 +55,9 @@ internal object Downloads {
     if (fromMime != null) return fromMime
     val path = Uri.parse(url).lastPathSegment ?: ""
     val ext = path.substringAfterLast('.', "").lowercase()
-    return if (ext.length in 2..4 && ext.all { it.isLetterOrDigit() }) ext else "mp3"
+    // Only real audio and video endings: a feed must not be able to name a download after the
+    // sidecar files kept beside it (".json") or anything else.
+    return if (ext in MEDIA_EXTENSIONS) ext else "mp3"
   }
 
   fun file(context: Context, key: String, ext: String) = File(dir(context), "${hash(key)}.$ext")
@@ -78,7 +83,14 @@ internal object Downloads {
     val request = OneTimeWorkRequestBuilder<DownloadWorker>()
       // A private feed's sign-in travels with the job, so it still works after a restart.
       .setInputData(
-        workDataOf("key" to key, "url" to url, "ext" to ext, "title" to title, "auth" to authorization)
+        workDataOf(
+          "key" to key,
+          "url" to url,
+          "ext" to ext,
+          "title" to title,
+          // Sealed: WorkManager keeps job data in its own database.
+          "auth" to authorization?.let { SecretBox.encrypt(it) },
+        )
       )
       .setConstraints(
         Constraints.Builder()
@@ -154,7 +166,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
     val url = inputData.getString("url") ?: return Result.failure()
     val ext = inputData.getString("ext") ?: "mp3"
     val title = inputData.getString("title") ?: "Episode"
-    inputData.getString("auth")?.let { auth ->
+    inputData.getString("auth")?.let { SecretBox.decrypt(it) }?.let { auth ->
       runCatching { java.net.URL(url).host }.getOrNull()?.let { HostAuth.put(it, auth) }
     }
     val target = Downloads.file(applicationContext, key, ext)

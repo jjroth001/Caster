@@ -1,4 +1,4 @@
-import { BACKUP_FORMAT, mergeState, parseBackup } from './backup';
+import { BACKUP_FORMAT, mergeState, parseBackup, sameKind } from './backup';
 
 const valid = {
   app: 'Caster',
@@ -65,5 +65,17 @@ describe('mergeState', () => {
 
   it('takes the incoming state when there is none here', () => {
     expect(mergeState(null, base)).toEqual(base);
+  });
+});
+
+describe('restoring settings safely', () => {
+  it('only takes values of the kind each setting expects', () => {
+    expect(sameKind(true, false)).toBe(true);
+    expect(sameKind(true, 'yes')).toBe(false);
+    expect(sameKind(['a'], ['b', 'c'])).toBe(true);
+    expect(sameKind([], [{ evil: 1 }])).toBe(false);
+    expect(sameKind([], 'not a list')).toBe(false);
+    expect(sameKind(null, 'base.en')).toBe(true);
+    expect(sameKind(50, '50')).toBe(false);
   });
 });

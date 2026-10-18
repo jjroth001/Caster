@@ -23,6 +23,27 @@ export function hostOf(url: string): string | null {
 }
 
 /**
+ * The site a host belongs to ("feeds.example.org" → "example.org", "a.example.co.uk" →
+ * "example.co.uk"), to keep a sign-in on its own site.
+ */
+export function siteOf(host: string): string {
+  const labels = host.toLowerCase().split('.');
+  // Two-letter country endings with a short second level ("co.uk", "com.au") take three.
+  const three =
+    labels.length >= 3 &&
+    labels[labels.length - 1].length === 2 &&
+    labels[labels.length - 2].length <= 3;
+  return labels.slice(three ? -3 : -2).join('.');
+}
+
+/** Whether an address is on the same site as a feed (so its sign-in may go there). */
+export function sameSite(feedUrl: string, url: string): boolean {
+  const a = hostOf(feedUrl);
+  const b = hostOf(url);
+  return !!a && !!b && siteOf(a) === siteOf(b);
+}
+
+/**
  * Splits a login written into the address ("https://name:secret@host/feed") from the address
  * itself, since fetch() and media players don't accept it there.
  */

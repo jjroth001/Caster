@@ -171,6 +171,8 @@ export default function EpisodeScreen() {
       ],
     });
 
+  const isWebLink = (url: string) => /^https?:\/\//i.test(url.trim());
+
   const share = () => {
     const url = episode.link ?? episode.enclosure_url;
     void Share.share({ message: `${episode.title} (${episode.podcast_title})\n${url}` });
@@ -276,7 +278,8 @@ export default function EpisodeScreen() {
             {notes}
           </Txt>
         )}
-        {!!episode.link && (
+        {/* Only web pages: a feed mustn't be able to open other apps' links from here. */}
+        {!!episode.link && isWebLink(episode.link) && (
           <Pressable
             onPress={() => void Linking.openURL(episode.link!)}
             accessibilityRole="link"

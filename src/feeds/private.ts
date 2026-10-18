@@ -5,6 +5,7 @@ import { getSettings, setSetting } from '@/db/settings';
 import {
   forgetFeedLogin,
   getFeedLogin,
+  sameSite,
   saveFeedLogin,
   shareWithPlayer,
   type FeedLogin,
@@ -43,6 +44,11 @@ export async function syncPrivateLogins(db: SQLiteDatabase) {
        WHERE p.feed_url = ? LIMIT 200`,
       feedUrl,
     );
-    shareWithPlayer([feedUrl, ...episodes.map((e) => e.enclosure_url)], login);
+    // Only the feed's own site gets the sign-in: episodes served from another company's
+    // hosting (shared by many podcasts) must never receive it.
+    const sameSiteEpisodes = episodes
+      .map((e) => e.enclosure_url)
+      .filter((u) => sameSite(feedUrl, u));
+    shareWithPlayer([feedUrl, ...sameSiteEpisodes], login);
   }
 }

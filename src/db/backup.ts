@@ -6,6 +6,7 @@ import {
   findPodcastByFeed,
   followPodcast,
   inTransaction,
+  PODCAST_SETTING_KEYS,
   queueEpisode,
   setPodcastSetting,
   type PodcastSettings,
@@ -225,6 +226,20 @@ export function mergeState(
 
 // --- Restore ----------------------------------------------------------------------------------
 
+/**
+ * Whether a restored setting has the same kind of value as the app's default (a list of plain
+ * values, a number, text, true/false), so a damaged or crafted backup can't break the app.
+ */
+export function sameKind(fallback: unknown, value: unknown): boolean {
+  if (Array.isArray(fallback)) {
+    return (
+      Array.isArray(value) && value.every((v) => typeof v === 'string' || typeof v === 'number')
+    );
+  }
+  if (fallback === null) return value === null || ['string', 'number'].includes(typeof value);
+  return typeof value === typeof fallback;
+}
+
 export type RestoreProgress = { step: string; done: number; total: number };
 
 export async function restoreBackup(
@@ -253,6 +268,9 @@ export async function restoreBackup(
         if (p.folder && folders.has(p.folder))
           await movePodcastToFolder(db, id, folders.get(p.folder)!);
         for (const [key, value] of Object.entries(p.settings ?? {})) {
+          // Only settings that exist, with plain values: a backup file is untrusted input.
+          if (!PODCAST_SETTING_KEYS.includes(key as keyof PodcastSettings)) continue;
+          if (value !== null && typeof value !== 'string' && typeof value !== 'number') continue;
           await setPodcastSetting(db, id, key as keyof PodcastSettings, value as never);
         }
         ids.set(p.feedUrl, id);
@@ -351,7 +369,11 @@ export async function restoreBackup(
   }
 
   for (const [key, value] of Object.entries(backup.settings ?? {})) {
-    if (key in DEFAULT_SETTINGS && !LOCAL_SETTINGS.includes(key as keyof Settings)) {
+    if (
+      key in DEFAULT_SETTINGS &&
+      !LOCAL_SETTINGS.includes(key as keyof Settings) &&
+      sameKind(DEFAULT_SETTINGS[key as keyof Settings], value)
+    ) {
       await setSetting(db, key as keyof Settings, value as never);
     }
   }

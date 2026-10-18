@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { PlayerCore, type DownloadEvent } from '@modules/player-core/src';
 import { getSettings } from '@/db/settings';
-import { basicAuth, getFeedLogin } from '@/feeds/credentials';
+import { basicAuth, getFeedLogin, sameSite } from '@/feeds/credentials';
 
 /**
  * Episode downloads. The native side (WorkManager) owns the files; this keeps the library's
@@ -81,8 +81,11 @@ export async function downloadEpisode(
     'SELECT feed_url FROM podcast WHERE id = ?',
     e.podcast_id,
   );
+  // A private feed's sign-in only goes along when the file is on the feed's own site.
   const login =
-    feed && settings.privateFeeds.includes(feed.feed_url)
+    feed &&
+    settings.privateFeeds.includes(feed.feed_url) &&
+    sameSite(feed.feed_url, e.enclosure_url)
       ? await getFeedLogin(feed.feed_url)
       : null;
   PlayerCore.download({

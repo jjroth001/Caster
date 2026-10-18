@@ -127,9 +127,27 @@ internal object AutoLibrary {
   /** The engine's own ids are the bare episode ids. */
   private fun forPlayer(e: Episode): MediaItem = episodeItem(e).buildUpon().setMediaId(e.id.removePrefix("ep:")).build()
 
+  /**
+   * Who may browse your library (podcasts, Up Next, what you're partway through) and use the
+   * speed and bookmark buttons: Pod Wizard itself, the system's media controls, Android Auto,
+   * and system apps Android itself trusts (Bluetooth, for car stereos). Any other app may still
+   * play, pause and skip, like headphone buttons, but can't read the library.
+   */
+  private fun trusted(context: Context, session: MediaSession, controller: MediaSession.ControllerInfo) =
+    controller.packageName == context.packageName ||
+      controller.isTrusted ||
+      session.isMediaNotificationController(controller) ||
+      session.isAutoCompanionController(controller) ||
+      session.isAutomotiveController(controller)
+
   fun callback(context: Context) =
     object : MediaLibrarySession.Callback {
       override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
+        if (!trusted(context, session, controller)) {
+          return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+            .setAvailableSessionCommands(MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS)
+            .build()
+        }
         val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
           .add(SessionCommand(CMD_SPEED, Bundle.EMPTY))
           .add(SessionCommand(CMD_BOOKMARK, Bundle.EMPTY))
@@ -168,6 +186,9 @@ internal object AutoLibrary {
         browser: MediaSession.ControllerInfo,
         params: LibraryParams?,
       ): ListenableFuture<LibraryResult<MediaItem>> {
+        if (!trusted(context, session, browser)) {
+          return Futures.immediateFuture(LibraryResult.ofError(LibraryResult.RESULT_ERROR_PERMISSION_DENIED))
+        }
         load(context)
         return Futures.immediateFuture(LibraryResult.ofItem(folderItem(root), params))
       }
@@ -180,6 +201,9 @@ internal object AutoLibrary {
         pageSize: Int,
         params: LibraryParams?,
       ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        if (!trusted(context, session, browser)) {
+          return Futures.immediateFuture(LibraryResult.ofError(LibraryResult.RESULT_ERROR_PERMISSION_DENIED))
+        }
         load(context)
         val node = nodes[parentId] ?: return Futures.immediateFuture(LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE))
         val all = node.children.map(::folderItem) + node.episodes.mapNotNull { episodes[it] }.map(::episodeItem)
@@ -193,6 +217,9 @@ internal object AutoLibrary {
         browser: MediaSession.ControllerInfo,
         mediaId: String,
       ): ListenableFuture<LibraryResult<MediaItem>> {
+        if (!trusted(context, session, browser)) {
+          return Futures.immediateFuture(LibraryResult.ofError(LibraryResult.RESULT_ERROR_PERMISSION_DENIED))
+        }
         load(context)
         val item = episodes[mediaId]?.let(::episodeItem) ?: nodes[mediaId]?.let(::folderItem)
         return Futures.immediateFuture(

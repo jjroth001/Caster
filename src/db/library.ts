@@ -472,6 +472,11 @@ export async function getPodcastSettings(db: SQLiteDatabase, podcastId: number) 
   return { ...EMPTY_PODCAST_SETTINGS, ...row };
 }
 
+/** The per-podcast settings there are (the only column names ever put into SQL). */
+export const PODCAST_SETTING_KEYS = Object.keys(
+  EMPTY_PODCAST_SETTINGS,
+) as (keyof PodcastSettings)[];
+
 /** Sets one per-podcast override; null goes back to the global setting. */
 export async function setPodcastSetting<K extends keyof PodcastSettings>(
   db: SQLiteDatabase,
@@ -479,6 +484,10 @@ export async function setPodcastSetting<K extends keyof PodcastSettings>(
   key: K,
   value: PodcastSettings[K],
 ) {
+  // The key becomes a column name in the statement below, so only known ones get through
+  // (a restored backup file could hold anything).
+  if (!PODCAST_SETTING_KEYS.includes(key))
+    throw new Error(`Unknown podcast setting: ${String(key)}`);
   await db.runAsync(
     'INSERT INTO podcast_settings (podcast_id) VALUES (?) ON CONFLICT (podcast_id) DO NOTHING',
     podcastId,

@@ -1,4 +1,3 @@
-import { fetch as streamingFetch } from 'expo/fetch';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import {
@@ -9,10 +8,17 @@ import {
   type PodcastRow,
 } from '@/db/library';
 import { setSetting } from '@/db/settings';
+import { PlayerCore } from '@modules/player-core/src';
 import { fetchWithTimeout } from '@/lib/http';
 
 import { basicAuth, getFeedLogin, splitLogin } from './credentials';
-import { FeedAuthError, FeedError, parseFeed, type ParsedFeed } from './parse-feed';
+import {
+  FeedAuthError,
+  FeedError,
+  parseFeed,
+  parseFeedInSteps,
+  type ParsedFeed,
+} from './parse-feed';
 import { rememberFeedLogin } from './private';
 
 const USER_AGENT = 'PodWizard/1.0 (Android; open-source podcast player)';
@@ -71,7 +77,7 @@ export async function fetchFeed(
   await yieldToUi();
   return {
     status: 'ok',
-    feed: parseFeed(xml, url),
+    feed: await parseFeedInSteps(xml, url, yieldToUi),
     etag: response.headers.get('etag'),
     lastModified: response.headers.get('last-modified'),
   };
@@ -122,100 +128,70 @@ export async function openFeed(db: SQLiteDatabase, address: string): Promise<num
 
 /** Episodes saved straight away when opening a show: enough to fill its page. */
 const FIRST_EPISODES = 15;
-/** A download that sends nothing for this long is given up. */
-const STALLED_MS = 30_000;
 
-/** The first `count` episodes of a feed that's still arriving, as a feed of its own, or null. */
+/** The first `count` episodes of a feed's start, as a feed of its own, or null. */
 export function firstEpisodes(xml: string, count: number): string | null {
   let end = 0;
   for (let i = 0; i < count; i++) {
     const at = xml.indexOf('</item>', end);
-    if (at === -1) return null;
+    if (at === -1) return xml.includes('</rss>') ? xml : null;
     end = at + '</item>'.length;
   }
   return `${xml.slice(0, end)}</channel></rss>`;
 }
 
 /**
- * Downloads a show you're opening for the first time, reading it as it arrives: once its newest
- * episodes are in, the show is saved and its id returned, so its page can show them; the rest
- * carry on loading and fill in below. `done` is called when the whole feed is in (or fails).
+ * Downloads a show you're opening for the first time. Two requests run side by side: the
+ * phone's native code fetches just the start of the feed (its newest episodes), and the whole
+ * feed downloads as usual. Whichever is ready first saves the show and returns its id, so its
+ * page can show episodes; the full feed then fills in the rest. `done` is called once the
+ * whole feed is saved (or failed).
  */
-async function streamNewFeed(db: SQLiteDatabase, url: string, done: () => void): Promise<number> {
-  const controller = new AbortController();
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const keepAlive = () => {
-    clearTimeout(timer);
-    timer = setTimeout(() => controller.abort(), STALLED_MS);
-  };
-  keepAlive();
-  let response: Awaited<ReturnType<typeof streamingFetch>>;
-  try {
-    response = await streamingFetch(url, {
-      headers: await feedHeaders(url),
-      signal: controller.signal,
-    });
-    checkFeedStatus(response.status, response.ok);
-  } catch (e) {
-    clearTimeout(timer);
-    if (e instanceof FeedError) throw e;
-    throw new FeedError('Couldn’t reach this podcast. Check your connection.');
-  }
-  const cache = {
-    etag: response.headers.get('etag'),
-    lastModified: response.headers.get('last-modified'),
-  };
-
+function streamNewFeed(db: SQLiteDatabase, url: string, done: () => void): Promise<number> {
   // A feed that has moved is stored under its new address.
   let target: string | null = null;
-  const save = async (feed: ParsedFeed, withCache: boolean) => {
+  const save = async (
+    feed: ParsedFeed,
+    cache: { etag: string | null; lastModified: string | null },
+  ) => {
     if (target == null) {
       target = feed.newFeedUrl ?? url;
       const moved = target !== url ? await findPodcastByFeed(db, target) : null;
       if (moved) return moved.id;
     }
-    const empty = { etag: null, lastModified: null };
-    return savePodcast(db, target, feed, withCache ? cache : empty, false);
+    return savePodcast(db, target, feed, cache, false);
   };
 
   return new Promise<number>((resolve, reject) => {
     let id: number | null = null;
-    void (async () => {
-      const reader = response.body?.getReader();
-      let xml = '';
-      if (reader) {
-        const decoder = new TextDecoder();
-        for (;;) {
-          const { done: end, value } = await reader.read();
-          if (end) break;
-          keepAlive();
-          xml += decoder.decode(value, { stream: true });
-          const early = id == null ? firstEpisodes(xml, FIRST_EPISODES) : null;
-          if (early) {
-            // Saved without the cache headers, so a check before the rest is saved reads it all.
-            id = await save(parseFeed(early, url), false);
-            resolve(id);
-          }
+    let full = false;
+
+    // The quick start: saved without cache headers, so the next check reads the whole feed.
+    void (PlayerCore?.feedStart(url, FIRST_EPISODES) ?? Promise.resolve(null))
+      .then(async (start) => {
+        const early = start ? firstEpisodes(start, FIRST_EPISODES) : null;
+        if (!early || full) return;
+        const saved = await save(parseFeed(early, url), { etag: null, lastModified: null });
+        if (id == null && !full) {
+          id = saved;
+          resolve(saved);
         }
-        xml += decoder.decode();
-      } else {
-        xml = await response.text();
-      }
-      clearTimeout(timer);
-      await yieldToUi();
-      const saved = await save(parseFeed(xml, url), true);
-      if (id == null) resolve(saved);
-    })()
+      })
+      .catch(() => {});
+
+    void fetchFeed(url)
+      .then(async (result) => {
+        if (result.status !== 'ok')
+          throw new FeedError('This address didn’t return a podcast feed.');
+        const saved = await save(result.feed, result);
+        full = true;
+        if (id == null) {
+          id = saved;
+          resolve(saved);
+        }
+      })
       .catch(async (e: unknown) => {
-        clearTimeout(timer);
-        const error =
-          e instanceof FeedError
-            ? e
-            : new FeedError(
-                controller.signal.aborted
-                  ? 'This podcast stopped sending its feed. Try again in a moment.'
-                  : 'This address didn’t return a podcast feed.',
-              );
+        const error = e instanceof FeedError ? e : new FeedError('Couldn’t open this podcast.');
         // Once the page is showing, a failure later on is noted on the show instead.
         if (id == null) reject(error);
         else await markRefreshed(db, id, error.message).catch(() => {});

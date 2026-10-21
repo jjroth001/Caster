@@ -1,4 +1,4 @@
-import { absolute, parseFeed } from './parse-feed';
+import { absolute, parseFeed, parseFeedInSteps } from './parse-feed';
 
 // A made-up show, with the quirks real feeds have: CDATA, entities, a relative image link,
 // itunes and Podcasting 2.0 tags, a duplicate guid and an item with no audio.
@@ -123,5 +123,22 @@ describe('absolute', () => {
     ['mailto:a@example.com', null],
   ])('%s', (url, expected) => {
     expect(absolute(url, 'https://feeds.example/show/feed.xml?x=1')).toBe(expected);
+  });
+});
+
+describe('parseFeedInSteps', () => {
+  it('reads a feed in batches with the same result as reading it at once', async () => {
+    const items = Array.from(
+      { length: 400 },
+      (_, i) =>
+        `<item><title>Episode ${i}</title><guid>g${i % 390}</guid><enclosure url="https://cdn.example/${i}.mp3" type="audio/mpeg"/></item>`,
+    ).join('');
+    const xml = FEED.replace('<item>', `${items}<item>`);
+    let pauses = 0;
+    const stepped = await parseFeedInSteps(xml, 'https://lowtide.example/feed.xml', async () => {
+      pauses++;
+    });
+    expect(stepped).toEqual(parseFeed(xml, 'https://lowtide.example/feed.xml'));
+    expect(pauses).toBeGreaterThan(1);
   });
 });

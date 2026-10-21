@@ -148,6 +148,8 @@ declare class PlayerCoreModule extends NativeModule<PlayerCoreEvents> {
   deleteFingerprint(key: string): void;
   /** Keeps part of an episode's fingerprint (an ad you marked) as `sampleKey`; false if it has none. */
   saveAdSample(key: string, sampleKey: string, startS: number, endS: number): boolean;
+  /** The start of a feed, through its `items`-th episode (all of it if shorter); null if unreachable. */
+  feedStart(url: string, items: number): Promise<string | null>;
   /** A small cached copy of a cover (a content:// address), for lists and the car. */
   artworkThumbnail(url: string): string | null;
   /** Whether the phone is charging. */

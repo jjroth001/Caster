@@ -1,4 +1,4 @@
-import { useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { useRef, type ComponentProps, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Reanimated, {
   useAnimatedScrollHandler,
@@ -255,15 +255,24 @@ export type ChipFade = { scrollX: SharedValue<number>; inner: number };
 
 /** One button in FadingChips; it measures where it sits so it knows when to fade. */
 export function FadingChip({ fade, children }: { fade: ChipFade; children: ReactNode }) {
-  const [place, setPlace] = useState({ left: 0, width: 0 });
-  const style = useEdgeFade(fade.scrollX, place.left, place.width, fade.inner);
+  // Where it sits is kept for the fade alone (no redraw), and until it's measured it's solid.
+  const left = useSharedValue(0);
+  const width = useSharedValue(0);
+  const { scrollX, inner } = fade;
+  const style = useAnimatedStyle(() => {
+    if (width.value <= 0) return { opacity: 1 };
+    const x = left.value - scrollX.value;
+    const inside = Math.max(0, Math.min(x + width.value, inner) - Math.max(x, 0)) / width.value;
+    return { opacity: Math.pow(inside, 1.4) };
+  });
   return (
     <Reanimated.View
       style={style}
-      onLayout={(e) =>
+      onLayout={(e) => {
         // Measured from the content's edge, which sits one margin in from the row's.
-        setPlace({ left: e.nativeEvent.layout.x - INSET, width: e.nativeEvent.layout.width })
-      }>
+        left.value = e.nativeEvent.layout.x - INSET;
+        width.value = e.nativeEvent.layout.width;
+      }}>
       {children}
     </Reanimated.View>
   );

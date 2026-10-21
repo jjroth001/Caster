@@ -144,14 +144,17 @@ export function EpisodePlaceholders({ cards, count = 6 }: { cards: boolean; coun
               ? [styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]
               : [styles.flat, { borderBottomColor: theme.cardBorder }]
           }>
-          <View style={styles.text}>
-            <View
-              style={[
-                styles.bar,
-                { width: `${70 - (i % 3) * 12}%`, backgroundColor: theme.element },
-              ]}
-            />
-            <View style={[styles.bar, styles.barSmall, { backgroundColor: theme.element }]} />
+          {/* Inside a row, as in EpisodeRow: text's flex: 1 has no height to fill otherwise. */}
+          <View style={styles.row}>
+            <View style={styles.text}>
+              <View
+                style={[
+                  styles.bar,
+                  { width: `${70 - (i % 3) * 12}%`, backgroundColor: theme.element },
+                ]}
+              />
+              <View style={[styles.bar, styles.barSmall, { backgroundColor: theme.element }]} />
+            </View>
           </View>
         </View>
       ))}

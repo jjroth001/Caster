@@ -267,6 +267,11 @@ class PlayerCoreModule : Module() {
         .mapNotNull { info -> downloadEvent(info) }
     }
 
+    // --- Feeds ---
+
+    /** The start of a feed, through its `items`-th episode (see FeedStart); null if unreachable. */
+    AsyncFunction("feedStart") { url: String, items: Int -> FeedStart.read(url, items) }
+
     // --- Clips ---
 
     /** Cuts startMs..endMs of `source` to a file; format "audio", "square" or "story". */

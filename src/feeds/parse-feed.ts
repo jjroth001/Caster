@@ -221,3 +221,46 @@ export function parseFeed(xml: string, feedUrl: string): ParsedFeed {
     episodes,
   };
 }
+
+/** Episodes read per step by parseFeedInSteps. */
+const ITEMS_PER_STEP = 150;
+
+/**
+ * Parses a feed a batch of episodes at a time, pausing (`pause`) between batches so a huge
+ * feed (thousands of episodes) doesn't hold up the screen for seconds. Same result as
+ * parseFeed; a feed it can't split cleanly is parsed in one go instead.
+ */
+export async function parseFeedInSteps(
+  xml: string,
+  feedUrl: string,
+  pause: () => Promise<void>,
+): Promise<ParsedFeed> {
+  const first = xml.indexOf('<item');
+  if (first === -1) return parseFeed(xml, feedUrl);
+  const show = parseFeed(`${xml.slice(0, first)}</channel></rss>`, feedUrl);
+  try {
+    const episodes: ParsedEpisode[] = [];
+    const seen = new Set<string>();
+    let at = first;
+    while (at !== -1) {
+      let end = at;
+      for (let i = 0; i < ITEMS_PER_STEP; i++) {
+        const close = xml.indexOf('</item>', end);
+        if (close === -1) break;
+        end = close + '</item>'.length;
+      }
+      if (end === at) break;
+      await pause();
+      const part = parseFeed(`<rss><channel>${xml.slice(at, end)}</channel></rss>`, feedUrl);
+      for (const e of part.episodes) {
+        if (seen.has(e.guid)) continue;
+        seen.add(e.guid);
+        episodes.push(e);
+      }
+      at = xml.indexOf('<item', end);
+    }
+    return { ...show, episodes };
+  } catch {
+    return parseFeed(xml, feedUrl);
+  }
+}

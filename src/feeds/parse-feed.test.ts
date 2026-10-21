@@ -11,6 +11,15 @@ const FEED = `<?xml version="1.0" encoding="UTF-8"?>
     <description><![CDATA[Stories from the <b>coast</b>.]]></description>
     <itunes:author>Harbour &amp; Pier Collective</itunes:author>
     <itunes:image href="/art/cover.jpg"/>
+    <itunes:category text="Education">
+      <itunes:category text="Language Learning"/>
+    </itunes:category>
+    <itunes:category text="Comedy"/>
+    <podcast:podroll>
+      <podcast:remoteItem feedGuid="917393e3-1b1e-5cef-ace4-edaa54e1f810" feedUrl="https://drift.example/rss"/>
+      <podcast:remoteItem feedGuid="4d5c1f8e-0000-5000-8000-000000000001"/>
+      <podcast:remoteItem feedUrl="/friends.xml" medium="music"/>
+    </podcast:podroll>
     <item>
       <title>The lighthouse keeper&#8217;s log</title>
       <guid isPermaLink="false">ep-42</guid>
@@ -53,6 +62,17 @@ describe('parseFeed', () => {
       website: 'https://lowtide.example/',
     });
     expect(feed.description).toContain('coast');
+  });
+
+  it('reads its categories, nested ones too', () => {
+    expect(feed.categories).toEqual(['Education', 'Language Learning', 'Comedy']);
+  });
+
+  it('reads the shows it recommends (podcasts only)', () => {
+    expect(feed.podroll).toEqual([
+      { feedGuid: '917393e3-1b1e-5cef-ace4-edaa54e1f810', feedUrl: 'https://drift.example/rss' },
+      { feedGuid: '4d5c1f8e-0000-5000-8000-000000000001', feedUrl: null },
+    ]);
   });
 
   it('keeps playable, unique episodes only', () => {

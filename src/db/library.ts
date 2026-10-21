@@ -294,7 +294,7 @@ export async function savePodcast(
       await db.runAsync(
         `UPDATE podcast SET title = ?, author = ?, description = ?, artwork_url = ?, website = ?,
            subscribed = MAX(subscribed, ?), etag = ?, last_modified = ?, last_refreshed = ?,
-           refresh_error = NULL
+           refresh_error = NULL, categories = ?, podroll_json = ?
          WHERE id = ?`,
         feed.title,
         feed.author,
@@ -305,13 +305,16 @@ export async function savePodcast(
         cache.etag,
         cache.lastModified,
         now,
+        JSON.stringify(feed.categories),
+        JSON.stringify(feed.podroll),
         id,
       );
     } else {
       const result = await db.runAsync(
         `INSERT INTO podcast (feed_url, title, author, description, artwork_url, website,
-           subscribed, added_at, new_since, etag, last_modified, last_refreshed)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           subscribed, added_at, new_since, etag, last_modified, last_refreshed, categories,
+           podroll_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         feedUrl,
         feed.title,
         feed.author,
@@ -324,6 +327,8 @@ export async function savePodcast(
         cache.etag,
         cache.lastModified,
         now,
+        JSON.stringify(feed.categories),
+        JSON.stringify(feed.podroll),
       );
       id = result.lastInsertRowId;
     }

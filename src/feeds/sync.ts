@@ -63,6 +63,25 @@ export async function fetchFeed(
 }
 
 /**
+ * A show's name, author and cover from its feed, without its episodes (only the part before
+ * the first episode is read), for showing a podcast you don't follow. Null if it isn't a feed.
+ */
+export async function fetchShowInfo(
+  url: string,
+): Promise<{ title: string; author: string | null; artworkUrl: string | null } | null> {
+  try {
+    const response = await fetchWithTimeout(url, { headers: { 'User-Agent': USER_AGENT } }, 20_000);
+    if (!response.ok) return null;
+    const xml = await response.text();
+    const head = xml.indexOf('<item');
+    const feed = parseFeed(head === -1 ? xml : `${xml.slice(0, head)}</channel></rss>`, url);
+    return { title: feed.title, author: feed.author, artworkUrl: feed.artworkUrl };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Loads a podcast into the library without following it, so it can be browsed and played
  * before deciding. Returns its id (an existing one if it's already there).
  */

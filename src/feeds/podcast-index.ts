@@ -144,6 +144,19 @@ export async function trendingPodcastIndex(language: string): Promise<DirectoryP
   return feeds.map(toPodcast).filter((p): p is DirectoryPodcast => !!p);
 }
 
+/** A show by its Podcasting 2.0 guid (how podcasts recommend each other), or null. */
+export async function podcastIndexByGuid(guid: string): Promise<DirectoryPodcast | null> {
+  const login = await getPodcastIndexLogin();
+  if (!login) return null;
+  const response = await fetchWithTimeout(
+    `${API}/podcasts/byguid?guid=${encodeURIComponent(guid)}`,
+    { headers: signedHeaders(login) },
+  );
+  if (!response.ok) return null;
+  const data = (await response.json()) as { feed?: Feed | [] };
+  return data.feed && !Array.isArray(data.feed) ? toPodcast(data.feed) : null;
+}
+
 /** Apple's results first, then Podcast Index's that Apple didn't have. */
 export function mergeResults(apple: DirectoryPodcast[], index: DirectoryPodcast[]) {
   const norm = (u: string | null) =>

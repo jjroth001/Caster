@@ -31,8 +31,15 @@ export type ParsedFeed = {
   website: string | null;
   /** The feed's own new address (itunes:new-feed-url), when it has moved. */
   newFeedUrl: string | null;
+  /** Apple's categories the show lists (itunes:category), subcategories included. */
+  categories: string[];
+  /** Other shows this one recommends (podcast:podroll). */
+  podroll: PodrollItem[];
   episodes: ParsedEpisode[];
 };
+
+/** A recommended show: its Podcasting 2.0 guid and/or its feed address. */
+export type PodrollItem = { feedGuid: string | null; feedUrl: string | null };
 
 export class FeedError extends Error {}
 
@@ -53,7 +60,16 @@ const parser = new XMLParser({
   trimValues: true,
   processEntities: true,
   htmlEntities: true,
-  isArray: (name) => ['item', 'entry', 'podcast:transcript', 'link', 'enclosure'].includes(name),
+  isArray: (name) =>
+    [
+      'item',
+      'entry',
+      'podcast:transcript',
+      'link',
+      'enclosure',
+      'itunes:category',
+      'podcast:remoteItem',
+    ].includes(name),
 });
 
 type Node = Record<string, unknown>;
@@ -123,6 +139,27 @@ function mediaTypeOf(mime: string | null, url: string): 'audio' | 'video' {
   return 'audio';
 }
 
+/** Every category name, nested ones too ("Education", then "Language Learning"). */
+function categoriesIn(value: unknown, out: string[] = []): string[] {
+  if (!Array.isArray(value)) return out;
+  for (const c of value) {
+    const name = attr(c, 'text');
+    if (name && !out.includes(name)) out.push(name);
+    if (c && typeof c === 'object') categoriesIn((c as Node)['itunes:category'], out);
+  }
+  return out;
+}
+
+function podrollIn(value: unknown, feedUrl: string): PodrollItem[] {
+  const roll = Array.isArray(value) ? value[0] : value;
+  const items = roll && typeof roll === 'object' ? (roll as Node)['podcast:remoteItem'] : null;
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter((i) => !attr(i, 'medium') || attr(i, 'medium') === 'podcast')
+    .map((i) => ({ feedGuid: attr(i, 'feedGuid'), feedUrl: absolute(attr(i, 'feedUrl'), feedUrl) }))
+    .filter((i) => i.feedGuid || i.feedUrl);
+}
+
 /** Parses an RSS 2.0 podcast feed (iTunes and Podcasting 2.0 tags included). */
 export function parseFeed(xml: string, feedUrl: string): ParsedFeed {
   let doc: Node;
@@ -179,6 +216,8 @@ export function parseFeed(xml: string, feedUrl: string): ParsedFeed {
     artworkUrl: absolute(channelImage, feedUrl),
     website: channelLink,
     newFeedUrl: absolute(text(channel['itunes:new-feed-url']), feedUrl),
+    categories: categoriesIn(channel['itunes:category']),
+    podroll: podrollIn(channel['podcast:podroll'], feedUrl),
     episodes,
   };
 }

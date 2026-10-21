@@ -1,11 +1,12 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
@@ -15,19 +16,22 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Artwork } from '@/components/artwork';
 import { Icon } from '@/components/icons/icon';
 import { ScreenHeader } from '@/components/screen-header';
-import { showSheet } from '@/components/sheet';
+import { ShowRow } from '@/components/show-row';
 import { showKeyForm, showSignIn } from '@/components/sign-in-sheet';
 import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
+import { useDbQuery } from '@/db/use-db-query';
 import {
   classifyQuery,
   deviceCountry,
   lookupPodcasts,
   searchPodcasts,
+  topInCategory,
   topPodcasts,
   withFeedUrls,
   type DirectoryPodcast,
 } from '@/feeds/apple';
+import { CATEGORIES, categoriesForYou } from '@/feeds/categories';
 import { splitLogin } from '@/feeds/credentials';
 import { FeedAuthError } from '@/feeds/parse-feed';
 import {
@@ -39,6 +43,7 @@ import {
   trendingPodcastIndex,
 } from '@/feeds/podcast-index';
 import { rememberFeedLogin } from '@/feeds/private';
+import { recommendedShows, type Recommendation } from '@/feeds/recommendations';
 import { openFeed } from '@/feeds/sync';
 import { useTheme } from '@/theme/theme-provider';
 import { Radius, Spacing } from '@/theme/themes';
@@ -63,13 +68,130 @@ const MIN_LETTERS = 3;
 const CACHE_MS = 10 * 60_000;
 const recentSearches = new Map<string, { at: number; items: DirectoryPodcast[] }>();
 
-/** The top-shows list, kept for half an hour so coming back to Discover is instant. */
-const CHARTS_MS = 30 * 60_000;
-const recentCharts = new Map<string, { at: number; items: DirectoryPodcast[] }>();
+// --- Lists of shows: top shows, trending, and each category's top shows -------------------
 
-function cachedCharts(key: string): DirectoryPodcast[] | null {
-  const hit = recentCharts.get(key);
-  return hit && Date.now() - hit.at < CHARTS_MS ? hit.items : null;
+/** "top", "trending" or "cat:" and Apple's category id. "foryou" is the page of rows. */
+type ListKey = string;
+const FOR_YOU = 'foryou';
+/** Categories shown as rows on For you; the rest are a tap away in the chips. */
+const ROWS_FOR_YOU = 5;
+/** Shows in a row; See all has the rest. */
+const PER_ROW = 20;
+
+function listTitle(key: ListKey): string {
+  if (key === 'top') return 'Top shows';
+  if (key === 'trending') return 'Trending on Podcast Index';
+  const category = CATEGORIES.find((c) => `cat:${c.id}` === key);
+  return category ? `Top in ${category.title}` : '';
+}
+
+function loadList(key: ListKey, country: string): Promise<DirectoryPodcast[]> {
+  if (key === 'top') return topPodcasts(country);
+  if (key === 'trending') return trendingPodcastIndex(language());
+  return topInCategory(country, key.slice('cat:'.length));
+}
+
+/** Lists are kept for half an hour, so coming back to Discover is instant. */
+const LISTS_MS = 30 * 60_000;
+const recentLists = new Map<string, { at: number; items: DirectoryPodcast[] }>();
+
+function cachedList(cacheKey: string): DirectoryPodcast[] | null {
+  const hit = recentLists.get(cacheKey);
+  return hit && Date.now() - hit.at < LISTS_MS ? hit.items : null;
+}
+
+type ListState = { key: string; items: DirectoryPodcast[] | null; failed: boolean };
+
+/**
+ * A list of shows, loaded once and kept. With `withFeeds`, the feeds behind Apple's chart
+ * entries are looked up too (one request for the whole list), so tapping one opens at once;
+ * rows skip that, as a page of rows would otherwise ask Apple too often.
+ */
+function useList(key: ListKey | null, withFeeds: boolean) {
+  const cacheKey = key ? `${key}|${deviceCountry()}` : null;
+  const [state, setState] = useState<ListState | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!key || !cacheKey) return;
+    let live = true;
+    const hit = cachedList(cacheKey);
+    const load = hit
+      ? Promise.resolve(hit)
+      : loadList(key, deviceCountry()).then((items) => {
+          recentLists.set(cacheKey, { at: Date.now(), items });
+          return items;
+        });
+    load.then(
+      (items) => {
+        if (!live) return;
+        setState({ key: cacheKey, items, failed: false });
+        if (withFeeds && items.some((p) => !p.feedUrl)) {
+          withFeedUrls(items).then(
+            (full) => {
+              recentLists.set(cacheKey, { at: Date.now(), items: full });
+              if (live) setState({ key: cacheKey, items: full, failed: false });
+            },
+            () => {},
+          );
+        }
+      },
+      () => live && setState({ key: cacheKey, items: [], failed: true }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [key, cacheKey, withFeeds, attempt]);
+
+  const mine = state && state.key === cacheKey ? state : null;
+  return {
+    items: mine?.items ?? (cacheKey ? cachedList(cacheKey) : null),
+    failed: mine?.failed ?? false,
+    retry: () => {
+      if (!cacheKey) return;
+      recentLists.delete(cacheKey);
+      setState({ key: cacheKey, items: null, failed: false });
+      setAttempt((n) => n + 1);
+    },
+  };
+}
+
+/** Recommendations are worked out again at most every half hour. */
+let recentRecommendations: { at: number; items: Recommendation[] } | null = null;
+
+function freshRecommendations(): Recommendation[] | null {
+  return recentRecommendations && Date.now() - recentRecommendations.at < LISTS_MS
+    ? recentRecommendations.items
+    : null;
+}
+
+function useRecommendations(active: boolean): Recommendation[] | null {
+  const db = useSQLiteContext();
+  const [items, setItems] = useState<Recommendation[] | null>(freshRecommendations);
+  useEffect(() => {
+    if (!active || freshRecommendations()) return;
+    let live = true;
+    recommendedShows(db).then(
+      (found) => {
+        recentRecommendations = { at: Date.now(), items: found };
+        if (live) setItems(found);
+      },
+      () => live && setItems([]),
+    );
+    return () => {
+      live = false;
+    };
+  }, [db, active]);
+  return items;
+}
+
+/** "Picked by Low Tide Radio and 2 others you follow". */
+function pickedByNote(items: Recommendation[]): string {
+  const names = [...new Set(items.flatMap((r) => r.pickedBy))];
+  if (names.length === 0) return '';
+  if (names.length === 1) return `Picked by ${names[0]}`;
+  const others = names.length - 1;
+  return `Picked by ${names[0]} and ${others} other${others === 1 ? '' : 's'} you follow`;
 }
 
 type Results =
@@ -78,6 +200,11 @@ type Results =
   | { kind: 'done'; items: DirectoryPodcast[] }
   | { kind: 'error'; message: string };
 
+type Entry =
+  | { kind: 'show'; item: DirectoryPodcast; rank: number | null }
+  | { kind: 'row'; key: ListKey }
+  | { kind: 'recommended' };
+
 export default function DiscoverScreen() {
   const db = useSQLiteContext();
   const theme = useTheme();
@@ -85,72 +212,46 @@ export default function DiscoverScreen() {
   const bottom = useTabBarSpace();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Results>({ kind: 'idle' });
-  const [charts, setCharts] = useState<DirectoryPodcast[] | null>(() =>
-    cachedCharts(`apple|${deviceCountry()}`),
-  );
   const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const latestSearch = useRef(0);
   const [indexKey, setIndexKey] = useState(false);
-  const [source, setSource] = useState<'apple' | 'podcastindex'>('apple');
+  const [chosen, setChosen] = useState<ListKey>(FOR_YOU);
   const country = deviceCountry();
+  // The tab is drawn ahead of time; its lists wait until it's first opened, so they don't
+  // compete with the app starting up.
+  const [opened, setOpened] = useState(false);
+  useFocusEffect(useCallback(() => setOpened(true), []));
+  const list = useList(chosen === FOR_YOU ? null : chosen, true);
+  const recommended = useRecommendations(opened);
+
+  // The categories of the shows you follow put the matching rows and chips first.
+  const followed =
+    useDbQuery(['podcast'], (d) =>
+      d.getAllAsync<{ categories: string | null }>(
+        'SELECT categories FROM podcast WHERE subscribed = 1',
+      ),
+    ).data ?? [];
+  const categories = categoriesForYou(
+    followed.map((p) => {
+      try {
+        return JSON.parse(p.categories ?? '[]') as string[];
+      } catch {
+        return [];
+      }
+    }),
+  );
+  const chips: ListKey[] = [
+    FOR_YOU,
+    'top',
+    ...(indexKey ? ['trending'] : []),
+    ...categories.map((c) => `cat:${c.id}`),
+  ];
 
   useEffect(() => {
     void getPodcastIndexLogin().then((login) => setIndexKey(!!login));
   }, []);
-
-  const [chartsFailed, setChartsFailed] = useState(false);
-  const [chartsTry, setChartsTry] = useState(0);
-
-  useEffect(() => {
-    let live = true;
-    const key = `${source}|${country}`;
-    if (cachedCharts(key)) return;
-    const load =
-      source === 'podcastindex' ? trendingPodcastIndex(language()) : topPodcasts(country);
-    load.then(
-      (items) => {
-        recentCharts.set(key, { at: Date.now(), items });
-        if (live) setCharts(items);
-        // Look up the feeds behind the list while it's being read, so a tap opens straight away.
-        withFeedUrls(items).then(
-          (full) => {
-            recentCharts.set(key, { at: Date.now(), items: full });
-            if (live) setCharts(full);
-          },
-          () => {},
-        );
-      },
-      () => {
-        if (!live) return;
-        setCharts([]);
-        setChartsFailed(true);
-      },
-    );
-    return () => {
-      live = false;
-    };
-  }, [country, source, chartsTry]);
-
-  const chooseSource = () =>
-    showSheet({
-      title: 'Show',
-      choice: true,
-      options: [
-        { label: 'Top shows on Apple Podcasts', value: 'apple' as const },
-        { label: 'Trending on Podcast Index', value: 'podcastindex' as const },
-      ].map((o) => ({
-        label: o.label,
-        selected: source === o.value,
-        onPress: () => {
-          if (o.value === source) return;
-          setCharts(cachedCharts(`${o.value}|${country}`));
-          setChartsFailed(false);
-          setSource(o.value);
-        },
-      })),
-    });
 
   const addIndexKey = () =>
     showKeyForm(
@@ -178,10 +279,7 @@ export default function DiscoverScreen() {
         onPress: () =>
           void forgetPodcastIndexLogin().then(() => {
             setIndexKey(false);
-            if (source === 'podcastindex') {
-              setCharts(cachedCharts(`apple|${country}`));
-              setSource('apple');
-            }
+            if (chosen === 'trending') setChosen(FOR_YOU);
           }),
       },
     ]);
@@ -214,6 +312,7 @@ export default function DiscoverScreen() {
       setOpening(null);
     }
   };
+  const openShow = (item: DirectoryPodcast) => void open(item.appleId, item.feedUrl, item.appleId);
 
   const search = async (term: string) => {
     clearTimeout(typingTimer.current);
@@ -226,8 +325,8 @@ export default function DiscoverScreen() {
     }
     setResults({ kind: 'loading' });
     try {
-      // With a Podcast Index key, its results join Apple's (without repeats).
-      // When Apple is busy, Podcast Index's results still show on their own.
+      // With a Podcast Index key, its results join Apple's (without repeats). When Apple is
+      // busy, Podcast Index's results still show on their own.
       const [apple, index] = await Promise.allSettled([
         searchPodcasts(term, country),
         indexKey ? searchPodcastIndex(term) : Promise.resolve([]),
@@ -273,15 +372,45 @@ export default function DiscoverScreen() {
   };
 
   const searching = results.kind !== 'idle';
-  const list = results.kind === 'done' ? results.items : !searching ? (charts ?? []) : [];
+  const forYou = !searching && chosen === FOR_YOU;
+  const entries: Entry[] = searching
+    ? results.kind === 'done'
+      ? results.items.map((item) => ({ kind: 'show', item, rank: null }))
+      : []
+    : forYou && !opened
+      ? []
+      : forYou
+        ? [
+            ...(recommended?.length ? [{ kind: 'recommended' as const }] : []),
+            { kind: 'row', key: 'top' },
+            ...(indexKey ? [{ kind: 'row' as const, key: 'trending' }] : []),
+            ...categories
+              .slice(0, ROWS_FOR_YOU)
+              .map((c) => ({ kind: 'row' as const, key: `cat:${c.id}` })),
+          ]
+        : (list.items ?? []).map((item, i) => ({ kind: 'show', item, rank: i + 1 }));
   const kind = classifyQuery(query).kind;
+
+  const chipLabel = (key: ListKey) =>
+    key === FOR_YOU
+      ? 'For you'
+      : key === 'top'
+        ? 'Top shows'
+        : key === 'trending'
+          ? 'Trending'
+          : (CATEGORIES.find((c) => `cat:${c.id}` === key)?.title ?? '');
 
   return (
     <FlatList
-      data={list}
-      keyExtractor={(p) => p.appleId}
+      data={entries}
+      keyExtractor={(e) =>
+        e.kind === 'show' ? `show:${e.item.appleId}` : e.kind === 'row' ? `row:${e.key}` : e.kind
+      }
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ paddingTop: insets.top, paddingBottom: bottom }}
+      // Rows further down load their lists as you scroll to them.
+      initialNumToRender={4}
+      windowSize={5}
       ListHeaderComponent={
         <View>
           <ScreenHeader title="Discover" />
@@ -312,35 +441,46 @@ export default function DiscoverScreen() {
               {error}
             </Txt>
           )}
-          {searching || !indexKey ? (
+          {searching ? (
             <Txt variant="meta" secondary style={styles.section}>
-              {searching ? 'Results' : 'Top shows'}
+              Results
             </Txt>
           ) : (
-            <Pressable
-              onPress={chooseSource}
-              accessibilityRole="button"
-              accessibilityHint="Choose where the list comes from"
-              style={[styles.section, styles.sourceRow]}>
-              <Txt variant="meta" color={theme.accent}>
-                {source === 'podcastindex' ? 'Trending on Podcast Index' : 'Top shows on Apple'}
-              </Txt>
-              <Icon name="caret-down" size={14} color={theme.accent} duotone={false} />
-            </Pressable>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chips}>
+              {chips.map((key) => {
+                const on = key === chosen;
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => setChosen(key)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                    style={[styles.chip, { backgroundColor: on ? theme.accent : theme.element }]}>
+                    <Txt variant="smallBold" color={on ? theme.onAccent : theme.text}>
+                      {chipLabel(key)}
+                    </Txt>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           )}
-          {results.kind === 'loading' || (!searching && charts == null) ? (
+          {!searching && !forYou && (
+            <Txt variant="meta" secondary style={styles.section}>
+              {listTitle(chosen)}
+            </Txt>
+          )}
+          {results.kind === 'loading' || (!searching && !forYou && list.items == null) ? (
             <ActivityIndicator color={theme.accent} style={styles.spinner} />
           ) : results.kind === 'error' ? (
             <Txt secondary style={styles.message}>
               {results.message}
             </Txt>
-          ) : !searching && chartsFailed ? (
+          ) : !searching && !forYou && list.failed ? (
             <Pressable
-              onPress={() => {
-                setCharts(null);
-                setChartsFailed(false);
-                setChartsTry((n) => n + 1);
-              }}
+              onPress={list.retry}
               accessibilityRole="button"
               hitSlop={8}
               style={styles.message}>
@@ -356,37 +496,61 @@ export default function DiscoverScreen() {
           ) : null}
         </View>
       }
-      renderItem={({ item, index }) => (
-        <Pressable
-          onPress={() => open(item.appleId, item.feedUrl, item.appleId)}
-          accessibilityRole="button"
-          accessibilityLabel={`${item.title} by ${item.author}`}
-          style={({ pressed }) => [
-            styles.row,
-            { borderBottomColor: theme.cardBorder },
-            pressed && { opacity: 0.7 },
-          ]}>
-          {!searching && (
-            <Txt variant="smallBold" secondary style={styles.rank}>
-              {index + 1}
-            </Txt>
-          )}
-          <Artwork uri={item.artworkUrl} title={item.title} size={56} radius={10} />
-          <View style={styles.rowText}>
-            <Txt variant="bodyBold" numberOfLines={2}>
-              {item.title}
-            </Txt>
-            <Txt variant="small" secondary numberOfLines={1}>
-              {item.author}
-            </Txt>
-          </View>
-          {opening === item.appleId ? (
-            <ActivityIndicator color={theme.accent} />
-          ) : (
-            <Icon name="caret-right" size={18} color={theme.textSecondary} duotone={false} />
-          )}
-        </Pressable>
-      )}
+      renderItem={({ item: entry }) => {
+        if (entry.kind === 'recommended') {
+          return (
+            <ShowRow
+              title="Recommended by your shows"
+              note={pickedByNote(recommended ?? [])}
+              items={recommended}
+              onOpen={openShow}
+              opening={opening}
+            />
+          );
+        }
+        if (entry.kind === 'row') {
+          return (
+            <ListRow
+              listKey={entry.key}
+              onSeeAll={() => setChosen(entry.key)}
+              onOpen={openShow}
+              opening={opening}
+            />
+          );
+        }
+        const { item, rank } = entry;
+        return (
+          <Pressable
+            onPress={() => openShow(item)}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.title} by ${item.author}`}
+            style={({ pressed }) => [
+              styles.row,
+              { borderBottomColor: theme.cardBorder },
+              pressed && { opacity: 0.7 },
+            ]}>
+            {rank != null && (
+              <Txt variant="smallBold" secondary style={styles.rank}>
+                {rank}
+              </Txt>
+            )}
+            <Artwork uri={item.artworkUrl} title={item.title} size={56} radius={10} />
+            <View style={styles.rowText}>
+              <Txt variant="bodyBold" numberOfLines={2}>
+                {item.title}
+              </Txt>
+              <Txt variant="small" secondary numberOfLines={1}>
+                {item.author}
+              </Txt>
+            </View>
+            {opening === item.appleId ? (
+              <ActivityIndicator color={theme.accent} />
+            ) : (
+              <Icon name="caret-right" size={18} color={theme.textSecondary} duotone={false} />
+            )}
+          </Pressable>
+        );
+      }}
       ListFooterComponent={
         <View style={styles.footerBox}>
           <Txt variant="small" secondary style={styles.footer}>
@@ -408,6 +572,31 @@ export default function DiscoverScreen() {
   );
 }
 
+/** One list as a row on For you; hidden if it can't be loaded. */
+function ListRow({
+  listKey,
+  onSeeAll,
+  onOpen,
+  opening,
+}: {
+  listKey: ListKey;
+  onSeeAll: () => void;
+  onOpen: (item: DirectoryPodcast) => void;
+  opening: string | null;
+}) {
+  const { items, failed } = useList(listKey, false);
+  if (failed || items?.length === 0) return null;
+  return (
+    <ShowRow
+      title={listTitle(listKey)}
+      items={items ? items.slice(0, PER_ROW) : null}
+      onSeeAll={onSeeAll}
+      onOpen={onOpen}
+      opening={opening}
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   search: {
     flexDirection: 'row',
@@ -418,6 +607,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.medium,
   },
   input: { flex: 1, paddingVertical: 12, fontSize: 15 },
+  chips: { gap: Spacing.two, paddingHorizontal: Spacing.four, paddingTop: Spacing.three },
+  chip: { paddingHorizontal: Spacing.three, paddingVertical: 9, borderRadius: Radius.pill },
   section: { marginHorizontal: Spacing.four, marginTop: Spacing.four, marginBottom: Spacing.two },
   message: { marginHorizontal: Spacing.four, marginTop: Spacing.two },
   spinner: { marginTop: Spacing.four },
@@ -431,7 +622,6 @@ const styles = StyleSheet.create({
   },
   rank: { width: 22, textAlign: 'center' },
   rowText: { flex: 1, gap: 2 },
-  footerBox: { marginTop: Spacing.four, gap: Spacing.three },
+  footerBox: { marginTop: Spacing.five, gap: Spacing.three },
   footer: { marginHorizontal: Spacing.four, textAlign: 'center' },
-  sourceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
 });

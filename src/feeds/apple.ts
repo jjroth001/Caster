@@ -82,6 +82,35 @@ export async function topPodcasts(country = 'us', limit = 50): Promise<Directory
   }));
 }
 
+type LegacyEntry = {
+  'im:name': { label: string };
+  'im:artist'?: { label: string };
+  'im:image'?: { label: string }[];
+  id: { attributes: { 'im:id': string } };
+};
+
+/** Apple's top shows in one category (Comedy is "1303"; see feeds/categories.ts). */
+export async function topInCategory(
+  country: string,
+  categoryId: string,
+  limit = 50,
+): Promise<DirectoryPodcast[]> {
+  const data = await getJson<{ feed: { entry?: LegacyEntry[] | LegacyEntry } }>(
+    `https://itunes.apple.com/${country}/rss/toppodcasts/limit=${limit}/genre=${categoryId}/json`,
+  );
+  // A list of one comes back as a single entry, not a list.
+  const entries = data.feed.entry ? [data.feed.entry].flat() : [];
+  return entries.map((e) => ({
+    appleId: e.id.attributes['im:id'],
+    title: e['im:name'].label,
+    author: e['im:artist']?.label ?? '',
+    artworkUrl:
+      e['im:image']?.at(-1)?.label.replace(/\/\d+x\d+(bb)?\.(jpg|png|webp)$/, '/600x600bb.$2') ??
+      null,
+    feedUrl: null,
+  }));
+}
+
 /**
  * Fills in the feed addresses chart results leave out, in one request for the whole list, so
  * tapping a show doesn't have to ask Apple first. Shows it can't find stay as they were.

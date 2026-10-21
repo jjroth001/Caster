@@ -178,6 +178,22 @@ export const MIGRATIONS: string[] = [
   `
   ALTER TABLE podcast_settings ADD COLUMN up_next_auto TEXT;
   `,
+  // 6: for Discover, each podcast's categories and the shows it recommends (JSON arrays), and
+  //    what those recommended shows are called. Saved feed caches are cleared so the next
+  //    check reads every feed in full and fills them in.
+  `
+  ALTER TABLE podcast ADD COLUMN categories TEXT;
+  ALTER TABLE podcast ADD COLUMN podroll_json TEXT;
+  UPDATE podcast SET etag = NULL, last_modified = NULL;
+  CREATE TABLE podroll_show (
+    key          TEXT PRIMARY KEY,  -- the feed address, or 'guid:' and its Podcasting 2.0 guid
+    feed_url     TEXT,
+    title        TEXT,
+    author       TEXT,
+    artwork_url  TEXT,
+    checked_at   INTEGER NOT NULL
+  );
+  `,
 ];
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {

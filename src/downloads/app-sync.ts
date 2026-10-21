@@ -53,7 +53,9 @@ export function startAppSync(db: SQLiteDatabase): () => void {
     void (async () => {
       const settings = await getSettings(db);
       await pruneUnfollowed(db, settings.nowPlaying);
-      await catchUp(db, { force: true });
+      // Feeds checked in the last 15 minutes aren't checked again: reading every feed at once
+      // made the first minute after opening slow.
+      await catchUp(db, { force: false });
       await redetectTranscriptAds(db);
     })();
   }, OPENING_DELAY_MS);

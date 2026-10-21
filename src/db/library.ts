@@ -210,7 +210,20 @@ const EPISODE_UPSERT = `
     media_type = excluded.media_type, artwork_url = excluded.artwork_url,
     transcript_url = excluded.transcript_url, transcript_type = excluded.transcript_type,
     chapters_url = excluded.chapters_url, season = excluded.season, number = excluded.number,
-    episode_type = excluded.episode_type`;
+    episode_type = excluded.episode_type
+  -- Episodes that haven't changed are left alone: a feed check that rewrote all of them made
+  -- every open screen reload once per episode.
+  WHERE episode.title IS NOT excluded.title OR episode.description IS NOT excluded.description
+    OR episode.link IS NOT excluded.link OR episode.pub_date IS NOT excluded.pub_date
+    OR episode.duration_s IS NOT COALESCE(excluded.duration_s, episode.duration_s)
+    OR episode.enclosure_url IS NOT excluded.enclosure_url OR episode.mime IS NOT excluded.mime
+    OR episode.size_bytes IS NOT excluded.size_bytes
+    OR episode.media_type IS NOT excluded.media_type
+    OR episode.artwork_url IS NOT excluded.artwork_url
+    OR episode.transcript_url IS NOT excluded.transcript_url
+    OR episode.transcript_type IS NOT excluded.transcript_type
+    OR episode.chapters_url IS NOT excluded.chapters_url OR episode.season IS NOT excluded.season
+    OR episode.number IS NOT excluded.number OR episode.episode_type IS NOT excluded.episode_type`;
 
 async function upsertEpisodes(db: SQLiteDatabase, podcastId: number, episodes: ParsedEpisode[]) {
   const statement = await db.prepareAsync(EPISODE_UPSERT);

@@ -232,6 +232,9 @@ class PlayerCoreModule : Module() {
     /** The playing episode's video (see VideoSurfaceView). */
     View(VideoSurfaceView::class) {}
 
+    /** A sideways row inside the swipeable tabs (see SwipeHostView). */
+    View(SwipeHostView::class) {}
+
     /** The full-screen video screen opened or closed: rotation and picture-in-picture. */
     AsyncFunction("setVideoScreenOpen") { open: Boolean ->
       VideoScreen.setOpen(appContext.currentActivity, open)

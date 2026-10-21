@@ -6,7 +6,6 @@ import {
   Alert,
   FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   TextInput,
   View,
@@ -16,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Artwork } from '@/components/artwork';
 import { Icon } from '@/components/icons/icon';
 import { ScreenHeader } from '@/components/screen-header';
-import { ShowRow } from '@/components/show-row';
+import { FadingChip, FadingChips, ShowRow } from '@/components/show-row';
 import { showKeyForm, showSignIn } from '@/components/sign-in-sheet';
 import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
@@ -446,26 +445,29 @@ export default function DiscoverScreen() {
               Results
             </Txt>
           ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chips}>
-              {chips.map((key) => {
-                const on = key === chosen;
-                return (
-                  <Pressable
-                    key={key}
-                    onPress={() => setChosen(key)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on }}
-                    style={[styles.chip, { backgroundColor: on ? theme.accent : theme.element }]}>
-                    <Txt variant="smallBold" color={on ? theme.onAccent : theme.text}>
-                      {chipLabel(key)}
-                    </Txt>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            <FadingChips>
+              {(fade) =>
+                chips.map((key) => {
+                  const on = key === chosen;
+                  return (
+                    <FadingChip key={key} fade={fade}>
+                      <Pressable
+                        onPress={() => setChosen(key)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                        style={[
+                          styles.chip,
+                          { backgroundColor: on ? theme.accent : theme.element },
+                        ]}>
+                        <Txt variant="smallBold" color={on ? theme.onAccent : theme.text}>
+                          {chipLabel(key)}
+                        </Txt>
+                      </Pressable>
+                    </FadingChip>
+                  );
+                })
+              }
+            </FadingChips>
           )}
           {!searching && !forYou && (
             <Txt variant="meta" secondary style={styles.section}>
@@ -607,7 +609,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.medium,
   },
   input: { flex: 1, paddingVertical: 12, fontSize: 15 },
-  chips: { gap: Spacing.two, paddingHorizontal: Spacing.four, paddingTop: Spacing.three },
   chip: { paddingHorizontal: Spacing.three, paddingVertical: 9, borderRadius: Radius.pill },
   section: { marginHorizontal: Spacing.four, marginTop: Spacing.four, marginBottom: Spacing.two },
   message: { marginHorizontal: Spacing.four, marginTop: Spacing.two },

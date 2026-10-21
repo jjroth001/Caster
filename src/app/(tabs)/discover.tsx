@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Reanimated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
@@ -39,6 +40,7 @@ import {
   trendingPodcastIndex,
 } from '@/feeds/podcast-index';
 import { recommendedShows, type Recommendation } from '@/feeds/recommendations';
+import { Motion } from '@/theme/motion';
 import { useTheme } from '@/theme/theme-provider';
 import { Radius, Spacing } from '@/theme/themes';
 
@@ -412,6 +414,17 @@ export default function DiscoverScreen() {
               style={[styles.input, { color: theme.text }]}
               accessibilityLabel="Search podcasts or paste a feed address"
             />
+            {query ? (
+              <Reanimated.View entering={Motion.fadeIn} exiting={Motion.exit}>
+                <Pressable
+                  onPress={() => onType('')}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search">
+                  <Icon name="x" size={18} color={theme.textSecondary} duotone={false} />
+                </Pressable>
+              </Reanimated.View>
+            ) : null}
           </View>
           {searching ? (
             <Txt variant="meta" secondary style={styles.section}>

@@ -25,6 +25,7 @@ import {
   lookupPodcasts,
   searchPodcasts,
   topPodcasts,
+  withFeedUrls,
   type DirectoryPodcast,
 } from '@/feeds/apple';
 import { splitLogin } from '@/feeds/credentials';
@@ -99,6 +100,9 @@ export default function DiscoverScreen() {
     void getPodcastIndexLogin().then((login) => setIndexKey(!!login));
   }, []);
 
+  const [chartsFailed, setChartsFailed] = useState(false);
+  const [chartsTry, setChartsTry] = useState(0);
+
   useEffect(() => {
     let live = true;
     const key = `${source}|${country}`;
@@ -109,13 +113,25 @@ export default function DiscoverScreen() {
       (items) => {
         recentCharts.set(key, { at: Date.now(), items });
         if (live) setCharts(items);
+        // Look up the feeds behind the list while it's being read, so a tap opens straight away.
+        withFeedUrls(items).then(
+          (full) => {
+            recentCharts.set(key, { at: Date.now(), items: full });
+            if (live) setCharts(full);
+          },
+          () => {},
+        );
       },
-      () => live && setCharts([]),
+      () => {
+        if (!live) return;
+        setCharts([]);
+        setChartsFailed(true);
+      },
     );
     return () => {
       live = false;
     };
-  }, [country, source]);
+  }, [country, source, chartsTry]);
 
   const chooseSource = () =>
     showSheet({
@@ -130,6 +146,7 @@ export default function DiscoverScreen() {
         onPress: () => {
           if (o.value === source) return;
           setCharts(cachedCharts(`${o.value}|${country}`));
+          setChartsFailed(false);
           setSource(o.value);
         },
       })),
@@ -210,11 +227,18 @@ export default function DiscoverScreen() {
     setResults({ kind: 'loading' });
     try {
       // With a Podcast Index key, its results join Apple's (without repeats).
-      const [apple, index] = await Promise.all([
+      // When Apple is busy, Podcast Index's results still show on their own.
+      const [apple, index] = await Promise.allSettled([
         searchPodcasts(term, country),
-        indexKey ? searchPodcastIndex(term).catch(() => []) : Promise.resolve([]),
+        indexKey ? searchPodcastIndex(term) : Promise.resolve([]),
       ]);
-      const items = mergeResults(apple, index);
+      if (apple.status === 'rejected' && (index.status === 'rejected' || !indexKey)) {
+        throw apple.reason;
+      }
+      const items = mergeResults(
+        apple.status === 'fulfilled' ? apple.value : [],
+        index.status === 'fulfilled' ? index.value : [],
+      );
       recentSearches.set(cacheKey, { at: Date.now(), items });
       // A slower, older search finishing late mustn't replace newer results.
       if (request === latestSearch.current) setResults({ kind: 'done', items });
@@ -310,6 +334,21 @@ export default function DiscoverScreen() {
             <Txt secondary style={styles.message}>
               {results.message}
             </Txt>
+          ) : !searching && chartsFailed ? (
+            <Pressable
+              onPress={() => {
+                setCharts(null);
+                setChartsFailed(false);
+                setChartsTry((n) => n + 1);
+              }}
+              accessibilityRole="button"
+              hitSlop={8}
+              style={styles.message}>
+              <Txt secondary>Couldn’t load the list.</Txt>
+              <Txt variant="bodyBold" color={theme.accent}>
+                Try again
+              </Txt>
+            </Pressable>
           ) : results.kind === 'done' && results.items.length === 0 ? (
             <Txt secondary style={styles.message}>
               Nothing found. Try other words, or paste the podcast’s feed address.

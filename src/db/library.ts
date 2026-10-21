@@ -198,11 +198,16 @@ export function inTransaction<T>(db: SQLiteDatabase, work: () => Promise<T>): Pr
   return run;
 }
 
-const EPISODE_UPSERT = `
+/** Episodes saved per statement: saving them one call at a time made big feeds slow to open. */
+const EPISODES_PER_SAVE = 50;
+const EPISODE_ROW = `(${Array(18).fill('?').join(', ')})`;
+
+/** Saves `rows` episodes at once. */
+const episodeUpsert = (rows: number) => `
   INSERT INTO episode (podcast_id, guid, title, description, link, pub_date, duration_s,
     enclosure_url, mime, size_bytes, media_type, artwork_url, transcript_url, transcript_type,
     chapters_url, season, number, episode_type)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  VALUES ${Array(rows).fill(EPISODE_ROW).join(', ')}
   ON CONFLICT (podcast_id, guid) DO UPDATE SET
     title = excluded.title, description = excluded.description, link = excluded.link,
     pub_date = excluded.pub_date, duration_s = COALESCE(excluded.duration_s, episode.duration_s),
@@ -226,10 +231,11 @@ const EPISODE_UPSERT = `
     OR episode.number IS NOT excluded.number OR episode.episode_type IS NOT excluded.episode_type`;
 
 async function upsertEpisodes(db: SQLiteDatabase, podcastId: number, episodes: ParsedEpisode[]) {
-  const statement = await db.prepareAsync(EPISODE_UPSERT);
-  try {
-    for (const e of episodes) {
-      await statement.executeAsync(
+  for (let i = 0; i < episodes.length; i += EPISODES_PER_SAVE) {
+    const batch = episodes.slice(i, i + EPISODES_PER_SAVE);
+    await db.runAsync(
+      episodeUpsert(batch.length),
+      batch.flatMap((e) => [
         podcastId,
         e.guid,
         e.title,
@@ -248,10 +254,8 @@ async function upsertEpisodes(db: SQLiteDatabase, podcastId: number, episodes: P
         e.season,
         e.number,
         e.episodeType,
-      );
-    }
-  } finally {
-    await statement.finalizeAsync();
+      ]),
+    );
   }
 }
 

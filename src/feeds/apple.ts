@@ -82,6 +82,19 @@ export async function topPodcasts(country = 'us', limit = 50): Promise<Directory
   }));
 }
 
+/**
+ * Fills in the feed addresses chart results leave out, in one request for the whole list, so
+ * tapping a show doesn't have to ask Apple first. Shows it can't find stay as they were.
+ */
+export async function withFeedUrls(items: DirectoryPodcast[]): Promise<DirectoryPodcast[]> {
+  const missing = items.filter((p) => !p.feedUrl && p.source !== 'podcastindex');
+  if (missing.length === 0) return items;
+  const found = new Map(
+    (await lookupPodcasts(missing.map((p) => p.appleId))).map((p) => [p.appleId, p.feedUrl]),
+  );
+  return items.map((p) => (p.feedUrl ? p : { ...p, feedUrl: found.get(p.appleId) ?? null }));
+}
+
 /** The Apple id in a podcasts.apple.com link ("…/id1234567890"), or null. */
 export function appleIdFromLink(text: string): string | null {
   const m = /podcasts\.apple\.com\/.*\bid(\d{5,})/i.exec(text.trim());

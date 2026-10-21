@@ -16,14 +16,13 @@ import { Artwork } from '@/components/artwork';
 import { Icon } from '@/components/icons/icon';
 import { ScreenHeader } from '@/components/screen-header';
 import { FadingChip, FadingChips, ShowRow } from '@/components/show-row';
-import { showKeyForm, showSignIn } from '@/components/sign-in-sheet';
+import { showKeyForm } from '@/components/sign-in-sheet';
 import { useTabBarSpace } from '@/components/tab-bar';
 import { Txt } from '@/components/text';
 import { useDbQuery } from '@/db/use-db-query';
 import {
   classifyQuery,
   deviceCountry,
-  lookupPodcasts,
   searchPodcasts,
   topInCategory,
   topPodcasts,
@@ -31,8 +30,6 @@ import {
   type DirectoryPodcast,
 } from '@/feeds/apple';
 import { CATEGORIES, categoriesForYou } from '@/feeds/categories';
-import { splitLogin } from '@/feeds/credentials';
-import { FeedAuthError } from '@/feeds/parse-feed';
 import {
   forgetPodcastIndexLogin,
   getPodcastIndexLogin,
@@ -41,9 +38,7 @@ import {
   searchPodcastIndex,
   trendingPodcastIndex,
 } from '@/feeds/podcast-index';
-import { rememberFeedLogin } from '@/feeds/private';
 import { recommendedShows, type Recommendation } from '@/feeds/recommendations';
-import { openFeed } from '@/feeds/sync';
 import { useTheme } from '@/theme/theme-provider';
 import { Radius, Spacing } from '@/theme/themes';
 
@@ -205,14 +200,11 @@ type Entry =
   | { kind: 'recommended' };
 
 export default function DiscoverScreen() {
-  const db = useSQLiteContext();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const bottom = useTabBarSpace();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Results>({ kind: 'idle' });
-  const [opening, setOpening] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const latestSearch = useRef(0);
   const [indexKey, setIndexKey] = useState(false);
@@ -285,33 +277,22 @@ export default function DiscoverScreen() {
 
   useEffect(() => () => clearTimeout(typingTimer.current), []);
 
-  /** Loads the feed (without following) and opens the podcast's page. */
-  const open = async (key: string, feedUrl: string | null, appleId?: string) => {
-    setOpening(key);
-    setError(null);
-    try {
-      let url = feedUrl;
-      if (!url && appleId) url = (await lookupPodcasts([appleId]))[0]?.feedUrl ?? null;
-      if (!url)
-        throw new Error('This show doesn’t share a public feed, so it can’t be played here.');
-      const id = await openFeed(db, url);
-      router.push(`/podcast/${id}`);
-    } catch (e) {
-      if (e instanceof FeedAuthError && feedUrl) {
-        const { url: clean } = splitLogin(feedUrl);
-        // Ask for the sign-in, then try again with it.
-        showSignIn(
-          'Sign in to this podcast',
-          (login) => void rememberFeedLogin(db, clean, login).then(() => open(key, clean, appleId)),
-        );
-        return;
-      }
-      setError(e instanceof Error ? e.message : 'Couldn’t open this podcast.');
-    } finally {
-      setOpening(null);
+  /**
+   * Opens the podcast's page at once, showing what the directory says about it; the page
+   * loads the feed itself (without following), so a tap never waits on the download.
+   */
+  const open = (feedUrl: string | null, appleId?: string, show?: DirectoryPodcast) => {
+    const params: Record<string, string> = { id: 'new' };
+    if (feedUrl) params.feed = feedUrl;
+    else if (appleId) params.appleId = appleId;
+    if (show) {
+      params.title = show.title;
+      if (show.author) params.author = show.author;
+      if (show.artworkUrl) params.art = show.artworkUrl;
     }
+    router.push({ pathname: '/podcast/[id]', params: params as { id: string } });
   };
-  const openShow = (item: DirectoryPodcast) => void open(item.appleId, item.feedUrl, item.appleId);
+  const openShow = (item: DirectoryPodcast) => open(item.feedUrl, item.appleId, item);
 
   const search = async (term: string) => {
     clearTimeout(typingTimer.current);
@@ -349,8 +330,8 @@ export default function DiscoverScreen() {
 
   const submit = async () => {
     const q = classifyQuery(query);
-    if (q.kind === 'url') return open('url', q.url);
-    if (q.kind === 'apple') return open('apple', null, q.id);
+    if (q.kind === 'url') return open(q.url);
+    if (q.kind === 'apple') return open(null, q.id);
     if (!q.term) return;
     await search(q.term);
   };
@@ -431,15 +412,7 @@ export default function DiscoverScreen() {
               style={[styles.input, { color: theme.text }]}
               accessibilityLabel="Search podcasts or paste a feed address"
             />
-            {opening === 'url' || opening === 'apple' ? (
-              <ActivityIndicator color={theme.accent} />
-            ) : null}
           </View>
-          {error && (
-            <Txt variant="small" color={theme.danger} style={styles.message}>
-              {error}
-            </Txt>
-          )}
           {searching ? (
             <Txt variant="meta" secondary style={styles.section}>
               Results
@@ -506,18 +479,12 @@ export default function DiscoverScreen() {
               note={pickedByNote(recommended ?? [])}
               items={recommended}
               onOpen={openShow}
-              opening={opening}
             />
           );
         }
         if (entry.kind === 'row') {
           return (
-            <ListRow
-              listKey={entry.key}
-              onSeeAll={() => setChosen(entry.key)}
-              onOpen={openShow}
-              opening={opening}
-            />
+            <ListRow listKey={entry.key} onSeeAll={() => setChosen(entry.key)} onOpen={openShow} />
           );
         }
         const { item, rank } = entry;
@@ -545,11 +512,7 @@ export default function DiscoverScreen() {
                 {item.author}
               </Txt>
             </View>
-            {opening === item.appleId ? (
-              <ActivityIndicator color={theme.accent} />
-            ) : (
-              <Icon name="caret-right" size={18} color={theme.textSecondary} duotone={false} />
-            )}
+            <Icon name="caret-right" size={18} color={theme.textSecondary} duotone={false} />
           </Pressable>
         );
       }}
@@ -579,12 +542,10 @@ function ListRow({
   listKey,
   onSeeAll,
   onOpen,
-  opening,
 }: {
   listKey: ListKey;
   onSeeAll: () => void;
   onOpen: (item: DirectoryPodcast) => void;
-  opening: string | null;
 }) {
   const { items, failed } = useList(listKey, false);
   if (failed || items?.length === 0) return null;
@@ -594,7 +555,6 @@ function ListRow({
       items={items ? items.slice(0, PER_ROW) : null}
       onSeeAll={onSeeAll}
       onOpen={onOpen}
-      opening={opening}
     />
   );
 }

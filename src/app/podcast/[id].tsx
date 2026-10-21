@@ -1,7 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
@@ -23,17 +30,34 @@ import {
 } from '@/db/library';
 import { useDbQuery } from '@/db/use-db-query';
 import { autoDownloadFollowed } from '@/downloads/auto-download';
+import { lookupPodcasts } from '@/feeds/apple';
+import { splitLogin } from '@/feeds/credentials';
 import { htmlToText } from '@/feeds/text';
-import { NEEDS_LOGIN } from '@/feeds/parse-feed';
+import { FeedAuthError, NEEDS_LOGIN } from '@/feeds/parse-feed';
 import { rememberFeedLogin } from '@/feeds/private';
-import { refreshPodcast } from '@/feeds/sync';
+import { openFeed, refreshPodcast } from '@/feeds/sync';
 import { podcastMenu } from '@/lib/library-actions';
 import { useTheme } from '@/theme/theme-provider';
 import { Spacing } from '@/theme/themes';
 
+/**
+ * A podcast's page. Opened from Discover as /podcast/new, with the show's feed (or Apple id)
+ * and what the directory says it's called: the page shows that at once and loads the feed in
+ * place, then switches to the saved podcast's id, so a tap never waits on the download.
+ */
+type Params = {
+  id: string;
+  feed?: string;
+  appleId?: string;
+  title?: string;
+  author?: string;
+  art?: string;
+};
+
 export default function PodcastScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const podcastId = Number(id);
+  const params = useLocalSearchParams<Params>();
+  const opening = params.id === 'new';
+  const podcastId = opening ? -1 : Number(params.id);
   const db = useSQLiteContext();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -56,10 +80,83 @@ export default function PodcastScreen() {
     [podcastId, order],
   ).data;
 
-  const tint = useArtworkTint(podcast?.artwork_url);
+  const [openError, setOpenError] = useState<{ message: string; needsLogin: boolean } | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const { feed, appleId } = params;
+  useEffect(() => {
+    if (!opening) return;
+    let live = true;
+    (async () => {
+      let url = feed ?? null;
+      if (!url && appleId) url = (await lookupPodcasts([appleId]))[0]?.feedUrl ?? null;
+      if (!url) {
+        throw new Error('This show doesn’t share a public feed, so it can’t be played here.');
+      }
+      return openFeed(db, url);
+    })().then(
+      (newId) => live && router.setParams({ id: String(newId) }),
+      (e) =>
+        live &&
+        setOpenError({
+          message: e instanceof Error ? e.message : 'Couldn’t open this podcast.',
+          needsLogin: e instanceof FeedAuthError,
+        }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [opening, feed, appleId, db, attempt]);
+
+  const tint = useArtworkTint(podcast?.artwork_url ?? params.art);
 
   if (!podcast) {
-    return <Background />;
+    const retry = () => {
+      setOpenError(null);
+      setAttempt((n) => n + 1);
+    };
+    return (
+      <View style={styles.flex}>
+        <Background tint={tint} />
+        <View style={[styles.topBar, { paddingTop: insets.top + Spacing.two }]}>
+          <IconButton icon="caret-left" label="Back" onPress={() => router.back()} />
+        </View>
+        {params.title ? (
+          <View style={styles.hero}>
+            <Artwork uri={params.art} title={params.title} size={156} radius={20} />
+            <Txt variant="title" style={styles.title} numberOfLines={3} accessibilityRole="header">
+              {params.title}
+            </Txt>
+            {!!params.author && (
+              <Txt secondary style={styles.centerText} numberOfLines={1}>
+                {params.author}
+              </Txt>
+            )}
+          </View>
+        ) : null}
+        {openError ? (
+          <View style={styles.opening}>
+            <Txt secondary style={styles.centerText}>
+              {openError.message}
+            </Txt>
+            <Button
+              label={openError.needsLogin ? 'Sign in' : 'Try again'}
+              kind="secondary"
+              onPress={() =>
+                openError.needsLogin && feed
+                  ? showSignIn(
+                      params.title ?? 'Sign in to this podcast',
+                      (login) =>
+                        void rememberFeedLogin(db, splitLogin(feed).url, login).then(retry),
+                    )
+                  : retry()
+              }
+            />
+          </View>
+        ) : (
+          <ActivityIndicator color={theme.accent} style={styles.opening} />
+        )}
+      </View>
+    );
   }
   const following = !!podcast.subscribed;
   const description = htmlToText(podcast.description);
@@ -240,6 +337,7 @@ const styles = StyleSheet.create({
   signIn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   archivedToggle: { alignItems: 'center', paddingVertical: Spacing.four },
   signInText: { flex: 1 },
+  opening: { marginTop: Spacing.five, marginHorizontal: Spacing.four, gap: Spacing.three },
   listHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

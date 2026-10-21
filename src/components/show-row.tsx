@@ -1,5 +1,5 @@
 import { useRef, useState, type ComponentProps, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Reanimated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -42,8 +42,6 @@ type Props = {
   items: DirectoryPodcast[] | null;
   onSeeAll?: () => void;
   onOpen: (item: DirectoryPodcast) => void;
-  /** The show being opened, which gets a spinner. */
-  opening: string | null;
 };
 
 /**
@@ -51,7 +49,7 @@ type Props = {
  * rolls on and out as it rolls off, so nothing is left cut off at the edges. Round arrows at
  * the ends show there's more and move three shows along when tapped.
  */
-export function ShowRow({ title, note, items, onSeeAll, onOpen, opening }: Props) {
+export function ShowRow({ title, note, items, onSeeAll, onOpen }: Props) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
   const inner = width - INSET * 2;
@@ -134,7 +132,6 @@ export function ShowRow({ title, note, items, onSeeAll, onOpen, opening }: Props
                   size={size}
                   inner={inner}
                   scrollX={scrollX}
-                  opening={opening === item.appleId}
                   onOpen={onOpen}
                 />
               ))}
@@ -200,7 +197,6 @@ function Tile({
   size,
   inner,
   scrollX,
-  opening,
   onOpen,
 }: {
   item: DirectoryPodcast;
@@ -208,7 +204,6 @@ function Tile({
   size: number;
   inner: number;
   scrollX: SharedValue<number>;
-  opening: boolean;
   onOpen: (item: DirectoryPodcast) => void;
 }) {
   const fade = useEdgeFade(scrollX, left, size, inner);
@@ -219,14 +214,7 @@ function Tile({
         accessibilityRole="button"
         accessibilityLabel={item.author ? `${item.title} by ${item.author}` : item.title}
         style={({ pressed }) => pressed && { opacity: 0.7 }}>
-        <View>
-          <Artwork uri={item.artworkUrl} title={item.title} size={size} radius={Radius.medium} />
-          {opening && (
-            <View style={[styles.opening, { borderRadius: Radius.medium }]}>
-              <ActivityIndicator color="#FFFFFF" />
-            </View>
-          )}
-        </View>
+        <Artwork uri={item.artworkUrl} title={item.title} size={size} radius={Radius.medium} />
         <Txt variant="smallBold" numberOfLines={1} style={styles.showTitle}>
           {item.title}
         </Txt>
@@ -295,12 +283,6 @@ const styles = StyleSheet.create({
   content: { paddingLeft: INSET, paddingRight: INSET - GAP },
   placeholders: { flexDirection: 'row', gap: GAP, marginHorizontal: INSET },
   showTitle: { marginTop: Spacing.two },
-  opening: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
   arrow: { position: 'absolute', width: ARROW, height: ARROW },
   arrowButton: {
     width: ARROW,

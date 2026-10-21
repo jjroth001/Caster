@@ -1,14 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/artwork';
@@ -16,7 +9,7 @@ import { Background } from '@/components/background';
 import { useArtworkTint } from '@/theme/artwork-tint';
 import { StatusBarScrim } from '@/components/status-bar-scrim';
 import { Button, IconButton } from '@/components/controls';
-import { EpisodeRow } from '@/components/episode-row';
+import { EpisodePlaceholders, EpisodeRow } from '@/components/episode-row';
 import { showSignIn } from '@/components/sign-in-sheet';
 import { Icon } from '@/components/icons/icon';
 import { useTabBarSpace } from '@/components/tab-bar';
@@ -153,7 +146,9 @@ export default function PodcastScreen() {
             />
           </View>
         ) : (
-          <ActivityIndicator color={theme.accent} style={styles.opening} />
+          <View style={styles.placeholders}>
+            <EpisodePlaceholders cards={theme.name !== 'paper'} />
+          </View>
         )}
       </View>
     );
@@ -338,6 +333,7 @@ const styles = StyleSheet.create({
   archivedToggle: { alignItems: 'center', paddingVertical: Spacing.four },
   signInText: { flex: 1 },
   opening: { marginTop: Spacing.five, marginHorizontal: Spacing.four, gap: Spacing.three },
+  placeholders: { marginTop: Spacing.five },
   listHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

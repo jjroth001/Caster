@@ -1,7 +1,14 @@
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Reanimated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { Artwork } from '@/components/artwork';
 import { PlayButton } from '@/components/controls';
@@ -112,7 +119,49 @@ export function EpisodeRow({ episode, showPodcast, cards, trailing }: Props) {
   );
 }
 
+/**
+ * Soft stand-ins for episode rows while a show's episodes load, shaped like the real ones and
+ * gently breathing so the page looks busy rather than stuck.
+ */
+export function EpisodePlaceholders({ cards, count = 6 }: { cards: boolean; count?: number }) {
+  const theme = useTheme();
+  const glow = useSharedValue(0.55);
+  useEffect(() => {
+    glow.value = withRepeat(
+      withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true,
+    );
+  }, [glow]);
+  const breathe = useAnimatedStyle(() => ({ opacity: glow.value }));
+  return (
+    <Reanimated.View style={breathe} accessibilityLabel="Loading episodes">
+      {Array.from({ length: count }, (_, i) => (
+        <View
+          key={i}
+          style={
+            cards
+              ? [styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]
+              : [styles.flat, { borderBottomColor: theme.cardBorder }]
+          }>
+          <View style={styles.text}>
+            <View
+              style={[
+                styles.bar,
+                { width: `${70 - (i % 3) * 12}%`, backgroundColor: theme.element },
+              ]}
+            />
+            <View style={[styles.bar, styles.barSmall, { backgroundColor: theme.element }]} />
+          </View>
+        </View>
+      ))}
+    </Reanimated.View>
+  );
+}
+
 const styles = StyleSheet.create({
+  bar: { height: 14, borderRadius: 7 },
+  barSmall: { width: '35%', height: 10, borderRadius: 5, marginTop: 6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   card: {
     marginHorizontal: Spacing.three,

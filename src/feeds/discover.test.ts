@@ -1,5 +1,6 @@
 import { categoriesForYou } from './categories';
 import { collectPicks, feedKey } from './recommendations';
+import { firstEpisodes } from './sync';
 
 describe('categoriesForYou', () => {
   it('puts the categories your shows are in first', () => {
@@ -57,5 +58,19 @@ describe('collectPicks', () => {
 
   it('compares feed addresses loosely', () => {
     expect(feedKey('HTTPS://Drift.example/rss/')).toBe('drift.example/rss');
+  });
+});
+
+describe('firstEpisodes', () => {
+  const head = '<rss><channel><title>Low Tide Radio</title>';
+  const item = (n: number) => `<item><title>Episode ${n}</title></item>`;
+
+  it('cuts a feed that is still arriving after its newest episodes', () => {
+    const arriving = `${head}${item(3)}${item(2)}${item(1)}<item><title>Epi`;
+    expect(firstEpisodes(arriving, 2)).toBe(`${head}${item(3)}${item(2)}</channel></rss>`);
+  });
+
+  it('waits until enough episodes are in', () => {
+    expect(firstEpisodes(`${head}${item(1)}<item>`, 2)).toBeNull();
   });
 });
